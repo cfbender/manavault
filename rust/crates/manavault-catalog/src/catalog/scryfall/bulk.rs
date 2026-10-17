@@ -99,13 +99,50 @@ pub async fn decode_list(path: PathBuf) -> Result<Vec<Value>, String> {
     .map_err(|error| error.to_string())?
 }
 
+/// How a printing is framed: the Scryfall fields lotus's [`ScryfallCard`]
+/// does not decode. A record whose frame fields cannot be read gets the
+/// default frame rather than being skipped.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+pub struct Frame {
+    #[serde(default)]
+    pub frame_effects: Vec<String>,
+    #[serde(default)]
+    pub border_color: Option<String>,
+    #[serde(default)]
+    pub full_art: bool,
+}
+
+/// A bulk record: lotus's card and its [`Frame`]. Derefs to the card.
+#[derive(Debug, Clone)]
+pub struct BulkCard {
+    pub card: ScryfallCard,
+    pub frame: Frame,
+}
+
+impl std::ops::Deref for BulkCard {
+    type Target = ScryfallCard;
+
+    fn deref(&self) -> &ScryfallCard {
+        &self.card
+    }
+}
+
+impl<'de> Deserialize<'de> for BulkCard {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        decode_card(&Value::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Decodes one bulk record. lotus drops vocabulary it does not know (a new
 /// rarity, finish, color, or legality, or an `all_parts` entry without an id)
 /// instead of failing the card; a record that still fails (no `id` or
 /// `name`) is skipped by the caller, as earlier releases skipped records
 /// they could not build rows for.
-pub fn decode_card(record: &Value) -> Result<ScryfallCard, serde_json::Error> {
-    ScryfallCard::deserialize(record)
+pub fn decode_card(record: &Value) -> Result<BulkCard, serde_json::Error> {
+    Ok(BulkCard {
+        card: ScryfallCard::deserialize(record)?,
+        frame: Frame::deserialize(record).unwrap_or_default(),
+    })
 }
 
 /// Streams the bulk file's paper printings in import batches. Records that
@@ -114,7 +151,7 @@ pub fn decode_card(record: &Value) -> Result<ScryfallCard, serde_json::Error> {
 pub fn paper_card_batches(
     path: PathBuf,
 ) -> (
-    mpsc::Receiver<Result<Vec<ScryfallCard>, ImportError>>,
+    mpsc::Receiver<Result<Vec<BulkCard>, ImportError>>,
     tokio::sync::oneshot::Receiver<usize>,
 ) {
     let (sender, receiver) = mpsc::channel(2);

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT set_code AS \"set_code!\", image_uris AS \"image_uris!\" FROM (\n             SELECT p.set_code, p.image_uris,\n                    ROW_NUMBER() OVER (\n                      PARTITION BY p.set_code\n                      ORDER BY COALESCE(CAST(p.prices->>'usd' AS REAL), CAST(p.prices->>'usd_foil' AS REAL), 0) DESC,\n                               CASE p.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,\n                               p.collector_number ASC\n                    ) AS position\n             FROM scryfall_printings AS p)\n           WHERE position <= ?1 ORDER BY set_code, position",
+  "describe": {
+    "columns": [
+      {
+        "name": "set_code!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "image_uris!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "fb06cede3885eee49a23740c77c5d2d90eb97ac00ed3b0b5d588f2a4d01bce21"
+}

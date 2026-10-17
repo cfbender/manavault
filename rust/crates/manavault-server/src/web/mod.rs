@@ -122,6 +122,7 @@ pub fn router(state: WebState) -> Router {
         "/settings",
         "/cards",
         "/cards/{id}",
+        "/cards/sets/{code}",
         "/decks",
         "/decks/{id}",
         "/decks/{id}/playtest",

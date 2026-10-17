@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT p.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 p.oracle_id AS \"oracle_id!: lotus::OracleId\", p.set_code AS \"set_code!\",\n                 p.set_name AS \"set_name?\", p.collector_number AS \"collector_number!\",\n                 p.illustration_id AS \"illustration_id?\", p.lang AS \"lang!\",\n                 p.flavor_name AS \"flavor_name?\", p.flavor_text AS \"flavor_text?\",\n                 p.rarity AS \"rarity?\", p.finishes AS \"finishes!\", p.promo_types AS \"promo_types!\",\n                 p.promo AS \"promo!: bool\", p.image_uris AS \"image_uris!\", p.prices AS \"prices!\",\n                 p.released_at AS \"released_at?\", p.tcgplayer_id AS \"tcgplayer_id?\",\n                 p.tcgplayer_etched_id AS \"tcgplayer_etched_id?\"\n               FROM scryfall_printings AS p WHERE p.oracle_id = ?1\n         ORDER BY CASE WHEN p.illustration_id = ?2 OR p.scryfall_id = ?3 THEN 0 ELSE 1 END ASC,\n                  p.released_at DESC, p.set_code ASC, p.collector_number ASC\n         LIMIT 300",
+  "query": "SELECT p.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 p.oracle_id AS \"oracle_id!: lotus::OracleId\", p.set_code AS \"set_code!\",\n                 p.set_name AS \"set_name?\", p.collector_number AS \"collector_number!\",\n                 p.illustration_id AS \"illustration_id?\", p.lang AS \"lang!\",\n                 p.flavor_name AS \"flavor_name?\", p.flavor_text AS \"flavor_text?\",\n                 p.rarity AS \"rarity?\", p.finishes AS \"finishes!\", p.promo_types AS \"promo_types!\",\n                 p.promo AS \"promo!: bool\", p.image_uris AS \"image_uris!\", p.prices AS \"prices!\",\n                 p.released_at AS \"released_at?\", p.tcgplayer_id AS \"tcgplayer_id?\",\n                 p.tcgplayer_etched_id AS \"tcgplayer_etched_id?\",\n                 p.frame_effects AS \"frame_effects!\", p.border_color AS \"border_color?\",\n                 p.full_art AS \"full_art!: bool\"\n               FROM scryfall_printings AS p WHERE p.scryfall_id IN (\n           SELECT ranked.scryfall_id FROM (\n             SELECT sp.scryfall_id, row_number() OVER (\n               PARTITION BY sp.oracle_id ORDER BY sp.released_at DESC, sp.set_code ASC\n             ) AS rn\n             FROM scryfall_printings AS sp\n             WHERE sp.oracle_id IN (SELECT value FROM json_each(?1))\n           ) AS ranked WHERE ranked.rn = 1\n         )",
   "describe": {
     "columns": [
       {
@@ -200,10 +200,43 @@
             "name": "tcgplayer_etched_id"
           }
         }
+      },
+      {
+        "name": "frame_effects!",
+        "ordinal": 18,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "frame_effects"
+          }
+        }
+      },
+      {
+        "name": "border_color?",
+        "ordinal": 19,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "border_color"
+          }
+        }
+      },
+      {
+        "name": "full_art!: bool",
+        "ordinal": 20,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "full_art"
+          }
+        }
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 1
     },
     "nullable": [
       true,
@@ -223,8 +256,11 @@
       false,
       true,
       true,
-      true
+      true,
+      false,
+      true,
+      false
     ]
   },
-  "hash": "20172cef041f0d1565a3acd4e77f37bc1af1cbaebdd27417c738e8ee9b04403a"
+  "hash": "729be133ff4aafc336cabd0c50187cd0eed9f8887eb6af3c2bd11c853a0e9c89"
 }

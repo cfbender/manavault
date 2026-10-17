@@ -79,6 +79,17 @@ Card detail pages show:
 - add-to-collection, add-to-deck, and add-to-wants actions from exact printings
 - links to Scryfall, EDHREC, and MTGStocks
 
+**View sets** on the search page opens the set browser. Sets shelve by release
+year with category chips (expansions, Commander, masters, and so on; promos
+and tokens are hidden by default), a name search, sorting, and an owned-only
+switch. A set's page flips through its cards one at a time like a stack in a
+box, or shows them as a grid, with the usual sorting and collection filters.
+**Group by treatment** splits the set into sections such as Borderless,
+Extended Art, or Fracture Foil Japan Showcase, derived from each printing's
+promo types, frame effects, border, and full-art flag (Scryfall's hand-named
+set sections are not in its API). Clicking the front card opens it full
+screen.
+
 ## Collection
 
 The collection has four primary views:

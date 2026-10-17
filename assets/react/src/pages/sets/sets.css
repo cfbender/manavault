@@ -1,0 +1,314 @@
+/* Set browser. Set tiles fan out the set's most valuable cards above its
+   symbol; the set page stands the set's cards in a row to flip through, with
+   index dividers between treatment sections. */
+
+/* ---------- Set tiles ---------- */
+
+.set-tile {
+  --fan-spread: 9deg;
+  --fan-lift: 0%;
+  --set-tile-spring: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.set-tile__fan {
+  position: relative;
+  height: 11rem;
+  margin-inline: auto;
+}
+
+.set-tile__card {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 6.3rem;
+  aspect-ratio: 5 / 7;
+  border-radius: 4.75% / 3.4%;
+  object-fit: cover;
+  background: var(--color-base-300);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.18) inset,
+    0 6px 14px -6px rgb(0 0 0 / 0.55);
+  transform-origin: 50% 115%;
+  transform: translateX(-50%) translateY(calc(var(--fan-lift) * var(--lift, 1)))
+    rotate(calc(var(--slot) * var(--fan-spread)));
+  transition: transform 420ms var(--set-tile-spring);
+}
+
+.set-tile__card--blank {
+  border: 1.5px solid var(--color-base-300);
+  background:
+    radial-gradient(
+      ellipse 60% 45% at 50% 50%,
+      color-mix(in oklch, var(--color-base-content) 9%, transparent),
+      transparent 70%
+    ),
+    var(--color-base-200);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .set-tile:hover,
+  .set-tile:focus-visible {
+    --fan-spread: 15deg;
+    --fan-lift: -7%;
+  }
+}
+
+.set-symbol {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: var(--set-icon) center / contain no-repeat;
+  mask: var(--set-icon) center / contain no-repeat;
+}
+
+/* ---------- Flipping through a set ---------- */
+
+@property --riffle-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+@property --riffle-glow-soft {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+.riffle-stage {
+  --riffle-glow: color-mix(in oklch, var(--color-primary) 16%, transparent);
+  --riffle-glow-soft: transparent;
+  position: relative;
+  height: clamp(25rem, calc(100dvh - 16rem), 44rem);
+  overflow: hidden;
+  container-type: size;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  background:
+    radial-gradient(ellipse 46% 40% at 50% 62%, var(--riffle-glow), transparent 72%),
+    radial-gradient(ellipse 36% 30% at 72% 30%, var(--riffle-glow-soft), transparent 74%),
+    var(--color-base-200);
+  transition:
+    --riffle-glow 700ms ease,
+    --riffle-glow-soft 700ms ease;
+}
+
+.riffle-stage:active {
+  cursor: grabbing;
+}
+
+.riffle-stage:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--color-primary) 60%, transparent);
+  outline-offset: 2px;
+}
+
+/* The front card's art colors at the theme's lightness, like the full-screen
+   card view. */
+.riffle-stage[data-art] {
+  --riffle-glow: oklch(from var(--art-primary) 0.8 max(c, 0.12) h / 0.75);
+  --riffle-glow-soft: oklch(from var(--art-secondary) 0.86 max(c, 0.08) h / 0.5);
+}
+
+[data-theme="dark"] .riffle-stage[data-art] {
+  --riffle-glow: oklch(from var(--art-primary) 0.42 max(c, 0.11) h / 0.8);
+  --riffle-glow-soft: oklch(from var(--art-secondary) 0.34 max(c, 0.08) h / 0.6);
+}
+
+.riffle-stage {
+  --card-h: min(60cqh, calc(78cqw * 7 / 5));
+  --card-w: calc(var(--card-h) * 5 / 7);
+}
+
+/* The cards stand on this floor, seen from a little above; the farthest ones
+   fade into the back of the stage instead of being cut off. */
+.riffle-floor {
+  position: absolute;
+  inset: 0;
+  perspective: 1500px;
+  perspective-origin: 50% -30%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, currentColor 12%);
+  mask-image: linear-gradient(to bottom, transparent 0, currentColor 12%);
+}
+
+.riffle-slot {
+  position: absolute;
+  left: 50%;
+  bottom: 5cqh;
+  width: var(--card-w);
+  height: var(--card-h);
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
+}
+
+.riffle-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 4.75% / 3.4%;
+  overflow: hidden;
+  background: var(--color-base-300);
+  /* Cardstock: a hairline catching the light along the top edge, and a
+     shadow falling on the card behind. */
+  box-shadow:
+    0 1px 0 0 rgb(255 255 255 / 0.22) inset,
+    0 -1px 0 0 rgb(0 0 0 / 0.25) inset,
+    0 -0.4rem 1.2rem -0.5rem rgb(0 0 0 / 0.45),
+    0 0.9rem 1.8rem -0.9rem rgb(0 0 0 / 0.6);
+}
+
+.riffle-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Depth: cards further back sit in the shadow of the ones in front. */
+.riffle-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: 4.75% / 3.4%;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.15), rgb(0 0 0 / 0.65));
+  pointer-events: none;
+}
+
+.riffle-card--missing {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  font-weight: 800;
+  color: var(--color-base-content);
+  border: 1.5px solid var(--color-base-300);
+  background: var(--color-base-100);
+}
+
+/* Index dividers between treatment sections: a card-sized board with a tab
+   standing above the cards, so the next section is visible from afar. */
+.riffle-divider {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 3% / 2.2%;
+  border: 1.5px solid color-mix(in oklch, var(--color-base-content) 16%, transparent);
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-base-100) 70%, transparent),
+      transparent 40%
+    ),
+    var(--color-base-300);
+  box-shadow:
+    0 1px 0 0 rgb(255 255 255 / 0.25) inset,
+    0 -0.4rem 1.2rem -0.5rem rgb(0 0 0 / 0.35),
+    0 0.9rem 1.8rem -0.9rem rgb(0 0 0 / 0.5);
+  color: var(--color-base-content);
+}
+
+.riffle-divider__tab {
+  position: absolute;
+  bottom: calc(100% - 1.5px);
+  left: var(--tab-offset, 8%);
+  max-width: 58%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.35em 0.75em 0.3em;
+  border: 1.5px solid color-mix(in oklch, var(--color-base-content) 16%, transparent);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--color-base-300);
+  font-size: clamp(0.62rem, 2.6cqh, 0.82rem);
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.25) inset;
+}
+
+.riffle-divider__tab span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.riffle-divider__face {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 12% 10%;
+  text-align: center;
+}
+
+/* ---------- Scrubber: a range input whose thumb is a tiny card ---------- */
+
+.riffle-scrubber {
+  --track: color-mix(in oklch, var(--color-base-content) 14%, transparent);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 2.75rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.riffle-scrubber:focus-visible {
+  outline: none;
+}
+
+.riffle-scrubber::-webkit-slider-runnable-track {
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: var(--track);
+}
+
+.riffle-scrubber::-moz-range-track {
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: var(--track);
+}
+
+.riffle-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1.4rem;
+  margin-top: -0.55rem;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-primary-content);
+  background: var(--color-primary);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+.riffle-scrubber::-moz-range-thumb {
+  width: 1rem;
+  height: 1.4rem;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-primary-content);
+  background: var(--color-primary);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+.riffle-scrubber:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 35%, transparent),
+    0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+.riffle-scrubber:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 35%, transparent),
+    0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-tile__card {
+    transition: none;
+  }
+
+  .riffle-stage {
+    transition: none;
+  }
+}

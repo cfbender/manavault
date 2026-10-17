@@ -16,6 +16,7 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use crate::catalog::oracle_tags::{self, OracleTagIndex};
+use crate::catalog::scryfall::bulk::BulkCard;
 use crate::catalog::scryfall::diff::{self, Changes};
 use crate::catalog::scryfall::push_in_list;
 use crate::catalog::scryfall::reconcile;
@@ -127,7 +128,7 @@ pub fn excluded(card: &ScryfallCard) -> bool {
 /// tag columns are replaced from an empty tag list.
 pub async fn import_cards(
     pool: &SqlitePool,
-    cards: Vec<ScryfallCard>,
+    cards: Vec<BulkCard>,
 ) -> Result<ImportSummary, ImportError> {
     import_cards_with(pool, cards, ImportOptions::default()).await
 }
@@ -135,7 +136,7 @@ pub async fn import_cards(
 /// Imports a list of cards (`Catalog.import_cards/3`).
 pub async fn import_cards_with(
     pool: &SqlitePool,
-    cards: Vec<ScryfallCard>,
+    cards: Vec<BulkCard>,
     mut options: ImportOptions,
 ) -> Result<ImportSummary, ImportError> {
     options.source_count.get_or_insert(cards.len());
@@ -151,7 +152,7 @@ pub async fn import_cards_with(
 /// (`Manavault.Catalog.Cached.import_cards/3`).
 pub async fn import(
     state: &AppState,
-    cards: Vec<ScryfallCard>,
+    cards: Vec<BulkCard>,
     options: ImportOptions,
 ) -> Result<ImportSummary, ImportError> {
     let summary = import_cards_with(&state.db, cards, options).await?;
@@ -174,7 +175,7 @@ pub async fn run<S>(
     options: ImportOptions,
 ) -> Result<ImportSummary, ImportError>
 where
-    S: Stream<Item = Result<Vec<ScryfallCard>, ImportError>>,
+    S: Stream<Item = Result<Vec<BulkCard>, ImportError>>,
 {
     let (tag_index, replace_tags) = match &options.oracle_tags {
         OracleTags::Replace(tags) => (oracle_tags::build_index(tags), true),
@@ -236,7 +237,7 @@ async fn import_batches<S>(
     options: &ImportOptions,
 ) -> Result<Progress, ImportError>
 where
-    S: Stream<Item = Result<Vec<ScryfallCard>, ImportError>>,
+    S: Stream<Item = Result<Vec<BulkCard>, ImportError>>,
 {
     let mut progress = Progress {
         summary: ImportSummary::default(),
@@ -248,7 +249,7 @@ where
     while let Some(batch) = batches.next().await {
         let batch = batch?;
         let batch_len = batch.len();
-        let kept: Vec<ScryfallCard> = batch.into_iter().filter(|card| !excluded(card)).collect();
+        let kept: Vec<BulkCard> = batch.into_iter().filter(|card| !excluded(card)).collect();
         let rows = rows::rows(kept, tag_index);
         let card_rows = rows.cards.len();
         let printing_rows = rows.printings.len();
@@ -377,8 +378,8 @@ async fn write_batch(
     for row in &changes.printings {
         let p = &row.fields;
         sqlx::query!(
-            "INSERT INTO scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, inserted_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20)
+            "INSERT INTO scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, frame_effects, border_color, full_art, inserted_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23)
              ON CONFLICT (scryfall_id) DO UPDATE SET oracle_id = excluded.oracle_id, set_code = excluded.set_code,
                set_name = excluded.set_name, collector_number = excluded.collector_number,
                illustration_id = excluded.illustration_id, lang = excluded.lang, flavor_name = excluded.flavor_name,
@@ -386,7 +387,8 @@ async fn write_batch(
                rarity = excluded.rarity, finishes = excluded.finishes, promo_types = excluded.promo_types,
                promo = excluded.promo, image_uris = excluded.image_uris, prices = excluded.prices,
                released_at = excluded.released_at, tcgplayer_id = excluded.tcgplayer_id,
-               tcgplayer_etched_id = excluded.tcgplayer_etched_id, updated_at = excluded.updated_at",
+               tcgplayer_etched_id = excluded.tcgplayer_etched_id, frame_effects = excluded.frame_effects,
+               border_color = excluded.border_color, full_art = excluded.full_art, updated_at = excluded.updated_at",
             row.scryfall_id,
             p.oracle_id,
             p.set_code,
@@ -406,6 +408,9 @@ async fn write_batch(
             p.released_at,
             p.tcgplayer_id,
             p.tcgplayer_etched_id,
+            p.frame_effects,
+            p.border_color,
+            p.full_art,
             now,
         )
         .execute(&mut *tx)

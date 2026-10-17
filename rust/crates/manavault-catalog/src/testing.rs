@@ -9,7 +9,7 @@ use serde_json::Value;
 
 /// Imports Scryfall card JSON into the catalog.
 pub async fn import_cards(pool: &sqlx::SqlitePool, cards: &[Value]) {
-    let cards: Vec<lotus::scryfall::ScryfallCard> = cards
+    let cards: Vec<crate::catalog::scryfall::bulk::BulkCard> = cards
         .iter()
         .map(|card| serde_json::from_value(card.clone()).expect("valid Scryfall card"))
         .collect();

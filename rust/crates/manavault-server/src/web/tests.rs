@@ -183,11 +183,12 @@ impl<'a> Browser<'a> {
     }
 }
 
-const PRIVATE_BROWSER_PATHS: [&str; 12] = [
+const PRIVATE_BROWSER_PATHS: [&str; 13] = [
     "/",
     "/settings",
     "/cards",
     "/cards/card-id",
+    "/cards/sets/set-code",
     "/decks",
     "/decks/deck-id",
     "/decks/deck-id/playtest",

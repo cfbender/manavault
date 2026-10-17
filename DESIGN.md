@@ -246,6 +246,13 @@ Foil treatment belongs only to Magic card imagery, including cards shown inside 
 - **Decks:** Decks are wide deck boxes standing on their long side: the front printed edge to edge with the cover art, the cover card rising out of the open top beside the deck's most valuable cards (up to four, priciest first; plain sleeves for an empty deck), and the commander's colors stuck on as mana stickers. The gallery shows them large (two or three across, grouped by format) with the name beneath, and the deck page header shows the same box beside the deck's name.
 - **Hover:** The object answers the pointer the way the real thing would (the binder page tilts and catches light, box cards lift, the fan spreads). Hover-capable pointers only; no motion under reduced motion.
 
+### Signature Component: Set Browser
+
+- **Sets shelf:** Each set is a tile with its three most valuable cards fanned above its symbol, its name, release date, and an owned-of-total meter. Tiles shelve by release year, newest first; hover spreads the fan.
+- **Flip stack:** A set's cards stand in a row on a dark stage like cards in a box. The front card faces the viewer at full size and the cards behind it show only their name bars; flipping tips the front card forward onto the floor and raises the next one. Wheel, drag, swipe, the arrow, Page, Home, and End keys, and the scrubber beneath the stage all flip; Enter or a click opens the front card full screen.
+- **Dividers:** When cards are grouped by treatment, an index divider with a tab stands in front of each section (Main set, Borderless, Extended Art, Fracture Foil Japan Showcase, ...). Section names are derived from the printing's promo types, frame effects, border, and full-art flag, and the scrubber marks each section start.
+- **Material:** The front card takes the tilt, glare, and foil of a card in hand, and the stage glows with its art colors.
+
 ## 6. Motion
 
 Motion keeps objects continuous across navigation instead of decorating pages.

@@ -1,0 +1,47 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.set_code AS \"code!\", max(p.set_name) AS \"name?: String\",\n                  min(p.released_at) AS \"released_at?: String\", count(*) AS \"card_count!: i64\"\n           FROM scryfall_printings AS p\n           GROUP BY p.set_code\n           ORDER BY min(p.released_at) DESC, p.set_code ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "code!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "name?: String",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "name": "released_at?: String",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "name": "card_count!: i64",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "92fd966257d299ac63e93ad323da3ea2ad9976ac99d984408dd4a380d9663142"
+}

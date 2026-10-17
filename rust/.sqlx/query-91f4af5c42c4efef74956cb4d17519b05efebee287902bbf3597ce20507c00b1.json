@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT p.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 p.oracle_id AS \"oracle_id!: lotus::OracleId\", p.set_code AS \"set_code!\",\n                 p.set_name AS \"set_name?\", p.collector_number AS \"collector_number!\",\n                 p.illustration_id AS \"illustration_id?\", p.lang AS \"lang!\",\n                 p.flavor_name AS \"flavor_name?\", p.flavor_text AS \"flavor_text?\",\n                 p.rarity AS \"rarity?\", p.finishes AS \"finishes!\", p.promo_types AS \"promo_types!\",\n                 p.promo AS \"promo!: bool\", p.image_uris AS \"image_uris!\", p.prices AS \"prices!\",\n                 p.released_at AS \"released_at?\", p.tcgplayer_id AS \"tcgplayer_id?\",\n                 p.tcgplayer_etched_id AS \"tcgplayer_etched_id?\"\n               FROM scryfall_printings AS p WHERE p.scryfall_id = ?1",
+  "query": "SELECT p.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 p.oracle_id AS \"oracle_id!: lotus::OracleId\", p.set_code AS \"set_code!\",\n                 p.set_name AS \"set_name?\", p.collector_number AS \"collector_number!\",\n                 p.illustration_id AS \"illustration_id?\", p.lang AS \"lang!\",\n                 p.flavor_name AS \"flavor_name?\", p.flavor_text AS \"flavor_text?\",\n                 p.rarity AS \"rarity?\", p.finishes AS \"finishes!\", p.promo_types AS \"promo_types!\",\n                 p.promo AS \"promo!: bool\", p.image_uris AS \"image_uris!\", p.prices AS \"prices!\",\n                 p.released_at AS \"released_at?\", p.tcgplayer_id AS \"tcgplayer_id?\",\n                 p.tcgplayer_etched_id AS \"tcgplayer_etched_id?\",\n                 p.frame_effects AS \"frame_effects!\", p.border_color AS \"border_color?\",\n                 p.full_art AS \"full_art!: bool\"\n               FROM scryfall_printings AS p WHERE p.oracle_id = ?1\n         ORDER BY CASE WHEN p.illustration_id = ?2 OR p.scryfall_id = ?3 THEN 0 ELSE 1 END ASC,\n                  p.released_at DESC, p.set_code ASC, p.collector_number ASC\n         LIMIT 300",
   "describe": {
     "columns": [
       {
@@ -200,10 +200,43 @@
             "name": "tcgplayer_etched_id"
           }
         }
+      },
+      {
+        "name": "frame_effects!",
+        "ordinal": 18,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "frame_effects"
+          }
+        }
+      },
+      {
+        "name": "border_color?",
+        "ordinal": 19,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "border_color"
+          }
+        }
+      },
+      {
+        "name": "full_art!: bool",
+        "ordinal": 20,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "full_art"
+          }
+        }
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 3
     },
     "nullable": [
       true,
@@ -223,8 +256,11 @@
       false,
       true,
       true,
-      true
+      true,
+      false,
+      true,
+      false
     ]
   },
-  "hash": "99ede14aebbe6f40ec7056e8007bb8e720c9a04b10597fc37fdeadf2db6ed3ca"
+  "hash": "91f4af5c42c4efef74956cb4d17519b05efebee287902bbf3597ce20507c00b1"
 }

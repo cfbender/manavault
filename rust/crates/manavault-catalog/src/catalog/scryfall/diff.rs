@@ -97,7 +97,7 @@ async fn stored_printings(
     let mut stored = HashMap::new();
     for chunk in ids.chunks(LOOKUP_BATCH_SIZE) {
         let mut builder = QueryBuilder::new(
-            "SELECT scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id FROM scryfall_printings WHERE scryfall_id IN",
+            "SELECT scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, frame_effects, border_color, full_art FROM scryfall_printings WHERE scryfall_id IN",
         );
         push_in_list(&mut builder, chunk);
         for row in builder.build().fetch_all(pool).await? {
@@ -122,6 +122,9 @@ async fn stored_printings(
                     released_at: row.try_get("released_at")?,
                     tcgplayer_id: row.try_get("tcgplayer_id")?,
                     tcgplayer_etched_id: row.try_get("tcgplayer_etched_id")?,
+                    frame_effects: row.try_get("frame_effects")?,
+                    border_color: row.try_get("border_color")?,
+                    full_art: row.try_get("full_art")?,
                 },
             );
         }

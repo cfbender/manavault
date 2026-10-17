@@ -6,6 +6,7 @@ mod prices;
 mod rulings;
 mod schema;
 mod search;
+mod sets;
 mod suggestions;
 
 use serde_json::Value;

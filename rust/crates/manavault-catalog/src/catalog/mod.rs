@@ -18,6 +18,7 @@ pub mod schema;
 pub mod scryfall;
 pub mod scryfall_query;
 pub mod search;
+pub mod sets;
 pub mod sql;
 
 pub use card::{Card, CardConnection, CardEdge, CardRecord};

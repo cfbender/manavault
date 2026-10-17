@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.set_code AS \"code!\", count(DISTINCT item.scryfall_id) AS \"owned!: i64\"\n           FROM collection_items AS item\n           JOIN scryfall_printings AS p ON p.scryfall_id = item.scryfall_id\n           LEFT JOIN locations AS location ON location.id = item.location_id\n           WHERE (location.id IS NULL OR location.kind != 'list') AND (?1 IS NULL OR p.set_code = ?1)\n           GROUP BY p.set_code",
+  "describe": {
+    "columns": [
+      {
+        "name": "code!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "owned!: i64",
+        "ordinal": 1,
+        "type_info": "Null",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "6bedb4f7b7b73594a4ee6b01a3c31e146863d33c392f9f68c63c0f5a2b270070"
+}

@@ -29,7 +29,9 @@ macro_rules! printing_query {
                  p.rarity AS "rarity?", p.finishes AS "finishes!", p.promo_types AS "promo_types!",
                  p.promo AS "promo!: bool", p.image_uris AS "image_uris!", p.prices AS "prices!",
                  p.released_at AS "released_at?", p.tcgplayer_id AS "tcgplayer_id?",
-                 p.tcgplayer_etched_id AS "tcgplayer_etched_id?"
+                 p.tcgplayer_etched_id AS "tcgplayer_etched_id?",
+                 p.frame_effects AS "frame_effects!", p.border_color AS "border_color?",
+                 p.full_art AS "full_art!: bool"
                FROM scryfall_printings AS p "# + $tail
             $(, $arg)*
         )
@@ -58,6 +60,10 @@ pub struct PrintingRecord {
     pub released_at: Option<String>,
     pub tcgplayer_id: Option<i64>,
     pub tcgplayer_etched_id: Option<i64>,
+    /// JSON array, such as `["showcase","inverted"]`.
+    pub frame_effects: String,
+    pub border_color: Option<String>,
+    pub full_art: bool,
 }
 
 impl PrintingRecord {
@@ -384,6 +390,20 @@ impl Printing {
 
     async fn promo(&self) -> bool {
         self.record.promo
+    }
+
+    /// Scryfall frame effects, such as `showcase`, `extendedart`, or `inverted`.
+    async fn frame_effects(&self) -> Vec<String> {
+        json::strings(&self.record.frame_effects)
+    }
+
+    /// Scryfall border color: `black`, `white`, `borderless`, `silver`, or `gold`.
+    async fn border_color(&self) -> Option<&str> {
+        self.record.border_color.as_deref()
+    }
+
+    async fn full_art(&self) -> bool {
+        self.record.full_art
     }
 
     /// Current price in cents for a finish, from the selected price source with finish fallback.

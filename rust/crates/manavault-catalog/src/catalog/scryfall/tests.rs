@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use lotus::scryfall::ScryfallCard;
+use super::bulk::BulkCard;
 use serde_json::{Value, json};
 use sqlx::Row as _;
 use wiremock::matchers::{method, path};
@@ -74,7 +74,7 @@ fn scryfall_tag(attrs: Value) -> Value {
     )
 }
 
-fn cards(values: &[Value]) -> Vec<ScryfallCard> {
+fn cards(values: &[Value]) -> Vec<BulkCard> {
     values
         .iter()
         .map(|value| serde_json::from_value(value.clone()).unwrap())

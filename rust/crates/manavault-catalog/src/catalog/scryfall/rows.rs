@@ -5,6 +5,7 @@ use lotus::scryfall::ScryfallCard;
 use serde::Serialize;
 
 use crate::catalog::oracle_tags::{self, OracleTagIndex, TagFields};
+use crate::catalog::scryfall::bulk::{BulkCard, Frame};
 
 /// Card columns the import owns, other than the key, `rulings_uri`, and the
 /// oracle tag columns. They are compared against the stored row to decide
@@ -58,6 +59,9 @@ pub struct PrintingFields {
     pub released_at: Option<String>,
     pub tcgplayer_id: Option<i64>,
     pub tcgplayer_etched_id: Option<i64>,
+    pub frame_effects: String,
+    pub border_color: Option<String>,
+    pub full_art: bool,
 }
 
 /// One `scryfall_printings` row.
@@ -100,9 +104,9 @@ fn json<T: Serialize>(value: &T) -> String {
 /// [`faces_text`] converts at this boundary. Single-faced cards without the
 /// field stay `NULL`.
 #[must_use]
-pub fn rows(cards: Vec<ScryfallCard>, tag_index: &OracleTagIndex) -> Rows {
+pub fn rows(cards: Vec<BulkCard>, tag_index: &OracleTagIndex) -> Rows {
     let mut rows = Rows::default();
-    for card in cards {
+    for BulkCard { card, frame } in cards {
         let card = card.with_face_identity();
         for token in card.token_ids() {
             rows.card_tokens.push(TokenRow {
@@ -114,7 +118,7 @@ pub fn rows(cards: Vec<ScryfallCard>, tag_index: &OracleTagIndex) -> Rows {
             continue;
         };
         rows.cards.push(card_row(&card, &oracle_id, tag_index));
-        rows.printings.push(printing_row(&card, oracle_id));
+        rows.printings.push(printing_row(&card, frame, oracle_id));
     }
     rows
 }
@@ -158,7 +162,7 @@ fn image_uris(card: &ScryfallCard) -> String {
     }
 }
 
-fn printing_row(card: &ScryfallCard, oracle_id: String) -> PrintingRow {
+fn printing_row(card: &ScryfallCard, frame: Frame, oracle_id: String) -> PrintingRow {
     let flavor_name = faces_text(card, card.full_flavor_name());
     PrintingRow {
         scryfall_id: card.id.as_str().to_owned(),
@@ -183,6 +187,9 @@ fn printing_row(card: &ScryfallCard, oracle_id: String) -> PrintingRow {
             tcgplayer_etched_id: card
                 .tcgplayer_etched_id
                 .and_then(|id| i64::try_from(id).ok()),
+            frame_effects: json(&frame.frame_effects),
+            border_color: frame.border_color,
+            full_art: frame.full_art,
         },
     }
 }
@@ -192,7 +199,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn card(value: serde_json::Value) -> ScryfallCard {
+    fn card(value: serde_json::Value) -> BulkCard {
         serde_json::from_value(value).unwrap()
     }
 

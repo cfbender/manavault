@@ -12,6 +12,7 @@ use crate::catalog::search::printings::{
     SetSuggestion, scanner_printings, search_sets, set_illustration_ids,
 };
 use crate::catalog::search::{cards_by_name, suggestions};
+use crate::catalog::sets::{self, CardSet};
 use manavault_core::graphql::relay::{PageArgs, forward_window, from_slice, node_str};
 use manavault_core::graphql::{NodeKind, Result, state, user_error};
 
@@ -90,6 +91,16 @@ impl CardQueries {
         )
         .await
         .map_err(db_error)
+    }
+
+    /// Every set in the catalog, newest first.
+    async fn card_sets(&self, ctx: &Context<'_>) -> Result<Vec<CardSet>> {
+        sets::list(state(ctx)).await.map_err(db_error)
+    }
+
+    /// A set by code, in any case.
+    async fn card_set(&self, ctx: &Context<'_>, code: String) -> Result<Option<CardSet>> {
+        sets::find(state(ctx), &code).await.map_err(db_error)
     }
 
     async fn card(&self, ctx: &Context<'_>, id: ID) -> Result<Option<Card>> {
