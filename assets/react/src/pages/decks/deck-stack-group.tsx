@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react"
 
 import type { DeckGroup } from "../../lib/deck-grouping"
-import { useIsMobile } from "../../lib/mobile-hover"
+import { didMobileHoverPointerMove, useIsMobile } from "../../lib/mobile-hover"
 import { GroupIcon } from "./deck-card-display"
 import { canBeCommander } from "./commander-pairing"
 import { DeckStackCard, DeckUnstackedSelectCard } from "./deck-stack-card"
@@ -99,6 +99,13 @@ export function DeckStackGroup({
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
   const suppressStackClickRef = useRef(false)
+  const pendingTouchRevealRef = useRef<{
+    index: number
+    moved: boolean
+    pointerId: number
+    startX: number
+    startY: number
+  } | null>(null)
   const { isMobile } = useIsMobile()
   const size = useCardSize()
   const isUnstacked = shouldUnstackDeckStackGroup({ isMobile, isSelecting })
@@ -213,9 +220,47 @@ export function DeckStackGroup({
 
     event.stopPropagation()
     clearDeckCardHoverDelay()
-    setHoveredIndex(null)
-    setPinnedIndex(nextIndex)
+    // Raise the card only once the touch ends as a tap: a touch that starts a
+    // scroll would otherwise raise every card it starts on.
+    pendingTouchRevealRef.current = {
+      index: nextIndex,
+      moved: false,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    }
     suppressStackClickRef.current = true
+  }
+
+  function handlePointerMoveCapture(event: PointerEvent<HTMLDivElement>) {
+    const pending = pendingTouchRevealRef.current
+    if (!pending || pending.pointerId !== event.pointerId) return
+    if (
+      didMobileHoverPointerMove({
+        currentX: event.clientX,
+        currentY: event.clientY,
+        startX: pending.startX,
+        startY: pending.startY,
+      })
+    ) {
+      pending.moved = true
+    }
+  }
+
+  function handlePointerUpCapture(event: PointerEvent<HTMLDivElement>) {
+    const pending = pendingTouchRevealRef.current
+    if (!pending || pending.pointerId !== event.pointerId) return
+    pendingTouchRevealRef.current = null
+    if (pending.moved) return
+
+    setHoveredIndex(null)
+    setPinnedIndex(pending.index)
+  }
+
+  function handlePointerCancelCapture(event: PointerEvent<HTMLDivElement>) {
+    if (pendingTouchRevealRef.current?.pointerId === event.pointerId) {
+      pendingTouchRevealRef.current = null
+    }
   }
 
   function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
@@ -265,6 +310,9 @@ export function DeckStackGroup({
           }}
           onPointerMove={handlePointerMove}
           onPointerDownCapture={handlePointerDownCapture}
+          onPointerMoveCapture={handlePointerMoveCapture}
+          onPointerUpCapture={handlePointerUpCapture}
+          onPointerCancelCapture={handlePointerCancelCapture}
           onClickCapture={handleClickCapture}
         >
           {group.cards.map((deckCard, index) => (

@@ -297,7 +297,9 @@ export function FullscreenPrintingDialog({
                 <motion.div
                   key={printing.scryfallId}
                   className="relative max-h-full rounded-[4.75%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-                  style={{ viewTransitionName: CARD_MORPH_NAME }}
+                  // Its own layer, so dealing the card moves an image instead
+                  // of repainting the dialog every frame.
+                  style={{ viewTransitionName: CARD_MORPH_NAME, willChange: "transform, opacity" }}
                   custom={direction}
                   variants={reduceMotion ? FADE_VARIANTS : DEAL_VARIANTS}
                   initial={cardMorphUpdating() ? false : "enter"}

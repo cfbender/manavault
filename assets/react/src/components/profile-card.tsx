@@ -364,6 +364,9 @@ const ProfileCardComponent = ({
                 alt={`${name || "User"} avatar`}
                 // A native image drag would cancel swipes across the card.
                 draggable={false}
+                // Chrome otherwise draws a new card before its image decodes
+                // and fills the image in a frame later, a visible flash.
+                decoding="sync"
                 onError={(event) => {
                   event.currentTarget.style.display = "none"
                 }}

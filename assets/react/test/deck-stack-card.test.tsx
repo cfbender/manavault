@@ -1,8 +1,9 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, expect, test, vi } from "vitest"
+import { afterEach, expect, onTestFinished, test, vi } from "vitest"
 
 import { DeckStackCard } from "../src/pages/decks/deck-stack-card"
+import { DeckStackGroup } from "../src/pages/decks/deck-stack-group"
 import {
   DECK_STACK_CARD_MENU_ATTRIBUTE,
   deckStackCardMenuOwnerId,
@@ -143,4 +144,61 @@ test("allocation quick menu exposes allocate action through a Radix menu", async
   await user.click(allocateItem)
   expect(handlers.allocate).toHaveBeenCalledWith("item-1")
   expect(screen.queryByRole("menu")).toBeNull()
+})
+
+test("a touch that scrolls across a deck stack does not raise the card it started on", () => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((media: string) => ({
+      matches: false,
+      media,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  )
+  onTestFinished(() => vi.unstubAllGlobals())
+  const cards = [deckCard, { ...deckCard, id: "deck-card-2" }]
+  const noop = vi.fn()
+  const { container } = render(
+    <DeckStackGroup
+      canSetCommander={false}
+      deckId="deck-1"
+      deckTags={[]}
+      group={{ cards, icon: "none", key: "main", label: "Main", order: 0, quantity: 2 }}
+      highlightedCardIds={null}
+      isSelecting={false}
+      isUpdating={false}
+      onAddPartner={noop}
+      onAllocate={noop}
+      onAssignTag={noop}
+      onDelete={noop}
+      onDeallocate={noop}
+      onEdit={noop}
+      onMove={noop}
+      onPreview={noop}
+      onSetCommander={noop}
+      onTag={noop}
+      onToggleProxy={noop}
+      onToggleSelected={noop}
+      onUnassignTag={noop}
+      partnerCandidateIds={new Set()}
+      selectedCardIds={new Set()}
+    />,
+  )
+  const firstCard = container.querySelector<HTMLElement>("article[data-deck-id]")!
+  const touch = (type: "pointerDown" | "pointerMove" | "pointerUp", clientY: number) =>
+    fireEvent[type](firstCard, { clientX: 10, clientY, pointerId: 1, pointerType: "touch" })
+
+  touch("pointerDown", 10)
+  touch("pointerMove", 40)
+  touch("pointerUp", 40)
+  expect(firstCard.style.zIndex).toBe("1")
+
+  touch("pointerDown", 10)
+  fireEvent.pointerCancel(firstCard, { pointerId: 1, pointerType: "touch" })
+  expect(firstCard.style.zIndex).toBe("1")
+
+  touch("pointerDown", 10)
+  touch("pointerUp", 10)
+  expect(firstCard.style.zIndex).toBe("90")
 })

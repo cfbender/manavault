@@ -305,11 +305,24 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
   --card-modal-glow-soft: oklch(from var(--art-secondary) 0.36 max(c, 0.08) h);
 }
 
-.fullscreen-printing-dialog {
-  transition:
-    background-color 700ms ease,
-    --card-modal-glow 700ms ease,
-    --card-modal-glow-soft 700ms ease;
+/* Easing the tint repaints the whole dialog every frame, which phones cannot
+   keep up with while the next card animates in; there the tint swaps. */
+@media (hover: hover) and (pointer: fine) {
+  .fullscreen-printing-dialog {
+    transition:
+      background-color 700ms ease,
+      --card-modal-glow 700ms ease,
+      --card-modal-glow-soft 700ms ease;
+  }
+}
+
+/* Below `sm` the dialog covers the screen, so blurring the page behind it
+   is wasted work every frame. */
+@media (max-width: 639px) {
+  :has(+ * > .fullscreen-printing-dialog) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /* Filmstrip: neighboring cards under the full-screen card, the current one
@@ -1353,6 +1366,13 @@ html[data-card-morph] .location-card * {
   view-transition-name: none !important;
 }
 
+/* The full-screen card's glow blurs far past the card's edges, and Safari
+   draws a snapshot with that much overflow offset and oversized, so the card
+   would jump at the end of the morph. It sits the morph out. */
+html[data-card-morph] .pc-behind {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
@@ -1696,38 +1716,44 @@ html[data-card-morph] .location-card * {
 }
 
 /* Card tilt: a card under the mouse leans toward it and catches a soft
-   glare, then settles flat when the pointer leaves (see useCardTilt). */
+   glare, then settles flat when the pointer leaves (see useCardTilt). The 3D
+   transform applies only while the card tilts and eases back to none: a
+   resting 3D transform gives every card in a grid its own GPU layer, and
+   Safari blinks cards while scrolling once it runs out of layer memory. */
 .card-tilt {
-  transform: perspective(800px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
   transition:
     transform 420ms cubic-bezier(0.2, 0.9, 0.25, 1),
     box-shadow 200ms ease;
 }
 
 .card-tilt[data-tilting] {
+  transform: perspective(800px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
   transition:
     transform 90ms linear,
     box-shadow 200ms ease;
 }
 
-.card-tilt::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 15;
-  border-radius: inherit;
-  background: radial-gradient(
-    circle at var(--glare-x, 50%) var(--glare-y, 50%),
-    rgb(255 255 255 / 0.42),
-    rgb(255 255 255 / 0.1) 36%,
-    transparent 60%
-  );
-  mix-blend-mode: overlay;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 260ms ease;
-}
+/* Only a mouse tilts cards, so touch screens skip the glare layer. */
+@media (hover: hover) and (pointer: fine) {
+  .card-tilt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    border-radius: inherit;
+    background: radial-gradient(
+      circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgb(255 255 255 / 0.42),
+      rgb(255 255 255 / 0.1) 36%,
+      transparent 60%
+    );
+    mix-blend-mode: overlay;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 260ms ease;
+  }
 
-.card-tilt[data-tilting]::after {
-  opacity: 1;
+  .card-tilt[data-tilting]::after {
+    opacity: 1;
+  }
 }
