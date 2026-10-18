@@ -2,8 +2,6 @@
 //! and the frontend's public deck query contract.
 
 use serde_json::{Value, json};
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::{T, add_card, insert_deck, public, public_data, share};
 use crate::test_app::TestApp;
@@ -227,15 +225,6 @@ query Card($id: ID!) {
 // resolves it.
 #[tokio::test]
 async fn the_public_share_query_resolves_a_shared_deck_without_owner_data() {
-    let rulings = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/cards/oracle-share-card/rulings"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": [{
-            "source": "wotc", "published_at": "2024-04-05",
-            "comment": "Shared card detail exposes public rulings."
-        }]})))
-        .mount(&rulings)
-        .await;
     let app = TestApp::new().await;
     app.import_cards(&[json!({
         "id": "scryfall-share-card",
@@ -252,10 +241,16 @@ async fn the_public_share_query_resolves_a_shared_deck_without_owner_data() {
         "prices": {"usd": "2.50"},
         "released_at": "2024-02-03",
         "legalities": {"commander": "legal", "modern": "not_legal"},
-        "rulings_uri": format!("{}/cards/oracle-share-card/rulings", rulings.uri()),
         "game_changer": true
     })])
     .await;
+    sqlx::query(
+        "INSERT INTO scryfall_rulings (oracle_id, source, published_at, comment)
+         VALUES ('oracle-share-card', 'wotc', '2024-04-05', 'Shared card detail exposes public rulings.')",
+    )
+    .execute(app.db())
+    .await
+    .unwrap();
     sqlx::query(
         "UPDATE scryfall_cards SET edhrec_commander_rank = 42, edhrec_saltiness = 2.25
          WHERE oracle_id = 'oracle-share-card'",

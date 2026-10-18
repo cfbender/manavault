@@ -30,7 +30,7 @@ macro_rules! card_query {
                  c.edhrec_rank AS "edhrec_rank?", c.edhrec_commander_rank AS "edhrec_commander_rank?",
                  CAST(c.edhrec_saltiness AS REAL) AS "edhrec_saltiness?: f64",
                  c.oracle_tags AS "oracle_tags!", c.deck_category AS "deck_category?",
-                 c.deck_themes AS "deck_themes!", c.rulings_uri AS "rulings_uri?"
+                 c.deck_themes AS "deck_themes!"
                FROM scryfall_cards AS c "# + $tail
             $(, $arg)*
         )
@@ -58,7 +58,6 @@ pub struct CardRecord {
     pub oracle_tags: String,
     pub deck_category: Option<String>,
     pub deck_themes: String,
-    pub rulings_uri: Option<String>,
 }
 
 impl CardRecord {
@@ -368,12 +367,13 @@ impl Card {
         Some(json::string_list(&self.record.deck_themes))
     }
 
-    async fn rulings(&self, ctx: &Context<'_>) -> Vec<CardRuling> {
-        crate::catalog::scryfall::rulings::card_rulings(
-            manavault_core::graphql::state(ctx),
-            self.record.rulings_uri.as_deref(),
+    async fn rulings(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<CardRuling>> {
+        crate::catalog::scryfall::rulings::for_card(
+            &manavault_core::graphql::state(ctx).db,
+            &self.record.oracle_id,
         )
         .await
+        .map_err(crate::catalog::schema::db_error)
     }
 
     async fn legalities(&self) -> Vec<CardLegality> {

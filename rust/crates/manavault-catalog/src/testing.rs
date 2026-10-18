@@ -57,8 +57,7 @@ pub mod fixtures {
             "finishes": ["nonfoil"],
             "image_uris": {"normal": "https://example.test/black-lotus.jpg"},
             "prices": {"usd": "100000.00"},
-            "released_at": "1993-08-05",
-            "rulings_uri": "https://api.scryfall.com/cards/oracle-1/rulings"
+            "released_at": "1993-08-05"
         })
     }
 

@@ -274,7 +274,6 @@ mod tests {
             oracle_tags: "[]".into(),
             deck_category: None,
             deck_themes: "[]".into(),
-            rulings_uri: None,
         }
     }
 

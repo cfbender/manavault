@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\", c.rulings_uri AS \"rulings_uri?\"\n               FROM scryfall_cards AS c WHERE c.oracle_id = ?1",
+  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\"\n               FROM scryfall_cards AS c WHERE (c.layout IS NULL OR c.layout NOT IN ('token', 'double_faced_token', 'emblem'))\n           AND (c.normalized_name IN (SELECT value FROM json_each(?1))\n             OR (instr(c.normalized_name, ' // ') > 0\n                 AND substr(c.normalized_name, 1, instr(c.normalized_name, ' // ') - 1)\n                     IN (SELECT value FROM json_each(?1))))\n         ORDER BY c.name ASC",
   "describe": {
     "columns": [
       {
@@ -190,17 +190,6 @@
             "name": "deck_themes"
           }
         }
-      },
-      {
-        "name": "rulings_uri?",
-        "ordinal": 18,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "scryfall_cards",
-            "name": "rulings_uri"
-          }
-        }
       }
     ],
     "parameters": {
@@ -224,9 +213,8 @@
       true,
       false,
       true,
-      false,
-      true
+      false
     ]
   },
-  "hash": "d7ec02ab58970852d04ec4a2f87f613775082ca253ba238ac5c114e43c35188a"
+  "hash": "7bb873dff574ffe46634d132b0528651d8d1192ec7798fa35a77e9141359eb04"
 }

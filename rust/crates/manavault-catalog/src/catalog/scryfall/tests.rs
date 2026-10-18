@@ -10,6 +10,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::bulk::tests::{gzip_jsonl, gzip_lines};
 use super::import::{self, ImportError, ImportOptions, ImportSummary, OracleTags};
+use super::rulings;
 use super::sync::{self, SyncError, SyncOptions, SyncRecord, SyncStatus};
 use super::worker;
 use crate::test_app::TestApp;
@@ -27,8 +28,7 @@ fn merge(mut base: Value, overrides: Value) -> Value {
 fn renamed_lotus() -> Value {
     fixtures::card(json!({
         "name": "Black Lotus Updated",
-        "prices": {"usd": "1.00"},
-        "rulings_uri": "https://api.scryfall.com/cards/oracle-1/rulings-updated"
+        "prices": {"usd": "1.00"}
     }))
 }
 
@@ -163,7 +163,7 @@ async fn import_stores_identities_and_printings_and_updates_on_rerun() {
     let summary = import(&app, &[card]).await;
     assert_eq!((summary.cards_count, summary.printings_count), (1, 1));
 
-    let row = sqlx::query("SELECT name, color_identity, game_changer, edhrec_rank, rulings_uri, normalized_name, deck_category, deck_themes, oracle_tags FROM scryfall_cards WHERE oracle_id = 'oracle-1'")
+    let row = sqlx::query("SELECT name, color_identity, game_changer, edhrec_rank, normalized_name, deck_category, deck_themes, oracle_tags FROM scryfall_cards WHERE oracle_id = 'oracle-1'")
         .fetch_one(app.db())
         .await
         .unwrap();
@@ -171,10 +171,6 @@ async fn import_stores_identities_and_printings_and_updates_on_rerun() {
     assert_eq!(row.get::<String, _>("color_identity"), "[]");
     assert!(!row.get::<bool, _>("game_changer"));
     assert_eq!(row.get::<Option<i64>, _>("edhrec_rank"), Some(1));
-    assert_eq!(
-        row.get::<Option<String>, _>("rulings_uri").as_deref(),
-        Some("https://api.scryfall.com/cards/oracle-1/rulings")
-    );
     assert_eq!(row.get::<String, _>("normalized_name"), "black lotus");
     assert_eq!(row.get::<String, _>("deck_category"), "other");
     assert_eq!(row.get::<String, _>("deck_themes"), r#"["artifact"]"#);
@@ -211,10 +207,6 @@ async fn import_stores_identities_and_printings_and_updates_on_rerun() {
         "Black Lotus Updated"
     );
     assert!(card_column::<bool>(&app, "oracle-1", "game_changer").await);
-    assert_eq!(
-        card_column::<String>(&app, "oracle-1", "rulings_uri").await,
-        "https://api.scryfall.com/cards/oracle-1/rulings-updated"
-    );
     let prices: String = printing_column(&app, "scryfall-printing-1", "prices").await;
     assert_eq!(
         serde_json::from_str::<Value>(&prices).unwrap(),
@@ -525,16 +517,14 @@ async fn import_only_writes_rows_whose_stored_data_changed() {
 }
 
 #[tokio::test]
-async fn import_ignores_rulings_uri_and_other_columns_in_the_diff() {
+async fn import_leaves_columns_it_does_not_own_alone() {
     let app = TestApp::new().await;
     import(&app, &[fixtures::black_lotus()]).await;
     sqlx::query("UPDATE scryfall_cards SET edhrec_saltiness = 2.5, edhrec_commander_rank = 3")
         .execute(app.db())
         .await
         .unwrap();
-    let other_printing =
-        fixtures::card(json!({"rulings_uri": "https://api.scryfall.com/cards/other/rulings"}));
-    let summary = import(&app, &[other_printing]).await;
+    let summary = import(&app, &[fixtures::black_lotus()]).await;
     assert_eq!(summary.written_cards_count, 0);
     // Columns the import does not own survive a card rewrite.
     import(&app, &[renamed_lotus()]).await;
@@ -1163,6 +1153,7 @@ impl Feed {
         SyncOptions {
             bulk_url: self.url("/metadata"),
             oracle_tags_bulk_url: None,
+            rulings_bulk_url: None,
             saltiness_url: None,
             commander_ranks_url: None,
             commander_ranks_pages_base_url: self.url("/pages/"),
@@ -1635,6 +1626,93 @@ async fn sync_preserves_existing_tags_when_oracle_tags_data_is_invalid() {
         card_column::<String>(&app, "oracle-1", "oracle_tags")
             .await
             .contains("\"ramp\"")
+    );
+}
+
+async fn stored_rulings(app: &TestApp) -> Vec<(String, String)> {
+    sqlx::query_as("SELECT oracle_id, comment FROM scryfall_rulings ORDER BY id")
+        .fetch_all(app.db())
+        .await
+        .unwrap()
+}
+
+async fn rulings_feed(feed: &Feed, body: Vec<u8>) -> SyncOptions {
+    feed.json(
+        "/rulings-metadata",
+        json!({"jsonl_download_uri": feed.url("/rulings.jsonl.gz")}),
+    )
+    .await;
+    feed.body("/rulings.jsonl.gz", body).await;
+    let mut options = feed.options();
+    options.rulings_bulk_url = Some(feed.url("/rulings-metadata"));
+    options
+}
+
+#[tokio::test]
+async fn sync_replaces_every_ruling_with_the_rulings_bulk_file() {
+    let app = TestApp::new().await;
+    rulings::replace(
+        app.db(),
+        &[rulings::BulkRuling {
+            oracle_id: "oracle-gone".to_owned(),
+            source: None,
+            published_at: None,
+            comment: "Stale.".to_owned(),
+        }],
+    )
+    .await
+    .unwrap();
+    let feed = Feed::new().await;
+    feed.cards(&[fixtures::black_lotus()]).await;
+    let options = rulings_feed(
+        &feed,
+        gzip_jsonl(&[
+            json!({"object": "ruling", "oracle_id": "oracle-1", "source": "wotc",
+                   "published_at": "2024-01-02", "comment": "First."}),
+            json!({"object": "ruling", "oracle_id": "oracle-2", "source": "scryfall",
+                   "published_at": "2020-01-01", "comment": "Another card."}),
+            json!({"object": "ruling", "oracle_id": "oracle-1", "source": "wotc",
+                   "published_at": "2019-01-01", "comment": "Second."}),
+        ]),
+    )
+    .await;
+    sync_ok(&app, &options).await;
+    assert_eq!(
+        stored_rulings(&app).await,
+        vec![
+            ("oracle-1".to_owned(), "First.".to_owned()),
+            ("oracle-2".to_owned(), "Another card.".to_owned()),
+            ("oracle-1".to_owned(), "Second.".to_owned()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn sync_preserves_existing_rulings_when_the_rulings_bulk_is_invalid() {
+    let app = TestApp::new().await;
+    let kept = rulings::BulkRuling {
+        oracle_id: "oracle-1".to_owned(),
+        source: Some("wotc".to_owned()),
+        published_at: Some("2024-01-02".to_owned()),
+        comment: "Kept.".to_owned(),
+    };
+    rulings::replace(app.db(), &[kept]).await.unwrap();
+    let feed = Feed::new().await;
+    feed.cards(&[fixtures::black_lotus()]).await;
+    // One good record and one without a comment: the whole file is rejected.
+    let options = rulings_feed(
+        &feed,
+        gzip_jsonl(&[
+            json!({"oracle_id": "oracle-1", "comment": "Replacement."}),
+            json!({"oracle_id": "oracle-1", "source": "wotc"}),
+        ]),
+    )
+    .await;
+    let record = sync_ok(&app, &options).await;
+    assert_eq!((record.status, record.error), (SyncStatus::Succeeded, None));
+    assert_eq!(
+        stored_rulings(&app).await,
+        vec![("oracle-1".to_owned(), "Kept.".to_owned())]
     );
 }
 

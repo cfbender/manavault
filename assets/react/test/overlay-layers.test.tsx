@@ -4,7 +4,19 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 
 vi.mock("@apollo/client/react", () => ({
-  useApolloClient: () => ({ query: vi.fn(async () => ({ data: { cardByName: null } })) }),
+  useApolloClient: () => ({
+    query: vi.fn(async () => ({
+      data: {
+        cardByName: {
+          id: "card-sol-ring",
+          name: "Sol Ring",
+          printings: {
+            edges: [{ node: { id: "printing-sol-ring", imageUrl: "/images/sol-ring.jpg" } }],
+          },
+        },
+      },
+    })),
+  }),
 }))
 
 import { Dialog, DialogContent, DialogTitle } from "../src/components/ui/dialog"

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\", c.rulings_uri AS \"rulings_uri?\"\n               FROM scryfall_cards AS c WHERE (c.layout IS NULL OR c.layout NOT IN ('token', 'double_faced_token', 'emblem'))\n           AND (c.normalized_name IN (SELECT value FROM json_each(?1))\n             OR (instr(c.normalized_name, ' // ') > 0\n                 AND substr(c.normalized_name, 1, instr(c.normalized_name, ' // ') - 1)\n                     IN (SELECT value FROM json_each(?1))))\n         ORDER BY c.name ASC",
+  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\"\n               FROM scryfall_cards AS c WHERE c.oracle_id = ?1",
   "describe": {
     "columns": [
       {
@@ -190,17 +190,6 @@
             "name": "deck_themes"
           }
         }
-      },
-      {
-        "name": "rulings_uri?",
-        "ordinal": 18,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "scryfall_cards",
-            "name": "rulings_uri"
-          }
-        }
       }
     ],
     "parameters": {
@@ -224,9 +213,8 @@
       true,
       false,
       true,
-      false,
-      true
+      false
     ]
   },
-  "hash": "e4c81c3dfe28675494ff92d1099efeeda1042804c4f32eca46a30453aaa39667"
+  "hash": "53e4e08553d9e28434e2ba97f65a832f8628295c4219f31f9604ec6735146277"
 }

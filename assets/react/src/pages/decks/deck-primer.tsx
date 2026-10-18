@@ -9,6 +9,7 @@ import { useRef, useState } from "react"
 import { ManaSymbol } from "../../components/ui/mana-symbols"
 import { overlayLayers } from "../../components/ui/overlay-layers"
 import { useToast } from "../../components/ui/toast"
+import type { CardByNameQuery } from "../../gql/graphql"
 import { graphqlEndpointContext } from "../../lib/apollo"
 import { cn } from "../../lib/utils"
 import { CardByNameDocument } from "./deck-analysis-documents"
@@ -143,29 +144,56 @@ export function DeckMarkdown({
   )
 }
 
-// Resolves a `[[Card Name]]` reference to a catalog card and opens it in the
-// shared card detail dialog. Names the catalog does not know (hallucinated or
-// misspelled by the AI) surface as a toast instead of a dead link.
+type CardByNameMatch = NonNullable<CardByNameQuery["cardByName"]>
+
+// Resolves a `[[Card Name]]` reference to a catalog card for its hover
+// preview and opens it in the shared card detail dialog. Both share one
+// lookup, so hovering and then clicking asks the server once. Names the
+// catalog does not know (hallucinated or misspelled by the AI) surface as a
+// toast instead of a dead link.
 function useCardReferenceLookup(name: string, shareMode: boolean) {
   const client = useApolloClient()
   const { showToast } = useToast()
   const [card, setCard] = useState<CardDetailDialogTarget | null>(null)
   const [pending, setPending] = useState(false)
+  // undefined while loading, null when there is no image to show.
+  const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined)
+  const lookup = useRef<Promise<CardByNameMatch | null> | null>(null)
   const requestId = useRef(0)
+
+  function resolve() {
+    if (!lookup.current) {
+      const request = client
+        .query({
+          query: CardByNameDocument,
+          variables: { name },
+          context: graphqlEndpointContext(shareMode ? "/share/graphql" : undefined),
+        })
+        .then(({ data }) => data?.cardByName ?? null)
+      // A failed lookup is retried by the next hover or click.
+      request.catch(() => {
+        if (lookup.current === request) lookup.current = null
+      })
+      lookup.current = request
+    }
+    return lookup.current
+  }
+
+  function preview() {
+    resolve().then(
+      (match) => setPreviewUrl(match?.printings?.edges?.[0]?.node?.imageUrl ?? null),
+      () => setPreviewUrl(null),
+    )
+  }
 
   async function open() {
     const id = ++requestId.current
     setPending(true)
 
     try {
-      const { data } = await client.query({
-        query: CardByNameDocument,
-        variables: { name },
-        context: graphqlEndpointContext(shareMode ? "/share/graphql" : undefined),
-      })
+      const match = await resolve()
       if (id !== requestId.current) return
 
-      const match = data?.cardByName
       if (match) {
         setCard({ id: match.id, name: match.name })
       } else {
@@ -185,14 +213,18 @@ function useCardReferenceLookup(name: string, shareMode: boolean) {
     setPending(false)
   }
 
-  return { card, close, open, pending }
+  return { card, close, open, pending, preview, previewUrl }
 }
 
 function CardReference({ name, shareMode }: { name: string; shareMode: boolean }) {
   const lookup = useCardReferenceLookup(name, shareMode)
   const [open, setOpen] = useState(false)
   const [previewUnavailable, setPreviewUnavailable] = useState(false)
-  const previewUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`
+
+  function showPreview(nextOpen: boolean) {
+    if (nextOpen) lookup.preview()
+    setOpen(nextOpen)
+  }
 
   return (
     <>
@@ -200,7 +232,7 @@ function CardReference({ name, shareMode }: { name: string; shareMode: boolean }
         closeDelay={80}
         open={open && !lookup.card}
         openDelay={180}
-        onOpenChange={setOpen}
+        onOpenChange={showPreview}
       >
         <HoverCardPrimitive.Trigger asChild>
           <button
@@ -212,7 +244,7 @@ function CardReference({ name, shareMode }: { name: string; shareMode: boolean }
               setOpen(false)
               void lookup.open()
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={() => showPreview(true)}
           >
             {name}
           </button>
@@ -225,20 +257,22 @@ function CardReference({ name, shareMode }: { name: string; shareMode: boolean }
             collisionPadding={12}
             sideOffset={8}
           >
-            {previewUnavailable ? (
-              <div className="flex aspect-[5/7] items-center justify-center rounded-field bg-base-200 p-4 text-center text-sm text-base-content/65">
-                Card preview unavailable
-              </div>
-            ) : (
+            {lookup.previewUrl === undefined ? (
+              <div className="skeleton aspect-[5/7] w-full rounded-field" />
+            ) : lookup.previewUrl && !previewUnavailable ? (
               <img
                 alt={`${name} card preview`}
                 className="aspect-[5/7] w-full rounded-field object-cover"
                 height="340"
                 loading="lazy"
-                src={previewUrl}
+                src={lookup.previewUrl}
                 width="244"
                 onError={() => setPreviewUnavailable(true)}
               />
+            ) : (
+              <div className="flex aspect-[5/7] items-center justify-center rounded-field bg-base-200 p-4 text-center text-sm text-base-content/65">
+                Card preview unavailable
+              </div>
             )}
             <p className="px-1 pb-1 pt-2 text-sm font-bold leading-snug text-base-content">
               {name}

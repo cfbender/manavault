@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT source, published_at, comment FROM scryfall_rulings\n         WHERE oracle_id = ?1 ORDER BY published_at DESC, id",
+  "describe": {
+    "columns": [
+      {
+        "name": "source",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_rulings",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "name": "published_at",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_rulings",
+            "name": "published_at"
+          }
+        }
+      },
+      {
+        "name": "comment",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_rulings",
+            "name": "comment"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "2a59966039e8f7c99d3fc5da81daf08444f31aab0374c40f115369577308f55f"
+}

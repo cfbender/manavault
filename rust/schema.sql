@@ -1,5 +1,5 @@
 CREATE TABLE "schema_migrations" ("version" INTEGER PRIMARY KEY, "inserted_at" TEXT);
-CREATE TABLE "scryfall_cards" ("oracle_id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "type_line" TEXT, "oracle_text" TEXT, "color_identity" TEXT DEFAULT '[]' NOT NULL, "legalities" TEXT DEFAULT '{}' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "mana_cost" TEXT, "cmc" NUMERIC, "colors" TEXT DEFAULT '[]' NOT NULL, "oracle_tags" TEXT DEFAULT '[]' NOT NULL, "deck_category" TEXT, "deck_themes" TEXT DEFAULT '[]' NOT NULL, "rulings_uri" TEXT, "game_changer" INTEGER DEFAULT false NOT NULL, "normalized_name" TEXT, "edhrec_rank" INTEGER, "edhrec_saltiness" NUMERIC, "edhrec_commander_rank" INTEGER, "layout" TEXT);
+CREATE TABLE "scryfall_cards" ("oracle_id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "type_line" TEXT, "oracle_text" TEXT, "color_identity" TEXT DEFAULT '[]' NOT NULL, "legalities" TEXT DEFAULT '{}' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "mana_cost" TEXT, "cmc" NUMERIC, "colors" TEXT DEFAULT '[]' NOT NULL, "oracle_tags" TEXT DEFAULT '[]' NOT NULL, "deck_category" TEXT, "deck_themes" TEXT DEFAULT '[]' NOT NULL, "game_changer" INTEGER DEFAULT false NOT NULL, "normalized_name" TEXT, "edhrec_rank" INTEGER, "edhrec_saltiness" NUMERIC, "edhrec_commander_rank" INTEGER, "layout" TEXT);
 CREATE INDEX "scryfall_cards_name_index" ON "scryfall_cards" ("name");
 CREATE TABLE "scryfall_printings" ("scryfall_id" TEXT PRIMARY KEY, "oracle_id" TEXT NOT NULL CONSTRAINT "scryfall_printings_oracle_id_fkey" REFERENCES "scryfall_cards"("oracle_id") ON DELETE CASCADE, "set_code" TEXT NOT NULL, "set_name" TEXT, "collector_number" TEXT NOT NULL, "lang" TEXT NOT NULL, "finishes" TEXT DEFAULT '[]' NOT NULL, "image_uris" TEXT DEFAULT '{}' NOT NULL, "prices" TEXT DEFAULT '{}' NOT NULL, "released_at" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "rarity" TEXT, "flavor_name" TEXT, "flavor_text" TEXT, "promo_types" TEXT DEFAULT '[]' NOT NULL, "normalized_flavor_name" TEXT, "illustration_id" TEXT, "promo" INTEGER DEFAULT false NOT NULL, "tcgplayer_id" INTEGER, "tcgplayer_etched_id" INTEGER, "frame_effects" TEXT DEFAULT '[]' NOT NULL, "border_color" TEXT, "full_art" INTEGER DEFAULT false NOT NULL);
 CREATE INDEX "scryfall_printings_collector_number_index" ON "scryfall_printings" ("collector_number");
@@ -145,6 +145,8 @@ CREATE TABLE "deck_card_categories" (
   "updated_at" TEXT NOT NULL,
   PRIMARY KEY ("deck_id", "oracle_id")
 );
+CREATE TABLE "scryfall_rulings" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "oracle_id" TEXT NOT NULL, "source" TEXT, "published_at" TEXT, "comment" TEXT NOT NULL);
+CREATE INDEX "scryfall_rulings_oracle_id_index" ON "scryfall_rulings" ("oracle_id");
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -226,3 +228,4 @@ INSERT INTO schema_migrations VALUES(20261013224251,NULL);
 INSERT INTO schema_migrations VALUES(20261013233439,NULL);
 INSERT INTO schema_migrations VALUES(20261014004500,NULL);
 INSERT INTO schema_migrations VALUES(20261017050809,NULL);
+INSERT INTO schema_migrations VALUES(20261018041420,NULL);

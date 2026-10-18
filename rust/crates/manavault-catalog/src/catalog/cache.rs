@@ -13,9 +13,6 @@ use manavault_core::state::AppState;
 
 const GENERATION_KEY: &str = "catalog:generation";
 
-/// `@external_ttl`: results of third-party lookups.
-pub const EXTERNAL_TTL: Duration = Duration::from_secs(6 * 60 * 60);
-
 /// The generation outlives every entry that embeds it.
 const GENERATION_TTL: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 

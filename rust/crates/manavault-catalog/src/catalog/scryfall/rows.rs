@@ -7,8 +7,8 @@ use serde::Serialize;
 use crate::catalog::oracle_tags::{self, OracleTagIndex, TagFields};
 use crate::catalog::scryfall::bulk::{BulkCard, Frame};
 
-/// Card columns the import owns, other than the key, `rulings_uri`, and the
-/// oracle tag columns. They are compared against the stored row to decide
+/// Card columns the import owns, other than the key and the oracle tag
+/// columns. They are compared against the stored row to decide
 /// whether the row needs writing; anything else on the table (EDHREC
 /// commander ranks, saltiness, `inserted_at`) is left alone.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,9 +32,6 @@ pub struct CardCore {
 pub struct CardRow {
     pub oracle_id: String,
     pub core: CardCore,
-    /// Embeds the printing id, so every printing of a card carries a
-    /// different one; it is written but not compared.
-    pub rulings_uri: Option<String>,
     pub tags: TagFields,
 }
 
@@ -149,7 +146,6 @@ fn card_row(card: &ScryfallCard, oracle_id: &str, tag_index: &OracleTagIndex) ->
             game_changer: card.game_changer,
             edhrec_rank: card.edhrec_rank.map(i64::from),
         },
-        rulings_uri: card.rulings_uri.clone(),
         tags: oracle_tags::fields_for_card(Some(oracle_id), card.type_line.as_deref(), tag_index),
     }
 }

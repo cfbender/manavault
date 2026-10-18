@@ -2,10 +2,22 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 
+type CardMatch = {
+  id: string
+  name: string
+  printings: { edges: { node: { id: string; imageUrl: string | null } }[] }
+}
+
 const apolloMocks = vi.hoisted(() => ({
   cards: {
-    "Sun Titan": { id: "card-sun-titan", name: "Sun Titan" },
-  } as Record<string, { id: string; name: string } | null>,
+    "Sun Titan": {
+      id: "card-sun-titan",
+      name: "Sun Titan",
+      printings: {
+        edges: [{ node: { id: "printing-sun-titan", imageUrl: "/images/sun-titan.jpg" } }],
+      },
+    },
+  } as Record<string, CardMatch | null>,
   query: vi.fn(),
   showToast: vi.fn(),
 }))
@@ -89,7 +101,7 @@ test("saved AI analysis is collapsed by default", () => {
   expect(screen.queryByRole("button", { name: /ask ai about this deck/i })).toBeNull()
 })
 
-test("saved AI analysis card references show previews on hover and focus", async () => {
+test("card reference previews show the catalog image, or say a card is unknown", async () => {
   const user = userEvent.setup()
   const { container } = render(
     <DeckAIAnalysis
@@ -106,15 +118,14 @@ test("saved AI analysis card references show previews on hover and focus", async
 
   await user.hover(titan)
   const preview = await screen.findByRole("img", { name: "Sun Titan card preview" })
-  expect(preview.getAttribute("src")).toContain("exact=Sun%20Titan")
+  expect(preview.getAttribute("src")).toBe("/images/sun-titan.jpg")
   expect(screen.getByText("Click to view card details")).toBeInstanceOf(HTMLElement)
   await user.unhover(titan)
 
+  // Emeria is not in the mocked catalog.
   fireEvent.focus(emeria)
-  const focusedPreview = await screen.findByRole("img", {
-    name: "Emeria, the Sky Ruin card preview",
-  })
-  expect(focusedPreview.getAttribute("src")).toContain("exact=Emeria%2C%20the%20Sky%20Ruin")
+  expect(await screen.findByText("Card preview unavailable")).toBeInstanceOf(HTMLElement)
+  expect(screen.queryByRole("img", { name: "Emeria, the Sky Ruin card preview" })).toBeNull()
 })
 
 test("clicking a card reference resolves the catalog card and opens the card dialog", async () => {

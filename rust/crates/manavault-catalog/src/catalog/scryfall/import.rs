@@ -314,14 +314,14 @@ async fn write_batch(
         let core = &row.core;
         if replace_tags {
             sqlx::query!(
-                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, rulings_uri, oracle_tags, deck_category, deck_themes, inserted_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18)
+                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, oracle_tags, deck_category, deck_themes, inserted_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17)
                  ON CONFLICT (oracle_id) DO UPDATE SET name = excluded.name, normalized_name = excluded.normalized_name,
                    layout = excluded.layout, type_line = excluded.type_line, oracle_text = excluded.oracle_text,
                    mana_cost = excluded.mana_cost, cmc = excluded.cmc, colors = excluded.colors,
                    color_identity = excluded.color_identity, legalities = excluded.legalities,
                    game_changer = excluded.game_changer, edhrec_rank = excluded.edhrec_rank,
-                   rulings_uri = excluded.rulings_uri, oracle_tags = excluded.oracle_tags,
+                   oracle_tags = excluded.oracle_tags,
                    deck_category = excluded.deck_category, deck_themes = excluded.deck_themes,
                    updated_at = excluded.updated_at",
                 row.oracle_id,
@@ -337,7 +337,6 @@ async fn write_batch(
                 core.legalities,
                 core.game_changer,
                 core.edhrec_rank,
-                row.rulings_uri,
                 row.tags.oracle_tags,
                 row.tags.deck_category,
                 row.tags.deck_themes,
@@ -347,14 +346,14 @@ async fn write_batch(
             .await?;
         } else {
             sqlx::query!(
-                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, rulings_uri, inserted_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)
+                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, inserted_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
                  ON CONFLICT (oracle_id) DO UPDATE SET name = excluded.name, normalized_name = excluded.normalized_name,
                    layout = excluded.layout, type_line = excluded.type_line, oracle_text = excluded.oracle_text,
                    mana_cost = excluded.mana_cost, cmc = excluded.cmc, colors = excluded.colors,
                    color_identity = excluded.color_identity, legalities = excluded.legalities,
                    game_changer = excluded.game_changer, edhrec_rank = excluded.edhrec_rank,
-                   rulings_uri = excluded.rulings_uri, updated_at = excluded.updated_at",
+                   updated_at = excluded.updated_at",
                 row.oracle_id,
                 core.name,
                 core.normalized_name,
@@ -368,7 +367,6 @@ async fn write_batch(
                 core.legalities,
                 core.game_changer,
                 core.edhrec_rank,
-                row.rulings_uri,
                 now,
             )
             .execute(&mut *tx)

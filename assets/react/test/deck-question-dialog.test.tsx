@@ -61,7 +61,15 @@ const apolloMocks = vi.hoisted(() => ({
   startPolling: vi.fn(),
   stopPolling: vi.fn(),
   cardQuery: vi.fn(async () => ({
-    data: { cardByName: { id: "card-sun-titan", name: "Sun Titan" } },
+    data: {
+      cardByName: {
+        id: "card-sun-titan",
+        name: "Sun Titan",
+        printings: {
+          edges: [{ node: { id: "printing-sun-titan", imageUrl: "/images/sun-titan.jpg" } }],
+        },
+      },
+    },
   })),
 }))
 
@@ -245,7 +253,7 @@ test("renders answer tables, mana symbols, and card links with previews", async 
 
   fireEvent.focus(cardReference)
   const preview = await screen.findByRole("img", { name: "Sun Titan card preview" })
-  expect(preview.getAttribute("src")).toContain("exact=Sun%20Titan")
+  expect(preview.getAttribute("src")).toBe("/images/sun-titan.jpg")
 })
 
 test("submits a trimmed deck question, shows pending work, and starts polling", async () => {

@@ -140,12 +140,13 @@ impl PublicCard {
         Some(json::string_list(&self.0.record.deck_themes))
     }
 
-    async fn rulings(&self, ctx: &Context<'_>) -> Vec<CardRuling> {
-        manavault_catalog::catalog::scryfall::rulings::card_rulings(
-            state(ctx),
-            self.0.record.rulings_uri.as_deref(),
+    async fn rulings(&self, ctx: &Context<'_>) -> Result<Vec<CardRuling>> {
+        manavault_catalog::catalog::scryfall::rulings::for_card(
+            &state(ctx).db,
+            &self.0.record.oracle_id,
         )
         .await
+        .map_err(internal_error)
     }
 
     async fn legalities(&self) -> Vec<CardLegality> {
@@ -261,12 +262,10 @@ impl PublicCardSummary {
         Some(json::string_list(&self.0.deck_themes))
     }
 
-    async fn rulings(&self, ctx: &Context<'_>) -> Vec<CardRuling> {
-        manavault_catalog::catalog::scryfall::rulings::card_rulings(
-            state(ctx),
-            self.0.rulings_uri.as_deref(),
-        )
-        .await
+    async fn rulings(&self, ctx: &Context<'_>) -> Result<Vec<CardRuling>> {
+        manavault_catalog::catalog::scryfall::rulings::for_card(&state(ctx).db, &self.0.oracle_id)
+            .await
+            .map_err(internal_error)
     }
 
     async fn legalities(&self) -> Vec<CardLegality> {

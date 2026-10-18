@@ -335,7 +335,9 @@ token printings and card-to-token links added for the Tokens tab), the first
 start after upgrading re-runs the full Scryfall catalog sync instead of
 waiting for the daily refresh. Until it finishes, features that depend on the
 new data fall back to their previous behavior (deck token lists show Oracle
-text guesses rather than real token cards). Progress is logged as
+text guesses rather than real token cards), except card rulings, which come
+only from Scryfall's rulings bulk file and appear once that sync has imported
+them. Progress is logged as
 `Scryfall catalog sync ...`, and **Settings -> Scryfall data -> Reload Scryfall
 catalog** forces the sync by hand.
 

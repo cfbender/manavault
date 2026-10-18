@@ -58,7 +58,7 @@ impl<'de> Deserialize<'de> for AnyObject {
     }
 }
 
-fn open_gzip(path: &Path) -> Result<File, String> {
+pub(crate) fn open_gzip(path: &Path) -> Result<File, String> {
     let mut file = File::open(path).map_err(|error| BulkError::Io(error).to_string())?;
     let mut magic = [0_u8; 2];
     let read = file

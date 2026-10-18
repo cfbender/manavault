@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\", c.rulings_uri AS \"rulings_uri?\"\n               FROM scryfall_cards AS c WHERE c.oracle_id IN (SELECT value FROM json_each(?1))",
+  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\"\n               FROM scryfall_cards AS c WHERE c.oracle_id IN (SELECT value FROM json_each(?1))",
   "describe": {
     "columns": [
       {
@@ -190,17 +190,6 @@
             "name": "deck_themes"
           }
         }
-      },
-      {
-        "name": "rulings_uri?",
-        "ordinal": 18,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "scryfall_cards",
-            "name": "rulings_uri"
-          }
-        }
       }
     ],
     "parameters": {
@@ -224,9 +213,8 @@
       true,
       false,
       true,
-      false,
-      true
+      false
     ]
   },
-  "hash": "531cfda534ba3136756a2629391681fa3c11f4197a34fa209dddf2788fe736c5"
+  "hash": "26bd97191b78530c752ef8aff5c12d32ccb28693d9be4acd91c0eb29434c7217"
 }

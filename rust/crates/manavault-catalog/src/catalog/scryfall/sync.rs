@@ -2,9 +2,9 @@
 //! `Manavault.Catalog.Sync` for the `scryfall_syncs` rows).
 //!
 //! A sync downloads the `default_cards` bulk file to disk, validates it,
-//! fetches the optional extras (oracle tags, MTGJSON saltiness, EDHREC
-//! commander ranks), imports the paper printings, and then refreshes the
-//! metrics. An extra that cannot be fetched is skipped and its stored values
+//! fetches the optional extras (oracle tags, rulings, MTGJSON saltiness,
+//! EDHREC commander ranks), imports the paper printings, and then refreshes
+//! the rulings and metrics. An extra that cannot be fetched is skipped and its stored values
 //! preserved; a failure of the bulk file itself fails the sync before any
 //! catalog row is written.
 
@@ -18,6 +18,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use crate::catalog::metrics::{commander_ranks, saltiness};
 use crate::catalog::scryfall::bulk::{self, BulkMetadata};
 use crate::catalog::scryfall::import::{self, ImportOptions, OracleTags};
+use crate::catalog::scryfall::rulings::{self, BulkRuling};
 use manavault_core::state::AppState;
 use manavault_core::timestamp::Timestamp;
 
@@ -30,16 +31,17 @@ pub const ORACLE_TAGS_BULK_METADATA_URL: &str = "https://api.scryfall.com/bulk-d
 /// Bump when the importer starts writing data older syncs lack (v2:
 /// paper-only printings; v3: token printings and card -> token links; v4:
 /// emblems; v5: bare "Card" helper tokens such as The Monarch and On an
-/// Adventure). A succeeded sync with an older bulk type is treated as stale
+/// Adventure); v6: rulings from the rulings bulk file). A succeeded sync with an older bulk type is treated as stale
 /// so the next scheduled run re-imports instead of waiting out the daily
 /// interval.
-pub const BULK_TYPE: &str = "default_cards_paper_v5";
+pub const BULK_TYPE: &str = "default_cards_paper_v6";
 
 /// Where a sync fetches from. `None` skips that extra.
 #[derive(Debug, Clone)]
 pub struct SyncOptions {
     pub bulk_url: String,
     pub oracle_tags_bulk_url: Option<String>,
+    pub rulings_bulk_url: Option<String>,
     pub saltiness_url: Option<String>,
     pub commander_ranks_url: Option<String>,
     /// Base for EDHREC's relative continuation paths.
@@ -52,6 +54,7 @@ impl Default for SyncOptions {
         Self {
             bulk_url: BULK_METADATA_URL.to_owned(),
             oracle_tags_bulk_url: Some(ORACLE_TAGS_BULK_METADATA_URL.to_owned()),
+            rulings_bulk_url: Some(rulings::BULK_METADATA_URL.to_owned()),
             saltiness_url: Some(saltiness::SALTINESS_URL.to_owned()),
             commander_ranks_url: Some(commander_ranks::COMMANDER_RANKS_URL.to_owned()),
             commander_ranks_pages_base_url: commander_ranks::PAGES_BASE_URL.to_owned(),
@@ -302,6 +305,7 @@ async fn sync(
     log_decoded(sync_id, "default-cards", source_count);
 
     let oracle_tags = fetch_oracle_tags(&client, options, &dir, sync_id).await;
+    let rulings = fetch_rulings(&client, options, &dir, sync_id).await;
     let scores = fetch_saltiness(&client, options, &dir, sync_id).await;
     let ranks = fetch_commander_ranks(&client, options, sync_id).await;
 
@@ -329,6 +333,12 @@ async fn sync(
     drop(bulk_file);
     crate::catalog::invalidate_after_import(state).await;
 
+    if let Some(rulings) = rulings {
+        let count = rulings::replace(&state.db, &rulings)
+            .await
+            .map_err(|error| error.to_string())?;
+        tracing::info!("Scryfall catalog sync updated rulings sync_id={sync_id} count={count}");
+    }
     if let Some(scores) = scores {
         let count = saltiness::update_cards(&state.db, &scores)
             .await
@@ -381,6 +391,39 @@ async fn fetch_oracle_tags(
                 "Scryfall catalog sync preserving existing oracle tags sync_id={sync_id} error={error}"
             );
             OracleTags::Skip
+        }
+    }
+}
+
+async fn fetch_rulings(
+    client: &ScryfallClient,
+    options: &SyncOptions,
+    dir: &Path,
+    sync_id: i64,
+) -> Option<Vec<BulkRuling>> {
+    let Some(url) = options.rulings_bulk_url.as_deref() else {
+        tracing::info!("Scryfall catalog sync skipping rulings bulk sync_id={sync_id}");
+        return None;
+    };
+    tracing::info!("Scryfall catalog sync fetching rulings metadata sync_id={sync_id}");
+    let result = async {
+        let download_uri = metadata(client, url).await?;
+        tracing::info!("Scryfall catalog sync downloading rulings bulk sync_id={sync_id}");
+        let (file, bytes) =
+            download(client, &download_uri, dir, "rulings.jsonl.gz", sync_id).await?;
+        log_downloaded(sync_id, "rulings", bytes);
+        let rulings = rulings::decode_file(file.0.clone()).await?;
+        log_decoded(sync_id, "rulings", rulings.len());
+        Ok::<_, String>(rulings)
+    }
+    .await;
+    match result {
+        Ok(rulings) => Some(rulings),
+        Err(error) => {
+            tracing::warn!(
+                "Scryfall catalog sync preserving existing rulings sync_id={sync_id} error={error}"
+            );
+            None
         }
     }
 }

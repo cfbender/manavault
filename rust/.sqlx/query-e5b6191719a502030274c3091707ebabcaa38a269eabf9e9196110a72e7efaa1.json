@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM scryfall_rulings",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "e5b6191719a502030274c3091707ebabcaa38a269eabf9e9196110a72e7efaa1"
+}

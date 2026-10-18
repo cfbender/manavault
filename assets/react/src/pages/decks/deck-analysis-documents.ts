@@ -127,6 +127,14 @@ export const CardByNameDocument = graphql(`
     cardByName(name: $name) {
       id
       name
+      printings(first: 1) {
+        edges {
+          node {
+            id
+            imageUrl
+          }
+        }
+      }
     }
   }
 `)
