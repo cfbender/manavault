@@ -12,26 +12,37 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react"
-import { useRef, type DragEvent, type MouseEvent, type ReactNode } from "react"
-import type { PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
-import { cn } from "../../lib/utils"
+import { useRef, type MouseEvent, type PointerEvent, type ReactNode } from "react"
+import { manaSymbolName, useAppearance } from "./appearance"
+import { countCardTypes } from "./battlefield-helpers"
+import { CardThumb, SleeveBack } from "./card-thumb"
+import type { PlaytestCard, PlaytestZone } from "./engine"
 import {
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
-import { ManaSymbol } from "../ui/mana-symbols"
-import { countCardTypes } from "./battlefield-helpers"
-import { CardThumb, SleeveBack } from "./card-thumb"
-import { DRAG_MIME } from "./constants"
-import { decodeDragPayload } from "./drag-helpers"
+} from "./ui"
+
+type PointerHandler = (event: PointerEvent<HTMLElement>) => void
 
 type CardHandlers = {
+  /** Pointer handlers that let a card be dragged to another zone. */
+  cardDragHandlers: (
+    card: PlaytestCard,
+    zone: PlaytestZone,
+  ) => {
+    onPointerCancel: PointerHandler
+    onPointerDown: PointerHandler
+    onPointerMove: PointerHandler
+    onPointerUp: PointerHandler
+  }
+  /** Cards being dragged; their slots fade while the ghost follows the pointer. */
+  draggingCardIds: string[]
   onCardClick: (card: PlaytestCard, zone: PlaytestZone) => void
   onCardContextMenu: (card: PlaytestCard, zone: PlaytestZone, event: MouseEvent) => void
-  onCardDragStart: (card: PlaytestCard, zone: PlaytestZone, event: DragEvent<HTMLElement>) => void
   onCardHover: (cardId: string, zone: PlaytestZone) => void
   onCardLeave: (cardId: string) => void
 }
@@ -57,7 +68,6 @@ export function PlaytestBottomZones({
   hand,
   libraryActions,
   libraryCount,
-  onDropCard,
   onViewZone,
   selectedCardId,
   ...handlers
@@ -69,24 +79,10 @@ export function PlaytestBottomZones({
   hand: PlaytestCard[]
   libraryActions: LibraryActions
   libraryCount: number
-  onDropCard: (cardId: string, from: PlaytestZone, to: PlaytestZone) => void
   onViewZone: (zone: "graveyard" | "exile") => void
   selectedCardId: string | null
 }) {
-  const dropProps = (zone: PlaytestZone) => ({
-    "data-playtest-zone": zone,
-    onDragOver: (event: DragEvent<HTMLElement>) => {
-      if (!event.dataTransfer.types.includes(DRAG_MIME)) return
-      event.preventDefault()
-      event.dataTransfer.dropEffect = "move"
-    },
-    onDrop: (event: DragEvent<HTMLElement>) => {
-      const payload = decodeDragPayload(event.dataTransfer.getData(DRAG_MIME))
-      if (!payload) return
-      event.preventDefault()
-      onDropCard(payload.cardId, payload.from, zone)
-    },
-  })
+  const dropProps = (zone: PlaytestZone) => ({ "data-playtest-zone": zone })
 
   return (
     <footer className="col-span-full grid min-h-0 grid-cols-[repeat(4,minmax(0,1fr))] grid-rows-[minmax(0,1fr)_auto] border-t border-base-300 bg-base-100 md:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] md:grid-rows-1">
@@ -160,8 +156,6 @@ function ZoneSlot({
   className?: string
   isDropTarget: boolean
   "data-playtest-zone": PlaytestZone
-  onDragOver: (event: DragEvent<HTMLElement>) => void
-  onDrop: (event: DragEvent<HTMLElement>) => void
 }) {
   return (
     <section
@@ -379,10 +373,11 @@ function LibraryMenuItem({
 }
 
 function FannedHand({
+  cardDragHandlers,
   cards,
+  draggingCardIds,
   onCardClick,
   onCardContextMenu,
-  onCardDragStart,
   onCardHover,
   onCardLeave,
   selectedCardId,
@@ -409,15 +404,15 @@ function FannedHand({
             type="button"
             data-playtest-card={card.id}
             className={cn(
-              "relative w-[var(--hand-card-width)] shrink-0 cursor-grab overflow-hidden rounded-md border border-black/25 bg-base-200 shadow-[0_2px_6px_rgb(0_0_0/0.25)] transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-3 hover:shadow-[0_10px_22px_rgb(0_0_0/0.35)] focus-visible:-translate-y-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing",
+              "relative w-[var(--hand-card-width)] shrink-0 cursor-grab touch-none select-none overflow-hidden rounded-md border border-black/25 bg-base-200 shadow-[0_2px_6px_rgb(0_0_0/0.25)] transition-[transform,box-shadow,opacity] duration-150 ease-out hover:-translate-y-3 hover:shadow-[0_10px_22px_rgb(0_0_0/0.35)] focus-visible:-translate-y-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing",
               selectedCardId === card.id && "-translate-y-3 ring-2 ring-primary",
+              draggingCardIds.includes(card.id) && "opacity-30",
             )}
             title={`${card.name}: click to play, drag to place`}
             aria-label={`Play ${card.name}`}
             onClick={() => onCardClick(card, "hand")}
-            draggable
             onContextMenu={(event) => onCardContextMenu(card, "hand", event)}
-            onDragStart={(event) => onCardDragStart(card, "hand", event)}
+            {...cardDragHandlers(card, "hand")}
             onMouseEnter={() => onCardHover(card.id, "hand")}
             onMouseLeave={() => onCardLeave(card.id)}
             onFocus={() => onCardHover(card.id, "hand")}
@@ -433,10 +428,11 @@ function FannedHand({
 
 function VisiblePile({
   badge,
+  cardDragHandlers,
   cards,
+  draggingCardIds,
   emptyIcon: EmptyIcon,
   onCardContextMenu,
-  onCardDragStart,
   onCardHover,
   onCardLeave,
   onView,
@@ -461,20 +457,20 @@ function VisiblePile({
           data-playtest-card={topCard.id}
           className={cn(
             PILE_CARD,
-            "cursor-pointer overflow-hidden rounded-md border border-black/25 bg-base-200 shadow-md transition-transform duration-150 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing",
+            "cursor-pointer touch-none select-none overflow-hidden rounded-md border border-black/25 bg-base-200 shadow-md transition-[transform,opacity] duration-150 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing",
+            draggingCardIds.includes(topCard.id) && "opacity-30",
           )}
           title={`${topCard.name}: click to view all ${title.toLowerCase()}, drag to move`}
           aria-label={`${title}, ${cards.length} cards. View all`}
           onClick={onView}
-          draggable
           onContextMenu={(event) => onCardContextMenu(topCard, zone, event)}
-          onDragStart={(event) => onCardDragStart(topCard, zone, event)}
+          {...cardDragHandlers(topCard, zone)}
           onMouseEnter={() => onCardHover(topCard.id, zone)}
           onMouseLeave={() => onCardLeave(topCard.id)}
         >
           <CardThumb card={topCard} />
           {badge ? (
-            <span className="absolute inset-x-1 bottom-1 rounded bg-black/75 px-1 py-0.5 text-center font-mono text-xs font-bold leading-none text-white">
+            <span className="absolute inset-x-1 bottom-1 rounded bg-black/75 whitespace-nowrap px-0.5 py-0.5 text-center font-mono text-[0.625rem] font-bold sm:px-1 sm:text-xs leading-none text-white">
               {badge}
             </span>
           ) : null}
@@ -496,10 +492,11 @@ function VisiblePile({
 }
 
 function CommandPile({
+  cardDragHandlers,
   cards,
+  draggingCardIds,
   onCardClick,
   onCardContextMenu,
-  onCardDragStart,
   onCardHover,
   onCardLeave,
 }: CardHandlers & { cards: PlaytestCard[] }) {
@@ -513,14 +510,14 @@ function CommandPile({
           data-playtest-card={commander.id}
           className={cn(
             PILE_CARD,
-            "cursor-grab overflow-hidden rounded-md border border-accent/70 bg-base-200 shadow-md ring-1 ring-accent/30 transition-transform duration-150 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing",
+            "cursor-grab touch-none select-none overflow-hidden rounded-md border border-accent/70 bg-base-200 shadow-md ring-1 ring-accent/30 transition-[transform,opacity] duration-150 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing",
+            draggingCardIds.includes(commander.id) && "opacity-30",
           )}
           title={`${commander.name}: click to cast`}
           aria-label={`Cast ${commander.name}`}
           onClick={() => onCardClick(commander, "command")}
-          draggable
           onContextMenu={(event) => onCardContextMenu(commander, "command", event)}
-          onDragStart={(event) => onCardDragStart(commander, "command", event)}
+          {...cardDragHandlers(commander, "command")}
           onMouseEnter={() => onCardHover(commander.id, "command")}
           onMouseLeave={() => onCardLeave(commander.id)}
           onFocus={() => onCardHover(commander.id, "command")}
@@ -553,8 +550,9 @@ function CommandPile({
  * in their top-right corner.
  */
 function ManaCostPips({ manaCost }: { manaCost: string }) {
+  const { manaSymbolUrl } = useAppearance()
   const symbols = manaCost.match(/\{[^}]+\}/g) || []
-  if (!symbols.length) return null
+  if (!symbols.length || !manaSymbolUrl) return null
 
   return (
     <span
@@ -562,7 +560,13 @@ function ManaCostPips({ manaCost }: { manaCost: string }) {
       className="pointer-events-none absolute -top-9 left-0 z-10 flex items-center rounded-field bg-base-100 px-1 py-0.5 text-sm opacity-0 shadow-[0_2px_6px_rgb(0_0_0/0.25)] transition-opacity duration-150 [li:focus-within>&]:opacity-100 [li:hover>&]:opacity-100"
     >
       {symbols.map((symbol, index) => (
-        <ManaSymbol key={`${symbol}-${index}`} symbol={symbol} className="translate-y-0" />
+        <img
+          key={`${symbol}-${index}`}
+          src={manaSymbolUrl(manaSymbolName(symbol))}
+          alt=""
+          className="mx-0.5 inline-block h-[1.15em] w-[1.15em] align-middle"
+          draggable={false}
+        />
       ))}
     </span>
   )

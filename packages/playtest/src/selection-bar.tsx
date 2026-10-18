@@ -13,8 +13,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { MouseEvent } from "react"
-import type { PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
-import { cn } from "../../lib/utils"
+import type { PlaytestCard, PlaytestZone } from "./engine"
+import { cn } from "./ui"
 import { ZONE_LABELS } from "./constants"
 import type { CardStatus } from "./types"
 

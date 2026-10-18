@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react"
 import {
   drawCards,
   exileFromLibrary,
@@ -12,7 +20,7 @@ import {
   type PlaytestCard,
   type PlaytestState,
   type PlaytestZone,
-} from "../../lib/deck-playtest"
+} from "./engine"
 import {
   defaultBattlefieldPosition,
   findOpenBattlefieldPosition,
@@ -28,15 +36,17 @@ import {
   ZONE_LABELS,
 } from "./constants"
 import { loadSavedGame, saveGame } from "./saved-game"
-import { cardZone, initialSnapshot, shuffledOpeningState } from "./state"
+import { cardZone, initialSnapshot, nextTurnSnapshot, shuffledOpeningState } from "./snapshot"
 import type {
   BattlefieldCardPosition,
   CardHoverTarget,
   CardStatus,
   ContextMenuState,
+  HostValue,
   PeekMode,
   PeekState,
   PlayerCounterKind,
+  PlayerCounters,
   PlaytestSnapshot,
   TokenFormValues,
 } from "./types"
@@ -45,21 +55,54 @@ function newTokenId() {
   return `playtest-token-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
 }
 
-function startingGame(deckId: string, initialState: PlaytestState) {
-  const saved = loadSavedGame(deckId, initialState)
+function startingGame(saveKey: string | undefined, initialState: PlaytestState) {
+  const saved = saveKey ? loadSavedGame(saveKey, initialState) : null
   return {
     log: saved ? [`Resumed your saved game on turn ${saved.turn}`] : ["Opening hand ready"],
     snapshot: saved || initialSnapshot(initialState),
   }
 }
 
-export function usePlaytesterState(
-  deckId: string,
-  initialState: PlaytestState,
-  { drawOnNextTurn = true }: { drawOnNextTurn?: boolean } = {},
-) {
-  const [start] = useState(() => startingGame(deckId, initialState))
-  const [snapshot, setSnapshot] = useState(start.snapshot)
+export type PlaytesterStateOptions = {
+  drawOnNextTurn?: boolean
+  initialState: PlaytestState
+  life?: HostValue<number> | null
+  onSnapshotChange?: (snapshot: PlaytestSnapshot) => void
+  playerCounters?: HostValue<PlayerCounters> | null
+  saveKey?: string
+  /** Controlled snapshot; when set, the hook reports changes instead of keeping its own copy. */
+  snapshot?: PlaytestSnapshot
+  turn?: HostValue<number> | null
+}
+
+export function usePlaytesterState({
+  drawOnNextTurn = true,
+  initialState,
+  life,
+  onSnapshotChange,
+  playerCounters: hostPlayerCounters,
+  saveKey,
+  snapshot: controlledSnapshot,
+  turn: hostTurn,
+}: PlaytesterStateOptions) {
+  const isControlled = controlledSnapshot !== undefined
+  const [start] = useState(() =>
+    isControlled
+      ? { log: ["Opening hand ready"], snapshot: controlledSnapshot }
+      : startingGame(saveKey, initialState),
+  )
+  const [localSnapshot, setLocalSnapshot] = useState(start.snapshot)
+  const snapshot = controlledSnapshot ?? localSnapshot
+  // The newest snapshot, including changes the host has not rendered back yet, so several changes
+  // in one event build on each other.
+  const latestSnapshotRef = useRef(snapshot)
+  const onSnapshotChangeRef = useRef(onSnapshotChange)
+  const isControlledRef = useRef(isControlled)
+  useLayoutEffect(() => {
+    latestSnapshotRef.current = snapshot
+    onSnapshotChangeRef.current = onSnapshotChange
+    isControlledRef.current = isControlled
+  })
   const [history, setHistory] = useState<PlaytestSnapshot[]>([])
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
   const [hoveredCard, setHoveredCard] = useState<CardHoverTarget | null>(null)
@@ -68,10 +111,21 @@ export function usePlaytesterState(
   const [actionCount, setActionCount] = useState(1)
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false)
   const [actionLog, setActionLog] = useState<string[]>(start.log)
+  // Where dragged cards are while a battlefield drag is in progress; committed when it ends.
+  const [livePositions, setLivePositions] = useState<Record<
+    string,
+    BattlefieldCardPosition
+  > | null>(null)
   const lastAction = actionLog[0]
   // Measured by the battlefield view; used to auto-place played cards in open slots.
   const battlefieldLayoutRef = useRef({ height: 600, width: 1100, zoom: 1 })
-  const loadedGameRef = useRef({ deckId, initialState })
+  const loadedGameRef = useRef({ initialState, saveKey })
+
+  const replaceSnapshot = useCallback((next: PlaytestSnapshot) => {
+    latestSnapshotRef.current = next
+    if (!isControlledRef.current) setLocalSnapshot(next)
+    onSnapshotChangeRef.current?.(next)
+  }, [])
 
   const setBattlefieldLayout = useCallback(
     (layout: { height: number; width: number; zoom: number }) => {
@@ -93,13 +147,15 @@ export function usePlaytesterState(
     setActionLog((items) => [message, ...items].slice(0, MAX_LOG_ENTRIES))
   }, [])
 
-  // A new deck (or a refetched one) starts over, unless a matching saved game exists.
+  // A new deck (or a refetched one) starts over, unless a matching saved game exists. A controlled
+  // game belongs to the host, which decides when to start over.
   useEffect(() => {
     const loaded = loadedGameRef.current
-    if (loaded.deckId === deckId && loaded.initialState === initialState) return
-    loadedGameRef.current = { deckId, initialState }
-    const next = startingGame(deckId, initialState)
-    setSnapshot(next.snapshot)
+    if (loaded.saveKey === saveKey && loaded.initialState === initialState) return
+    loadedGameRef.current = { initialState, saveKey }
+    if (isControlledRef.current) return
+    const next = startingGame(saveKey, initialState)
+    replaceSnapshot(next.snapshot)
     setHistory([])
     setSelectedCardIds([])
     setHoveredCard(null)
@@ -107,22 +163,23 @@ export function usePlaytesterState(
     setPeek(null)
     setTokenDialogOpen(false)
     setActionLog(next.log)
-  }, [deckId, initialState])
+  }, [initialState, replaceSnapshot, saveKey])
 
   useEffect(() => {
-    saveGame(deckId, snapshot)
-  }, [deckId, snapshot])
+    if (!isControlled && saveKey) saveGame(saveKey, snapshot)
+  }, [isControlled, saveKey, snapshot])
 
-  const {
-    battlefieldCardPositions,
-    cardStatuses,
-    state,
-    tappedCardIds,
-    turn,
-    lifeTotal,
-    openingHand,
-    playerCounters,
-  } = snapshot
+  const { cardStatuses, state, tappedCardIds, openingHand } = snapshot
+  const battlefieldCardPositions = useMemo(
+    () =>
+      livePositions
+        ? { ...snapshot.battlefieldCardPositions, ...livePositions }
+        : snapshot.battlefieldCardPositions,
+    [livePositions, snapshot.battlefieldCardPositions],
+  )
+  const lifeTotal = life ? life.value : snapshot.lifeTotal
+  const playerCounters = hostPlayerCounters ? hostPlayerCounters.value : snapshot.playerCounters
+  const turn = hostTurn ? hostTurn.value : snapshot.turn
   const tappedCards = useMemo(() => new Set(tappedCardIds), [tappedCardIds])
   const selectedCardId = selectedCardIds.at(-1) || null
   const selectedCard = useMemo(
@@ -144,37 +201,34 @@ export function usePlaytesterState(
       recipe: (current: PlaytestSnapshot) => PlaytestSnapshot,
       message: string | ((current: PlaytestSnapshot) => string),
     ) => {
-      setSnapshot((current) => {
-        const next = recipe(current)
-        if (next === current) return current
-        setHistory((items) => [current, ...items].slice(0, MAX_HISTORY))
-        setLastAction(typeof message === "function" ? message(current) : message)
-        return next
-      })
+      const current = latestSnapshotRef.current
+      const next = recipe(current)
+      if (next === current) return
+      setHistory((items) => [current, ...items].slice(0, MAX_HISTORY))
+      setLastAction(typeof message === "function" ? message(current) : message)
+      replaceSnapshot(next)
     },
-    [setLastAction],
+    [replaceSnapshot, setLastAction],
   )
 
   const undo = useCallback(() => {
-    setHistory((items) => {
-      const [previous, ...rest] = items
-      if (!previous) return items
-      setSnapshot(previous)
-      setSelectedCardIds([])
-      setHoveredCard(null)
-      setLastAction("Undid previous action")
-      return rest
-    })
-  }, [setLastAction])
+    const [previous, ...rest] = history
+    if (!previous) return
+    setHistory(rest)
+    replaceSnapshot(previous)
+    setSelectedCardIds([])
+    setHoveredCard(null)
+    setLastAction("Undid previous action")
+  }, [history, replaceSnapshot, setLastAction])
 
   const resetGame = useCallback(() => {
-    setSnapshot(initialSnapshot(shuffledOpeningState(initialState)))
+    replaceSnapshot(initialSnapshot(shuffledOpeningState(initialState)))
     setHistory([])
     setSelectedCardIds([])
     setHoveredCard(null)
     setPeek(null)
     setActionLog(["Started a new game"])
-  }, [initialState])
+  }, [initialState, replaceSnapshot])
 
   const keepHand = useCallback(() => {
     commit((current) => ({ ...current, openingHand: false }), "Kept opening hand")
@@ -182,28 +236,37 @@ export function usePlaytesterState(
 
   const changeLife = useCallback(
     (delta: number) => {
+      if (life === null) return
+      const message = `${delta > 0 ? "Gained" : "Lost"} ${Math.abs(delta)} life`
+      if (life) {
+        life.onChange(life.value + delta)
+        setLastAction(message)
+        return
+      }
       commit(
         (current) => ({ ...current, lifeTotal: Math.max(0, current.lifeTotal + delta) }),
-        `${delta > 0 ? "Gained" : "Lost"} ${Math.abs(delta)} life`,
+        message,
       )
     },
-    [commit],
+    [commit, life, setLastAction],
   )
 
   const adjustPlayerCounter = useCallback(
     (kind: PlayerCounterKind, delta: number) => {
-      commit(
-        (current) => ({
-          ...current,
-          playerCounters: {
-            ...current.playerCounters,
-            [kind]: Math.max(0, current.playerCounters[kind] + delta),
-          },
-        }),
-        `${delta > 0 ? "Added" : "Removed"} ${Math.abs(delta)} ${kind}`,
-      )
+      if (hostPlayerCounters === null) return
+      const adjust = (counters: PlayerCounters) => ({
+        ...counters,
+        [kind]: Math.max(0, counters[kind] + delta),
+      })
+      const message = `${delta > 0 ? "Added" : "Removed"} ${Math.abs(delta)} ${kind}`
+      if (hostPlayerCounters) {
+        hostPlayerCounters.onChange(adjust(hostPlayerCounters.value))
+        setLastAction(message)
+        return
+      }
+      commit((current) => ({ ...current, playerCounters: adjust(current.playerCounters) }), message)
     },
-    [commit],
+    [commit, hostPlayerCounters, setLastAction],
   )
 
   const draw = useCallback(
@@ -351,33 +414,23 @@ export function usePlaytesterState(
     [moveCards],
   )
 
-  const moveBattlefieldCardPosition = useCallback(
-    (cardId: string, position: BattlefieldCardPosition) => {
-      commit((current) => {
-        if (!current.state.battlefield.some((card) => card.id === cardId)) return current
-
-        return {
-          ...current,
-          battlefieldCardPositions: {
-            ...current.battlefieldCardPositions,
-            [cardId]: position,
-          },
-        }
-      }, "Moved card on battlefield")
-      setSelectedCardIds([cardId])
-    },
-    [commit],
+  /** Shows dragged cards at their drag positions without touching the snapshot. */
+  const previewBattlefieldPositions = useCallback(
+    (positions: Record<string, BattlefieldCardPosition> | null) => setLivePositions(positions),
+    [],
   )
 
-  /** Applies drag positions without an undo step per frame. */
-  const moveBattlefieldCardPositionsLive = useCallback(
+  /** Ends a battlefield drag: the cards stay where they were dropped (not an undo step). */
+  const placeBattlefieldCards = useCallback(
     (positions: Record<string, BattlefieldCardPosition>) => {
-      setSnapshot((current) => ({
+      setLivePositions(null)
+      const current = latestSnapshotRef.current
+      replaceSnapshot({
         ...current,
         battlefieldCardPositions: { ...current.battlefieldCardPositions, ...positions },
-      }))
+      })
     },
-    [],
+    [replaceSnapshot],
   )
 
   /** Taps every card, or untaps them when they are all already tapped. */
@@ -407,17 +460,14 @@ export function usePlaytesterState(
   }, [commit])
 
   const nextTurn = useCallback(() => {
+    if (hostTurn === null) return
+    const nextNumber = (hostTurn ? hostTurn.value : latestSnapshotRef.current.turn) + 1
     commit(
-      (current) => ({
-        ...current,
-        state: drawOnNextTurn ? drawCards(current.state, 1) : current.state,
-        tappedCardIds: [],
-        turn: current.turn + 1,
-        openingHand: false,
-      }),
-      (current) => `Turn ${current.turn + 1}: untapped${drawOnNextTurn ? " and drew a card" : ""}`,
+      (current) => nextTurnSnapshot(current, { draw: drawOnNextTurn }),
+      `Turn ${nextNumber}: untapped${drawOnNextTurn ? " and drew a card" : ""}`,
     )
-  }, [commit, drawOnNextTurn])
+    hostTurn?.onChange(nextNumber)
+  }, [commit, drawOnNextTurn, hostTurn])
 
   const activateCard = useCallback(
     (card: PlaytestCard, zone: PlaytestZone) => {
@@ -643,8 +693,8 @@ export function usePlaytesterState(
     markCardHovered,
     mill,
     moveAllCards,
-    moveBattlefieldCardPosition,
-    moveBattlefieldCardPositionsLive,
+    placeBattlefieldCards,
+    previewBattlefieldPositions,
     moveCard,
     moveCards,
     mulligan,

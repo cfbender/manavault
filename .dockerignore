@@ -22,7 +22,7 @@ priv/static/cache_manifest.json
 rust/target/
 
 # Installed in the image's frontend stage
-node_modules/
+**/node_modules/
 
 # Native shells and local tooling state (not part of the image)
 android/

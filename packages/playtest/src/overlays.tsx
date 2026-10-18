@@ -12,9 +12,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import type { LibraryTopDecision, PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
-import { cn } from "../../lib/utils"
-import { Button } from "../ui/button"
+import type { LibraryTopDecision, PlaytestCard, PlaytestZone } from "./engine"
+import { Button, cn } from "./ui"
 import { isLandCard } from "./battlefield-helpers"
 import { CardThumb } from "./card-thumb"
 import type { PeekMode, TokenFormValues } from "./types"
@@ -40,10 +39,10 @@ export function OpeningHandOverlay({
   const nextHandSize = Math.max(hand.length - (mulligans === 0 ? 0 : 1), 0)
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-black/55 p-3 sm:p-6">
+    <div className="absolute inset-0 z-30 flex overflow-y-auto bg-black/55 p-3 sm:p-6">
       <section
         aria-labelledby="opening-hand-title"
-        className="w-full max-w-5xl rounded-box border border-base-300 bg-base-100 p-4 shadow-2xl sm:p-6"
+        className="m-auto w-full max-w-5xl rounded-box border border-base-300 bg-base-100 p-4 shadow-2xl sm:p-6"
       >
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div>
@@ -67,7 +66,7 @@ export function OpeningHandOverlay({
           </p>
         </div>
 
-        <ol className="mt-5 grid grid-cols-4 gap-2 sm:grid-cols-7 sm:gap-3">
+        <ol className="mt-3 grid grid-cols-4 sm:mt-5 gap-2 sm:grid-cols-7 sm:gap-3">
           {hand.map((card, index) => (
             <li
               key={card.id}
@@ -82,18 +81,23 @@ export function OpeningHandOverlay({
           ))}
         </ol>
 
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onNewHand} className="sm:mr-auto">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:flex sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onNewHand}
+            className="order-last col-span-2 sm:order-none sm:mr-auto"
+          >
             <RotateCw className="h-4 w-4" />
             Restart
           </Button>
           <Button type="button" variant="outline" onClick={onMulligan}>
             Mulligan
-            <kbd className="kbd kbd-xs">M</kbd>
+            <kbd className="kbd kbd-xs hidden sm:inline-flex">M</kbd>
           </Button>
           <Button type="button" onClick={onKeep} autoFocus>
             Keep {hand.length}
-            <kbd className="kbd kbd-xs border-primary-content/30 bg-transparent text-primary-content">
+            <kbd className="kbd kbd-xs hidden border-primary-content/30 bg-transparent text-primary-content sm:inline-flex">
               Enter
             </kbd>
           </Button>

@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import type { PlaytestZone } from "../../lib/deck-playtest"
+import type { PlaytestZone } from "./engine"
 import { isTypingTarget } from "./keyboard-helpers"
 import type { CardHoverTarget } from "./types"
 

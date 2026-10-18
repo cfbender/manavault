@@ -2,14 +2,13 @@ import { CircleDot, Sparkles, ZoomIn, ZoomOut } from "lucide-react"
 import {
   useRef,
   useState,
-  type DragEvent,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
   type RefObject,
 } from "react"
-import type { PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
-import { cn } from "../../lib/utils"
+import type { PlaytestCard, PlaytestZone } from "./engine"
+import { cn } from "./ui"
 import {
   battlefieldCardDimensions,
   cardsInMarquee,
@@ -45,6 +44,7 @@ export function PlaytestBattlefield({
   cardStatuses,
   command,
   draggingCardIds,
+  isDropTarget,
   onActivateCard,
   onAdjustCounter,
   onBackgroundClick,
@@ -52,7 +52,6 @@ export function PlaytestBattlefield({
   onCardHover,
   onCardLeave,
   onCastCommander,
-  onDrop,
   onFinishPointerDrag,
   onMarqueeSelect,
   onOpenContextMenu,
@@ -71,6 +70,8 @@ export function PlaytestBattlefield({
   cardStatuses: Record<string, CardStatus>
   command: PlaytestCard[]
   draggingCardIds: string[]
+  /** A hand or pile card is being dragged over the battlefield. */
+  isDropTarget: boolean
   onActivateCard: (card: PlaytestCard, zone: PlaytestZone) => void
   onAdjustCounter: (cardId: string, kind: CounterKind, delta: number) => void
   onBackgroundClick: () => void
@@ -79,7 +80,6 @@ export function PlaytestBattlefield({
   onCardHover: (cardId: string, zone: PlaytestZone) => void
   onCardLeave: (cardId: string) => void
   onCastCommander: (card: PlaytestCard) => void
-  onDrop: (event: DragEvent<HTMLElement>) => void
   onFinishPointerDrag: (event: PointerEvent<HTMLButtonElement>) => void
   onMarqueeSelect: (cardIds: string[], additive: boolean) => void
   onOpenContextMenu: (card: PlaytestCard, zone: PlaytestZone, event: MouseEvent) => void
@@ -145,12 +145,14 @@ export function PlaytestBattlefield({
   return (
     <section
       aria-label={`Battlefield, ${battlefield.length} cards`}
+      data-playtest-zone="battlefield"
       className="relative min-h-0 overflow-hidden bg-base-200 bg-[radial-gradient(ellipse_at_50%_35%,color-mix(in_oklch,var(--color-base-100),transparent_45%),transparent_70%)] shadow-[inset_0_2px_10px_rgb(0_0_0/0.12)]"
     >
       <div
-        className="h-full overflow-auto p-2 sm:p-6"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={onDrop}
+        className={cn(
+          "h-full overflow-auto p-2 transition-[box-shadow] sm:p-6",
+          isDropTarget && "shadow-[inset_0_0_0_2px_var(--color-primary)]",
+        )}
         onPointerDown={beginMarquee}
         onPointerMove={updateMarquee}
         onPointerUp={finishMarquee}
@@ -342,15 +344,7 @@ export function CanvasCard({
   status: CardStatus
   zoom: number
 }) {
-  const netCounters = status.plusOneCounters - status.minusOneCounters
   const label = status.faceDown ? "Face-down card" : card.name
-  // The net chip nets +1/+1 against -1/-1 counters, so adding cancels a -1/-1 counter first.
-  const adjustNet = (delta: number) => {
-    if (delta > 0 && status.minusOneCounters > 0) onAdjustCounter("minusOneCounters", -1)
-    else if (delta > 0) onAdjustCounter("plusOneCounters", 1)
-    else if (status.plusOneCounters > 0) onAdjustCounter("plusOneCounters", -1)
-    else onAdjustCounter("minusOneCounters", 1)
-  }
 
   return (
     <button
@@ -393,29 +387,54 @@ export function CanvasCard({
       >
         <CardThumb card={card} faceDown={status.faceDown} />
       </div>
-      {netCounters !== 0 || status.markers || status.power || status.toughness ? (
-        <div className="absolute inset-x-1 bottom-1.5 flex flex-wrap justify-center gap-1">
-          {netCounters !== 0 ? (
-            <CounterChip tone={netCounters > 0 ? "success" : "error"} onAdjust={adjustNet}>
-              {netCounters > 0
-                ? `+${netCounters}/+${netCounters}`
-                : `${netCounters}/${netCounters}`}
-            </CounterChip>
-          ) : null}
-          {status.markers ? (
-            <CounterChip tone="info" onAdjust={(delta) => onAdjustCounter("markers", delta)}>
-              <CircleDot className="h-3 w-3" aria-label="Markers" />
-              {status.markers}
-            </CounterChip>
-          ) : null}
-          {status.power || status.toughness ? (
-            <CounterChip tone="warning">
-              {status.power || "0"}/{status.toughness || "0"}
-            </CounterChip>
-          ) : null}
-        </div>
-      ) : null}
+      <CardStatusChips status={status} onAdjustCounter={onAdjustCounter} />
     </button>
+  )
+}
+
+/** Counter, marker, and power/toughness chips along a permanent's bottom edge. */
+export function CardStatusChips({
+  onAdjustCounter,
+  status,
+}: {
+  /** Makes the chips clickable; read-only views leave it out. */
+  onAdjustCounter?: (kind: CounterKind, delta: number) => void
+  status: CardStatus
+}) {
+  const netCounters = status.plusOneCounters - status.minusOneCounters
+  if (netCounters === 0 && !status.markers && !status.power && !status.toughness) return null
+  // The net chip nets +1/+1 against -1/-1 counters, so adding cancels a -1/-1 counter first.
+  const adjustNet =
+    onAdjustCounter &&
+    ((delta: number) => {
+      if (delta > 0 && status.minusOneCounters > 0) onAdjustCounter("minusOneCounters", -1)
+      else if (delta > 0) onAdjustCounter("plusOneCounters", 1)
+      else if (status.plusOneCounters > 0) onAdjustCounter("plusOneCounters", -1)
+      else onAdjustCounter("minusOneCounters", 1)
+    })
+
+  return (
+    <div className="absolute inset-x-1 bottom-1.5 flex flex-wrap justify-center gap-1">
+      {netCounters !== 0 ? (
+        <CounterChip tone={netCounters > 0 ? "success" : "error"} onAdjust={adjustNet}>
+          {netCounters > 0 ? `+${netCounters}/+${netCounters}` : `${netCounters}/${netCounters}`}
+        </CounterChip>
+      ) : null}
+      {status.markers ? (
+        <CounterChip
+          tone="info"
+          onAdjust={onAdjustCounter && ((delta) => onAdjustCounter("markers", delta))}
+        >
+          <CircleDot className="h-3 w-3" aria-label="Markers" />
+          {status.markers}
+        </CounterChip>
+      ) : null}
+      {status.power || status.toughness ? (
+        <CounterChip tone="warning">
+          {status.power || "0"}/{status.toughness || "0"}
+        </CounterChip>
+      ) : null}
+    </div>
   )
 }
 

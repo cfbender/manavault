@@ -54,11 +54,13 @@ WORKDIR /app
 
 # Install JavaScript packages before copying the sources, so they stay cached
 # until the lockfile changes.
-COPY package.json aube-lock.yaml ./
+COPY package.json aube-lock.yaml aube-workspace.yaml ./
+COPY packages/playtest/package.json packages/playtest/
 RUN aube install --frozen-lockfile
 
 COPY vite.config.ts codegen.ts capacitor.config.json ./
 COPY assets assets
+COPY packages packages
 COPY priv/static priv/static
 # assets/css/app.css also scans the server-rendered HTML (app shell and login
 # page, written in the Rust web modules) for class names.

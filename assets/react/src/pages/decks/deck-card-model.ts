@@ -1,6 +1,5 @@
 import type { FullscreenPrinting } from "../../components/fullscreen-printing-dialog"
-import type { TokenFormValues } from "../../components/deck-playtester/types"
-import type { PlaytestCard } from "../../lib/deck-playtest"
+import type { PlaytestCard, TokenFormValues } from "@cfbender/playtest"
 import { buildDeckTokens } from "../../lib/deck-tokens"
 import { compareDeckCards } from "../../lib/deck-grouping"
 import type { DeckCardEntry, DeckZone } from "./deck-types"

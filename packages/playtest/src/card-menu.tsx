@@ -14,8 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
-import type { PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
-import { cn } from "../../lib/utils"
+import type { PlaytestCard, PlaytestZone } from "./engine"
+import { cn } from "./ui"
 import { hasClearableCardStatus } from "./card-status"
 import { ZONE_LABELS } from "./constants"
 import type { CardStatus, ContextMenuState, CounterKind } from "./types"

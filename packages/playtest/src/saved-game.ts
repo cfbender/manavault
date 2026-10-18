@@ -1,14 +1,10 @@
-import type { PlaytestCard, PlaytestState } from "../../lib/deck-playtest"
+import type { PlaytestCard, PlaytestState } from "./engine"
 import type { PlaytestSettings, PlaytestSnapshot } from "./types"
 
 const GAME_VERSION = 1
 const ZONES = ["battlefield", "command", "exile", "graveyard", "hand", "library"] as const
 
 export const DEFAULT_SETTINGS: PlaytestSettings = { drawOnNextTurn: true, showHoverPreview: true }
-
-function gameKey(deckId: string) {
-  return `manavault:playtest:${deckId}`
-}
 
 function deckCardIds(cards: PlaytestCard[]) {
   return cards
@@ -23,12 +19,12 @@ function allCards(state: PlaytestState) {
 }
 
 /**
- * Returns the in-progress game saved for this deck, or null when there is none or the decklist has
+ * Returns the in-progress game saved under this key, or null when there is none or the decklist has
  * changed since it was saved (the saved cards would no longer match the deck).
  */
-export function loadSavedGame(deckId: string, initialState: PlaytestState) {
+export function loadSavedGame(key: string, initialState: PlaytestState) {
   try {
-    const raw = window.localStorage.getItem(gameKey(deckId))
+    const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const saved = JSON.parse(raw) as { snapshot?: PlaytestSnapshot; version?: number }
     const snapshot = saved.snapshot
@@ -41,30 +37,27 @@ export function loadSavedGame(deckId: string, initialState: PlaytestState) {
   }
 }
 
-export function saveGame(deckId: string, snapshot: PlaytestSnapshot) {
+export function saveGame(key: string, snapshot: PlaytestSnapshot) {
   try {
-    window.localStorage.setItem(
-      gameKey(deckId),
-      JSON.stringify({ snapshot, version: GAME_VERSION }),
-    )
+    window.localStorage.setItem(key, JSON.stringify({ snapshot, version: GAME_VERSION }))
   } catch {
     // Storage can be full or disabled (private mode); the game still works without autosave.
   }
 }
 
-const SETTINGS_KEY = "manavault:playtest-settings"
-
-export function loadSettings(): PlaytestSettings {
+export function loadSettings(key: string | undefined): PlaytestSettings {
+  if (!key) return DEFAULT_SETTINGS
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}") }
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(window.localStorage.getItem(key) || "{}") }
   } catch {
     return DEFAULT_SETTINGS
   }
 }
 
-export function saveSettings(settings: PlaytestSettings) {
+export function saveSettings(key: string | undefined, settings: PlaytestSettings) {
+  if (!key) return
   try {
-    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+    window.localStorage.setItem(key, JSON.stringify(settings))
   } catch {
     // Settings simply won't persist.
   }

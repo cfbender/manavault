@@ -4,11 +4,11 @@ import {
   countCardTypes,
   findOpenBattlefieldPosition,
   isLandCard,
-} from "../src/components/deck-playtester/battlefield-helpers"
-import { BATTLEFIELD_CARD_WIDTH_REM } from "../src/components/deck-playtester/constants"
-import { loadSavedGame, saveGame } from "../src/components/deck-playtester/saved-game"
-import { initialSnapshot } from "../src/components/deck-playtester/state"
-import { createPlaytestState } from "../src/lib/deck-playtest"
+} from "../src/battlefield-helpers"
+import { BATTLEFIELD_CARD_WIDTH_REM } from "../src/constants"
+import { loadSavedGame, saveGame } from "../src/saved-game"
+import { initialSnapshot } from "../src/snapshot"
+import { createPlaytestState } from "../src/engine"
 
 const bounds = { height: 620, width: 1390 }
 const cardWidth = BATTLEFIELD_CARD_WIDTH_REM * 16

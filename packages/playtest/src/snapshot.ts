@@ -1,6 +1,6 @@
-import { createPlaytestState, type PlaytestState, type PlaytestZone } from "../../lib/deck-playtest"
 import { defaultBattlefieldPositions } from "./battlefield-helpers"
 import { STARTING_LIFE_TOTAL } from "./constants"
+import { createPlaytestState, drawCards, type PlaytestState, type PlaytestZone } from "./engine"
 import type { PlaytestSnapshot } from "./types"
 
 export function initialSnapshot(initialState: PlaytestState): PlaytestSnapshot {
@@ -16,6 +16,7 @@ export function initialSnapshot(initialState: PlaytestState): PlaytestSnapshot {
   }
 }
 
+/** A fresh game from the same cards: everything shuffled back and a new opening hand drawn. */
 export function shuffledOpeningState(initialState: PlaytestState) {
   return createPlaytestState(
     [
@@ -27,6 +28,20 @@ export function shuffledOpeningState(initialState: PlaytestState) {
     ],
     initialState.command,
   )
+}
+
+/** The next turn's untap step, plus its draw step unless `draw` is false. */
+export function nextTurnSnapshot(
+  snapshot: PlaytestSnapshot,
+  { draw = true }: { draw?: boolean } = {},
+): PlaytestSnapshot {
+  return {
+    ...snapshot,
+    state: draw ? drawCards(snapshot.state, 1) : snapshot.state,
+    tappedCardIds: [],
+    turn: snapshot.turn + 1,
+    openingHand: false,
+  }
 }
 
 export function cardZone(state: PlaytestState, cardId: string): PlaytestZone | null {

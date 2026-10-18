@@ -10,14 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
-import { DeckPlaytester } from "../../components/deck-playtester"
 import { graphqlEndpointContext } from "../../lib/apollo"
 import { downloadTextFile, exportDecklistText } from "../../lib/deck-export"
-import { createPlaytestState } from "../../lib/deck-playtest"
 import { buylistPrintingLabel, buylistTotalPrice, formatUsdCents } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
-import { deckPlaytestCards, deckPlaytestTokens } from "./deck-card-model"
+import { ManaVaultDeckPlaytester } from "./deck-playtester"
 import type { DeckCardEntry, DeckDetail } from "./deck-types"
 import { DeckBuylistDocument } from "./deck-share-documents"
 
@@ -58,16 +56,9 @@ export function SharePlaytestOverlay({
   deckCards: DeckCardEntry[]
   onClose: () => void
 }) {
-  // Memoized so parent re-renders don't deal a new game.
-  const initialPlaytestState = useMemo(() => {
-    const playtestCards = deckPlaytestCards(deckCards)
-    return createPlaytestState(playtestCards.library, playtestCards.command)
-  }, [deckCards])
-  const tokenOptions = useMemo(() => deckPlaytestTokens(deckCards), [deckCards])
-
   return createPortal(
     <div className="fixed inset-0 z-[1200] bg-[#0d0e0c]">
-      <DeckPlaytester
+      <ManaVaultDeckPlaytester
         closeSlot={
           <button
             type="button"
@@ -78,10 +69,9 @@ export function SharePlaytestOverlay({
             Close
           </button>
         }
+        deckCards={deckCards}
         deckId={deck.id}
         deckName={deck.name}
-        initialState={initialPlaytestState}
-        tokenOptions={tokenOptions}
       />
     </div>,
     document.body,

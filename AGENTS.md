@@ -8,6 +8,7 @@
 - `rust/migrations/` — the SQL migrations (one file per schema version), embedded in the binary and applied on boot; `rust/schema.sql` is the schema they produce (generated, used to check sqlx queries).
 - `priv/static/` — static files served by the backend; `priv/static/assets` is the built frontend (Tailwind CSS and the Vite bundle). `priv/data/` holds data files embedded in the binary.
 - `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react` and its tests in `assets/react/test`.
+- `packages/playtest/` — `@cfbender/playtest`, the deck playtester and spectator board shared with The Gathering. A self-contained aube workspace package (`aube-workspace.yaml`) with its own tests; it must not import from `assets/`. Read its `README.md`.
 - `scripts/dev-rust.sh` — development stack: Rust server, Vite dev server, and Tailwind watcher.
 - `data/` — runtime data directory used by the app/container.
 - `Dockerfile` and `docker-entrypoint.sh` — production container build (frontend, Rust release binary, Debian runtime) and startup flow.

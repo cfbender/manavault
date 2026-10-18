@@ -1,6 +1,4 @@
-import { Link } from "@tanstack/react-router"
 import {
-  ArrowLeft,
   Coins,
   Dices,
   Check,
@@ -18,18 +16,20 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { ReactNode } from "react"
-import { cn } from "../../lib/utils"
+import { SHORTCUT_GROUPS } from "./keyboard-shortcuts"
 import {
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
-import { Switch } from "../ui/switch"
-import { SHORTCUT_GROUPS } from "./keyboard-shortcuts"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Switch,
+} from "./ui"
 import type { PlayerCounterKind, PlayerCounters, PlaytestSettings } from "./types"
 
 const SETTING_LABELS: Array<{ key: keyof PlaytestSettings; label: string; hint: string }> = [
@@ -55,8 +55,6 @@ const PLAYER_COUNTER_LABELS: Record<PlayerCounterKind, string> = {
 export function PlaytestTopBar({
   canUndo,
   closeSlot,
-  deckId,
-  deckName,
   lifeTotal,
   onAdjustPlayerCounter,
   onCreateToken,
@@ -72,13 +70,13 @@ export function PlaytestTopBar({
   playerCounters,
   settings,
   shortcutsOpen,
+  title,
   turn,
 }: {
   canUndo: boolean
   closeSlot?: ReactNode
-  deckId: string
-  deckName: string
-  lifeTotal: number
+  /** Null when the host shows life itself. */
+  lifeTotal: number | null
   onAdjustPlayerCounter: (kind: PlayerCounterKind, delta: number) => void
   onCreateToken: () => void
   onFlipCoin: () => void
@@ -90,30 +88,23 @@ export function PlaytestTopBar({
   onShortcutsOpenChange: (open: boolean) => void
   onUndo: () => void
   onUntapAll: () => void
-  playerCounters: PlayerCounters
+  /** Null when the host shows player counters itself. */
+  playerCounters: PlayerCounters | null
   settings: PlaytestSettings
   shortcutsOpen: boolean
-  turn: number
+  title: string
+  /** Null when the host runs turns itself. */
+  turn: number | null
 }) {
   const activeCounters = (Object.keys(PLAYER_COUNTER_LABELS) as PlayerCounterKind[]).filter(
-    (kind) => playerCounters[kind] > 0,
+    (kind) => (playerCounters?.[kind] || 0) > 0,
   )
 
   return (
     <header className="col-span-full flex min-w-0 items-center gap-1.5 border-b border-base-300 bg-base-100 px-2 sm:gap-2 sm:px-3">
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        {closeSlot || (
-          <Link
-            to="/decks/$id"
-            params={{ id: deckId }}
-            className="btn btn-ghost btn-sm btn-square shrink-0"
-            aria-label="Back to deck"
-            title="Back to deck"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        )}
-        <h1 className="hidden min-w-0 truncate text-sm font-black sm:block">{deckName}</h1>
+        {closeSlot}
+        <h1 className="hidden min-w-0 truncate text-sm font-black sm:block">{title}</h1>
       </div>
 
       <div className="hidden items-center gap-1 lg:flex">
@@ -131,50 +122,56 @@ export function PlaytestTopBar({
         <span className="mx-1 h-6 w-px bg-base-300" aria-hidden="true" />
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <span className="hidden text-xs font-bold text-base-content/70 sm:inline">
-          Turn <span className="font-mono text-sm font-black text-base-content">{turn}</span>
-        </span>
-        <span className="font-mono text-sm font-black sm:hidden" aria-label={`Turn ${turn}`}>
-          T{turn}
-        </span>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm gap-1.5 px-2.5"
-          onClick={onNextTurn}
-          title={`Next turn: untap everything${settings.drawOnNextTurn ? " and draw" : ""} (N)`}
-        >
-          <SkipForward className="h-4 w-4" />
-          <span className="hidden sm:inline">Next turn</span>
-          <span className="sm:hidden">Next</span>
-          <kbd className="kbd kbd-xs hidden border-secondary-content/30 bg-transparent text-secondary-content md:inline-flex">
-            N
-          </kbd>
-        </button>
-      </div>
-
-      <LifeStepper lifeTotal={lifeTotal} onLifeChange={onLifeChange} />
-
-      <Popover>
-        <PopoverTrigger asChild>
+      {turn === null ? null : (
+        <div className="flex items-center gap-1.5">
+          <span className="hidden text-xs font-bold text-base-content/70 sm:inline">
+            Turn <span className="font-mono text-sm font-black text-base-content">{turn}</span>
+          </span>
+          <span className="font-mono text-sm font-black sm:hidden" aria-label={`Turn ${turn}`}>
+            T{turn}
+          </span>
           <button
             type="button"
-            className="btn btn-ghost btn-sm hidden gap-1.5 px-2 md:inline-flex"
-            title="Poison, energy, and experience"
+            className="btn btn-secondary btn-sm gap-1.5 px-2.5"
+            onClick={onNextTurn}
+            title={`Next turn: untap everything${settings.drawOnNextTurn ? " and draw" : ""} (N)`}
           >
-            Counters
-            {activeCounters.map((kind) => (
-              <span key={kind} className="badge badge-sm badge-outline font-mono">
-                {PLAYER_COUNTER_LABELS[kind].charAt(0)}
-                {playerCounters[kind]}
-              </span>
-            ))}
+            <SkipForward className="h-4 w-4" />
+            <span className="hidden sm:inline">Next turn</span>
+            <span className="sm:hidden">Next</span>
+            <kbd className="kbd kbd-xs hidden border-secondary-content/30 bg-transparent text-secondary-content md:inline-flex">
+              N
+            </kbd>
           </button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-64 p-2">
-          <PlayerCounterRows counters={playerCounters} onAdjust={onAdjustPlayerCounter} />
-        </PopoverContent>
-      </Popover>
+        </div>
+      )}
+
+      {lifeTotal === null ? null : (
+        <LifeStepper lifeTotal={lifeTotal} onLifeChange={onLifeChange} />
+      )}
+
+      {playerCounters === null ? null : (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm hidden gap-1.5 px-2 md:inline-flex"
+              title="Poison, energy, and experience"
+            >
+              Counters
+              {activeCounters.map((kind) => (
+                <span key={kind} className="badge badge-sm badge-outline font-mono">
+                  {PLAYER_COUNTER_LABELS[kind].charAt(0)}
+                  {playerCounters[kind]}
+                </span>
+              ))}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 p-2">
+            <PlayerCounterRows counters={playerCounters} onAdjust={onAdjustPlayerCounter} />
+          </PopoverContent>
+        </Popover>
+      )}
 
       <span className="mx-0.5 hidden h-6 w-px bg-base-300 md:block" aria-hidden="true" />
 
@@ -220,7 +217,6 @@ export function PlaytestTopBar({
                     <span className="block text-xs text-base-content/60">{hint}</span>
                   </span>
                   <Switch
-                    size="sm"
                     checked={settings[key]}
                     onCheckedChange={(checked) => onSettingsChange({ [key]: checked })}
                   />
@@ -279,9 +275,13 @@ export function PlaytestTopBar({
           </DropdownMenuItem>
           <DropdownMenuSeparator className="md:hidden" />
           <div className="md:hidden">
-            <DropdownMenuLabel>Counters</DropdownMenuLabel>
-            <PlayerCounterRows counters={playerCounters} onAdjust={onAdjustPlayerCounter} />
-            <DropdownMenuSeparator />
+            {playerCounters === null ? null : (
+              <>
+                <DropdownMenuLabel>Counters</DropdownMenuLabel>
+                <PlayerCounterRows counters={playerCounters} onAdjust={onAdjustPlayerCounter} />
+                <DropdownMenuSeparator />
+              </>
+            )}
             {SETTING_LABELS.map(({ key, label }) => (
               <DropdownMenuItem
                 key={key}

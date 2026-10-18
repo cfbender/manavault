@@ -37,7 +37,7 @@ run = [
   "aube run typecheck",
   "aube run test:react",
   "aube run build",
-  "aubx impeccable detect assets/react/src/",
+  "aubx impeccable detect assets/react/src/ packages/playtest/src/",
 ]
 
 [tasks.precommit]

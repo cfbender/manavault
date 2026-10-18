@@ -1,5 +1,6 @@
-import type { PlaytestCard } from "../../lib/deck-playtest"
-import { cn } from "../../lib/utils"
+import { useAppearance } from "./appearance"
+import type { PlaytestCard } from "./engine"
+import { cn } from "./ui"
 
 export function CardThumb({
   card,
@@ -46,8 +47,10 @@ export function CardThumb({
   )
 }
 
-/** The ManaVault sleeve: used for the library stack and face-down cards. */
+/** The card back: used for the library stack and face-down cards. */
 export function SleeveBack({ className }: { className?: string }) {
+  const { sleeveImageUrl } = useAppearance()
+
   return (
     <div
       aria-hidden="true"
@@ -58,12 +61,14 @@ export function SleeveBack({ className }: { className?: string }) {
     >
       <div className="absolute inset-[5%] rounded-[6%] border border-[oklch(68%_0.11_72/0.55)]" />
       <div className="absolute inset-[9%] rounded-[5%] bg-[radial-gradient(circle_at_50%_42%,oklch(36%_0.11_10/0.9),transparent_68%)]" />
-      <img
-        src="/images/logo.png"
-        alt=""
-        className="relative w-[62%] opacity-90 drop-shadow-[0_2px_4px_rgb(0_0_0/0.45)]"
-        draggable={false}
-      />
+      {sleeveImageUrl ? (
+        <img
+          src={sleeveImageUrl}
+          alt=""
+          className="relative w-[62%] opacity-90 drop-shadow-[0_2px_4px_rgb(0_0_0/0.45)]"
+          draggable={false}
+        />
+      ) : null}
     </div>
   )
 }

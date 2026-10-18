@@ -1,5 +1,4 @@
-import type { DragEvent } from "react"
-import type { PlaytestCard } from "../../lib/deck-playtest"
+import type { PlaytestCard } from "./engine"
 import {
   BATTLEFIELD_CARD_ASPECT_HEIGHT,
   BATTLEFIELD_CARD_WIDTH_REM,
@@ -67,26 +66,6 @@ export function cardsInMarquee(
         position.y + card.height > marquee.y,
     )
     .map(([cardId]) => cardId)
-}
-
-export function battlefieldPositionFromDrop(
-  event: DragEvent<HTMLElement>,
-  surface: HTMLElement,
-  zoom: number,
-  dragOffset?: BattlefieldCardPosition,
-): BattlefieldCardPosition {
-  const rect = surface.getBoundingClientRect()
-  const { height, width } = battlefieldCardDimensions(surface, zoom)
-  const offset = dragOffset || { x: width / 2, y: height / 2 }
-
-  return clampBattlefieldPosition(
-    {
-      x: event.clientX - rect.left - offset.x,
-      y: event.clientY - rect.top - offset.y,
-    },
-    surface,
-    zoom,
-  )
 }
 
 export function battlefieldPositionFromPointer(
