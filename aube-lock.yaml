@@ -76,8 +76,8 @@ importers:
         specifier: ^8.0.3
         version: 8.0.3(@capacitor/core@8.5.2)
       '@cfbender/playtest':
-        specifier: workspace:*
-        version: 0.1.0
+        specifier: https://github.com/cfbender/playtest/archive/refs/tags/v0.1.2.tar.gz
+        version: https://github.com/cfbender/playtest/archive/refs/tags/v0.1.2.tar.gz
       '@graphql-codegen/cli':
         specifier: ^7.4.3
         version: 7.4.3(graphql@17.0.2)
@@ -245,67 +245,6 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@26.1.2)(@vitest/browser-preview@5.0.1(vitest@5.0.1))(@vitest/ui@5.0.1(vitest@5.0.1))(jsdom@30.1.1)(vite@8.3.2(@types/node@26.1.2)(jiti@2.7.0)(yaml@2.9.0))
 
-  packages/playtest:
-    dependencies:
-      '@radix-ui/react-dropdown-menu':
-        specifier: ^2.1.24
-        version: 2.1.24(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
-      '@radix-ui/react-popover':
-        specifier: ^1.1.23
-        version: 1.1.23(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
-      '@radix-ui/react-switch':
-        specifier: ^1.3.7
-        version: 1.3.7(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
-      '@types/node':
-        specifier: ^22.0.0 || >=24.0.0
-        version: 26.1.2
-      '@vitest/browser-preview':
-        specifier: 5.0.3
-        version: 5.0.1(vitest@5.0.1)
-      '@vitest/ui':
-        specifier: 5.0.3
-        version: 5.0.1(vitest@5.0.1)
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      lucide-react:
-        specifier: ^1.49.0
-        version: 1.49.0(@types/react@19.3.0)(react@19.3.0)
-      tailwind-merge:
-        specifier: ^3.7.0
-        version: 3.7.0
-      vite:
-        specifier: ^6.4.0 || ^7.0.0 || ^8.0.0
-        version: 8.3.2(@types/node@26.1.2)(jiti@2.7.0)(yaml@2.9.0)
-    devDependencies:
-      '@testing-library/dom':
-        specifier: ^10.4.2
-        version: 10.4.2
-      '@testing-library/react':
-        specifier: ^16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
-      '@types/react':
-        specifier: ^19.3.0
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.3.0
-        version: 19.3.0(@types/react@19.3.0)
-      jsdom:
-        specifier: ^30.1.1
-        version: 30.1.1
-      react:
-        specifier: ^19.3.0
-        version: 19.3.0
-      react-dom:
-        specifier: ^19.3.0
-        version: 19.3.0(react@19.3.0)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.3
-        version: 5.0.3(@types/node@26.1.2)(@vitest/browser-preview@5.0.1(vitest@5.0.1))(@vitest/ui@5.0.1(vitest@5.0.1))(jsdom@30.1.1)(vite@8.3.2(@types/node@26.1.2)(jiti@2.7.0)(yaml@2.9.0))
-
 packages:
 
   '@apollo/client@4.3.1':
@@ -466,6 +405,9 @@ packages:
 
   '@capacitor/synapse@1.0.4':
     resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
+
+  '@cfbender/playtest@https://github.com/cfbender/playtest/archive/refs/tags/v0.1.2.tar.gz':
+    resolution: {integrity: sha512-NZ34v+XE0gCmFKd+Xw3qgTq1gahEDrdipzK1H/PKByl4eypr7FpmqnLFNv/NmM75gNDjhWTk9gl/+f2vTUiLeA==, tarball: https://github.com/cfbender/playtest/archive/refs/tags/v0.1.2.tar.gz}
 
   '@csstools/color-helpers@6.1.2':
     resolution: {integrity: sha512-grhRy3OKmniaAEKXMjua5z/EODX0MSqBGjunw8+j/3HQjOnahs2AGhvEOIYVUWcU6ScApbhLhVrQTX8XqrMrow==}
@@ -4577,6 +4519,15 @@ snapshots:
       '@capacitor/core': 8.5.2
 
   '@capacitor/synapse@1.0.4': {}
+
+  '@cfbender/playtest@https://github.com/cfbender/playtest/archive/refs/tags/v0.1.2.tar.gz':
+    dependencies:
+      '@radix-ui/react-dropdown-menu': 2.1.24(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
+      '@radix-ui/react-popover': 1.1.23(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
+      '@radix-ui/react-switch': 1.3.7(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.0)(react-dom@19.3.0(react@19.3.0))
+      clsx: 2.1.1
+      lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.0)
+      tailwind-merge: 3.7.0
 
   '@csstools/color-helpers@6.1.2': {}
 

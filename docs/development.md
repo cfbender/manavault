@@ -89,10 +89,10 @@ mise exec -- aube run test:react
 mise exec -- aube run build
 ```
 
-The deck playtester lives in the workspace package `packages/playtest`
-(`@cfbender/playtest`), shared with The Gathering. ManaVault consumes it like any
-dependency; `typecheck` and `test:react` also run the package's own checks. See
-[packages/playtest/README.md](../packages/playtest/README.md) for its API.
+The deck playtester is the `@cfbender/playtest` package, shared with The
+Gathering and developed in [cfbender/playtest](https://github.com/cfbender/playtest)
+(see its README for the API). `package.json` pins a release tag; to pick up a
+new release, bump the tag and run `mise exec -- aube install`.
 
 Audit JavaScript dependencies for known advisories:
 
