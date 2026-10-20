@@ -3,6 +3,7 @@ import type { ReactNode } from "react"
 
 import { cn, pluralize } from "../../lib/utils"
 import type { DeckCardEntry } from "./deck-types"
+import { hasCommander } from "./deck-types"
 import {
   releasedCopyCount,
   swapAddKey,
@@ -221,7 +222,7 @@ function StagedAdd({
 }
 
 function CountMeter({ format, summary }: { format: string; summary: SwapSummary }) {
-  const target = format === "commander" ? 100 : null
+  const target = hasCommander(format) ? 100 : null
   const offTarget = target !== null && summary.resultCount !== target
 
   return (

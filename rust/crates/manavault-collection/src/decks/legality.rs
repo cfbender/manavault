@@ -81,7 +81,7 @@ pub fn evaluate(format: DeckFormat, cards: &[LegalityCard<'_>]) -> DeckLegality 
         .filter(|card| counts_toward_deck(card.zone))
         .collect();
     let mut issues = card_legality_issues(format, &counted);
-    if format == DeckFormat::Commander {
+    if format.has_commander() {
         issues.extend(deck_size_issues(&counted));
         issues.extend(commander_count_issues(&counted));
         issues.extend(singleton_issues(&counted));
@@ -107,7 +107,7 @@ fn card_legality_issues(format: DeckFormat, cards: &[&LegalityCard<'_>]) -> Vec<
                 .card
                 .map(|record| json::object(&record.legalities))
                 .unwrap_or_default();
-            let status = match legalities.get(format.as_str()) {
+            let status = match legalities.get(format.legality_key()) {
                 Some(Value::String(status)) if status == "legal" => return None,
                 Some(Value::String(status)) => status.clone(),
                 Some(Value::Null) | None => "missing".to_owned(),

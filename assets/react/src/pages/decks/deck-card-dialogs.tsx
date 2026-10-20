@@ -23,7 +23,7 @@ import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
 import type { DeckCardEntry, DeckCardPrinting, DeckCardTag, DeckZone } from "./deck-types"
-import { connectionNodes, deckZoneDisplayLabel } from "./deck-types"
+import { connectionNodes, deckZoneDisplayLabel, hasCommander } from "./deck-types"
 import { CardPrintingsDocument } from "./deck-card-documents"
 import {
   ADD_CARD_ZONES,
@@ -126,7 +126,7 @@ export function EditDeckCardDialog({
   const [finish, setFinish] = useState("nonfoil")
   const [preferredPrintingId, setPreferredPrintingId] = useState("")
   const [tag, setTag] = useState<DeckCardTag | "">("")
-  const zoneOptions = deckFormat === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
+  const zoneOptions = hasCommander(deckFormat) ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
   const cardId = deckCard?.card?.id || null
   const { data: printingsData, loading: printingsLoading } = useQuery(CardPrintingsDocument, {
     variables: { id: cardId || "" },

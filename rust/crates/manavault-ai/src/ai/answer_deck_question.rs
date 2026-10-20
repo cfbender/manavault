@@ -12,6 +12,7 @@ use super::question_answers::{self, NewQuestionAnswer, QuestionAnswer, Status, W
 use super::workers::DECK_QUESTION_WORKER;
 use super::{AiError, Configured, Provider};
 use manavault_catalog::catalog::search::cards_by_name;
+use manavault_collection::decks::model::DeckFormat;
 use manavault_core::state::AppState;
 
 /// Completed prior turns sent with each new question in either chat surface.
@@ -206,13 +207,15 @@ fn recommendation_issues(
         if !matches!(payload.format.as_str(), "limited" | "casual") {
             let legalities: Map<String, Value> =
                 serde_json::from_str(&card.legalities).unwrap_or_default();
-            let status = legalities.get(&payload.format).and_then(Value::as_str);
+            let key = DeckFormat::parse(&payload.format)
+                .map_or(payload.format.as_str(), |format| format.legality_key());
+            let status = legalities.get(key).and_then(Value::as_str);
             if !matches!(status, Some("legal" | "restricted")) {
                 issues.push(format!("{name} is not legal in {}.", payload.format));
             }
         }
         if let (true, Some(identity)) = (
-            payload.format == "commander",
+            DeckFormat::parse(&payload.format).is_some_and(DeckFormat::has_commander),
             &payload.commander_color_identity,
         ) {
             {

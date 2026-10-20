@@ -642,6 +642,37 @@ async fn legality_uses_the_given_card_data() {
 }
 
 #[tokio::test]
+async fn duel_commander_uses_duel_legality_with_commander_rules_and_highlander_uses_vintage() {
+    let app = TestApp::new().await;
+    app.import_cards(&[legal_commander_card(), legal_plains()])
+        .await;
+    let deck = commander_deck(&app, "Duel").await;
+    add_card(app.db(), deck, "Test Commander", 1, "commander").await;
+    add_card(app.db(), deck, "Plains", 98, "mainboard").await;
+    let mut loaded = (*contents(app.db(), deck).await).clone();
+    for card in &mut loaded.cards {
+        let mut record = (*card.card).clone();
+        record.legalities = if card.card.name == "Test Commander" {
+            r#"{"commander": "legal", "duel": "banned", "vintage": "legal"}"#
+        } else {
+            r#"{"commander": "legal", "duel": "legal", "vintage": "legal"}"#
+        }
+        .into();
+        card.card = std::sync::Arc::new(record);
+    }
+
+    let duel = loaded.legality(crate::decks::model::DeckFormat::DuelCommander);
+    let codes: Vec<&str> = duel.issues.iter().map(|issue| issue.code).collect();
+    assert_eq!(codes, ["card_legality", "commander_deck_size"]);
+    assert_eq!(
+        issue(&duel, "card_legality").card_name.as_deref(),
+        Some("Test Commander")
+    );
+    let highlander = loaded.legality(crate::decks::model::DeckFormat::CanadianHighlander);
+    assert_eq!(highlander.status, "legal");
+}
+
+#[tokio::test]
 async fn duplicate_banned_and_off_color_cards_are_illegal() {
     let app = TestApp::new().await;
     app.import_cards(&[

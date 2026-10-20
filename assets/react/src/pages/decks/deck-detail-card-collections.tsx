@@ -2,6 +2,7 @@ import { EmptyState } from "../../components/card-image"
 import type { DeckGroup } from "../../lib/deck-grouping"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
+import { hasCommander } from "./deck-types"
 import { DeckZoneTable } from "./deck-zone-table"
 
 type DeckDetailCardCollectionsProps = {
@@ -70,7 +71,7 @@ export function DeckDetailCardCollections({
       {groupedCards.length ? (
         <DeckGroupGrid
           canEditDecklist={canEditDecklist}
-          canSetCommander={canEditDecklist && deckFormat === "commander"}
+          canSetCommander={canEditDecklist && hasCommander(deckFormat)}
           deckId={deckId}
           deckTags={deckTags}
           groups={groupedCards}

@@ -59,16 +59,37 @@ text_enum!(
     /// `Deck.formats/0`.
     DeckFormat {
         Commander => "commander",
+        DuelCommander => "duel_commander",
         Standard => "standard",
         Pioneer => "pioneer",
         Modern => "modern",
         Legacy => "legacy",
         Vintage => "vintage",
         Pauper => "pauper",
+        CanadianHighlander => "canadian_highlander",
         Limited => "limited",
         Casual => "casual",
     }
 );
+
+impl DeckFormat {
+    /// Whether the format's decks are led by a commander (and follow the Commander deck rules).
+    #[must_use]
+    pub fn has_commander(self) -> bool {
+        matches!(self, Self::Commander | Self::DuelCommander)
+    }
+
+    /// The Scryfall `legalities` key for the format's card pool. Canadian Highlander has no
+    /// key of its own; its pool is Vintage's (its points list is not modeled).
+    #[must_use]
+    pub fn legality_key(self) -> &'static str {
+        match self {
+            Self::DuelCommander => "duel",
+            Self::CanadianHighlander => "vintage",
+            other => other.as_str(),
+        }
+    }
+}
 
 text_enum!(
     /// `Deck.statuses/0`. Archived decks are frozen.
@@ -354,12 +375,14 @@ mod tests {
             formats,
             vec![
                 "commander",
+                "duel_commander",
                 "standard",
                 "pioneer",
                 "modern",
                 "legacy",
                 "vintage",
                 "pauper",
+                "canadian_highlander",
                 "limited",
                 "casual"
             ]

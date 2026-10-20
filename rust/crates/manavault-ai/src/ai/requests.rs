@@ -4,24 +4,12 @@
 use sqlx::SqlitePool;
 
 use super::deck_analysis::result::valid_rating;
+use manavault_collection::decks::model::DeckFormat;
 use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{BLANK, INVALID, ValidationError, too_long};
 
 const DEFAULT_LIMIT: i64 = 50;
 const MAXIMUM_LIMIT: i64 = 100;
-
-/// `Deck.formats/0`.
-pub const FORMATS: [&str; 9] = [
-    "commander",
-    "standard",
-    "pioneer",
-    "modern",
-    "legacy",
-    "vintage",
-    "pauper",
-    "limited",
-    "casual",
-];
 
 /// Where the decklist came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,7 +71,7 @@ fn validate(request: &NewRequest) -> Result<(), ValidationError> {
             errors.add(field, BLANK);
         }
     }
-    if !FORMATS.contains(&request.format.as_str()) {
+    if DeckFormat::parse(&request.format).is_none() {
         errors.add("format", INVALID);
     }
     for (field, value, max) in [

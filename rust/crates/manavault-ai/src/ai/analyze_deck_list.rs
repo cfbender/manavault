@@ -4,9 +4,10 @@
 use super::analyze_deck::analyze_payload;
 use super::deck_analysis::{self, PayloadDeck};
 use super::decks::DeckCardInput;
-use super::requests::{self, DeckAnalysisRequest, FORMATS, InsertError, NewRequest, SourceType};
+use super::requests::{self, DeckAnalysisRequest, InsertError, NewRequest, SourceType};
 use super::{AiError, Configured};
 use manavault_catalog::catalog::search::cards_by_name;
+use manavault_collection::decks::model::DeckFormat;
 use manavault_core::state::AppState;
 use manavault_trade::trade::list_source::{self, ListEntry, ResolveError};
 
@@ -106,7 +107,7 @@ fn source_name(name: Option<&str>, source_type: SourceType) -> String {
 /// `run/1`.
 pub async fn run(state: &AppState, args: &Args) -> Result<DeckAnalysisRequest, AiError> {
     let (source_type, source) = source(args)?;
-    if !FORMATS.contains(&args.format.as_str()) {
+    if DeckFormat::parse(&args.format).is_none() {
         return Err(AiError::User("Choose a supported deck format.".to_owned()));
     }
     let settings = Configured::load(state).await?;

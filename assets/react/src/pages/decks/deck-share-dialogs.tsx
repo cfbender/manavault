@@ -31,7 +31,7 @@ import {
 import { cn, pluralize } from "../../lib/utils"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
-import { ADD_CARD_ZONES, deckZoneDisplayLabel } from "./deck-types"
+import { ADD_CARD_ZONES, deckZoneDisplayLabel, hasCommander } from "./deck-types"
 import {
   DisableDeckSharingDocument,
   EnsureDeckShareTokenDocument,
@@ -431,7 +431,7 @@ export function ExportDecklistDialog({
     return counts
   }, [deckCards])
   const defaultZones =
-    deck?.format === "commander" && zoneCounts.commander > 0
+    hasCommander(deck?.format) && zoneCounts.commander > 0
       ? ["commander", "mainboard"]
       : ["mainboard"]
   const defaultZonesRef = useRef(defaultZones)

@@ -40,6 +40,7 @@ import { DeckPrimer } from "./deck-primer"
 import { DeckQuestionDialog } from "./deck-question-dialog"
 import { DeckTagList } from "./deck-tag-list"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
+import { hasCommander } from "./deck-types"
 import { useDeckAnalysis } from "./use-deck-analysis"
 import { externalSourceLabel, useDeckExternalSource } from "./use-deck-external-source"
 import { formatDate } from "../settings/data"
@@ -354,8 +355,8 @@ export function DeckDetailHeader({
               onCompare={onCompareDeck}
               externalSourceLinked={Boolean(deck.externalSource)}
               onDisassemble={canAllocate ? onDisassemble : undefined}
-              onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
-              onRecommander={canEdit && deck.format === "commander" ? onOpenRecommander : undefined}
+              onEdhrec={canEdit && hasCommander(deck.format) ? onOpenEdhrec : undefined}
+              onRecommander={canEdit && hasCommander(deck.format) ? onOpenRecommander : undefined}
               onEdit={onEditDeck}
               onExport={onExportDeck}
               onExternalSource={canAllocate ? onExternalSource : undefined}

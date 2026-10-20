@@ -20,7 +20,12 @@ import {
 } from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
-import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
+import {
+  ADD_CARD_ZONES,
+  hasCommander,
+  NON_COMMANDER_ADD_CARD_ZONES,
+  type DeckZone,
+} from "../decks/deck-types"
 import { ZoneToggle } from "../decks/zone-toggle"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
@@ -75,8 +80,9 @@ export function AddCatalogCardToDeckDialog({
       .filter(present)
       .filter((deck) => deck.status !== "archived") || []
   const selectedDeck = decks.find((deck) => deck.id === deckId)
-  const zoneOptions =
-    selectedDeck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
+  const zoneOptions = hasCommander(selectedDeck?.format)
+    ? ADD_CARD_ZONES
+    : NON_COMMANDER_ADD_CARD_ZONES
   const selectedPrinting =
     target?.printings?.find((printing) => printing.id === selectedPrintingId) ||
     target?.printings?.find((printing) => printing.id === target.preferredPrintingId) ||

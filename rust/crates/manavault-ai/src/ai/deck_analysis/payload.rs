@@ -8,6 +8,7 @@ use serde_json::{Map, Value, json};
 
 use crate::ai::decks::DeckCardInput;
 use manavault_catalog::catalog::card::CardRecord;
+use manavault_collection::decks::model::DeckFormat;
 
 static LAND: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?i)\bLand\b").ok());
 static CHOOSES_COLOR: LazyLock<Option<Regex>> =
@@ -157,7 +158,7 @@ fn card_payload(deck_card: &DeckCardInput, format: &str) -> Value {
         &mut map,
         "format_legality",
         legalities
-            .get(format)
+            .get(DeckFormat::parse(format).map_or(format, |format| format.legality_key()))
             .cloned()
             .unwrap_or_else(|| json!("not_legal")),
         &json!("legal"),
