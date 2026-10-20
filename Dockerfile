@@ -128,7 +128,7 @@ COPY priv/data /src/priv/data
 RUN cargo build --release --locked --bin manavault \
   && install -D target/release/manavault /out/manavault
 
-FROM golang:1.27.2-alpine3.24 AS healthcheck-builder
+FROM golang:1.27.3-alpine3.24 AS healthcheck-builder
 # A static healthcheck helper, so the runtime image does not need curl. It
 # only reports whether the server answers GET /health; background sync status
 # does not affect it.
