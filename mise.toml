@@ -1,6 +1,6 @@
 [tools]
 android-sdk = "latest"
-aube = "1.21.0"
+aube = "2.8.1"
 cloudflared = "latest"
 git-cliff = "latest"
 java = "21"

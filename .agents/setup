@@ -61,17 +61,21 @@ if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
   fi
 fi
 
-if ! command -v mise >/dev/null 2>&1; then
-  echo "==> Installing mise"
-  mise_version="v2026.6.14"
+# mise releases before 2026.10 resolve aube from jdx/aube and fail attestation
+# verification for aube 2.x, so replace any older installed mise.
+mise_version="2026.10.17"
+installed_mise_version="$(mise --version 2>/dev/null | awk 'NR == 1 {print $1}' || true)"
+if [[ -z "$installed_mise_version" ]] ||
+  [[ "$(printf '%s\n%s\n' "$mise_version" "$installed_mise_version" | sort -V | head -n 1)" != "$mise_version" ]]; then
+  echo "==> Installing mise ${mise_version} (found: ${installed_mise_version:-none})"
   case "$(uname -m)" in
     x86_64|amd64)
       mise_arch="x64"
-      mise_sha="491dd31ff1e0201c7866046f4110125392a481f0fd37e01e5e622fa12670b77b"
+      mise_sha="54dc5f1a0de14bddf70a4d8273603647c140eedd8b9d083a8f73ca13a9a82f53"
       ;;
     aarch64|arm64)
       mise_arch="arm64"
-      mise_sha="947541d82684732cf27327d0d1914b471c0edb5ed6db8507f81b4ad8b67ba7cf"
+      mise_sha="745a1a5401c42090953a8da493243d5c666fffc2c98f9a3dee33bd8afc77a9ee"
       ;;
     *)
       echo "unsupported architecture: $(uname -m)" >&2
@@ -82,7 +86,7 @@ if ! command -v mise >/dev/null 2>&1; then
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "$tmp_dir"' EXIT
   curl -fsSL \
-    "https://github.com/jdx/mise/releases/download/${mise_version}/mise-${mise_version}-linux-${mise_arch}-musl.tar.gz" \
+    "https://github.com/jdx/mise/releases/download/v${mise_version}/mise-v${mise_version}-linux-${mise_arch}-musl.tar.gz" \
     -o "$tmp_dir/mise.tar.gz"
   printf '%s  %s\n' "$mise_sha" "$tmp_dir/mise.tar.gz" | sha256sum -c -
   tar -xzf "$tmp_dir/mise.tar.gz" -C "$tmp_dir"
