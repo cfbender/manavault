@@ -206,18 +206,42 @@ async fn completion_requests(server: &MockServer) -> Vec<Value> {
         .collect()
 }
 
-fn message_content(request: &Value, index: usize) -> String {
-    request["messages"][index]["content"]
+/// A message's text, whether sent as a string or as a cache-marked part.
+fn text(message: &Value) -> String {
+    let content = &message["content"];
+    content
         .as_str()
+        .or_else(|| content[0]["text"].as_str())
         .unwrap_or_default()
         .to_owned()
 }
 
+fn message_content(request: &Value, index: usize) -> String {
+    text(&request["messages"][index])
+}
+
 fn last_content(request: &Value) -> String {
-    request["messages"].as_array().unwrap().last().unwrap()["content"]
-        .as_str()
+    text(request["messages"].as_array().unwrap().last().unwrap())
+}
+
+/// The indexes of the messages marked as prompt-cache breakpoints.
+fn cache_breakpoints(request: &Value) -> Vec<usize> {
+    request["messages"]
+        .as_array()
         .unwrap()
-        .to_owned()
+        .iter()
+        .enumerate()
+        .filter(|(_, message)| match &message["content"] {
+            Value::Array(parts) => {
+                assert_eq!(parts.len(), 1, "{message}");
+                assert_eq!(parts[0]["type"], "text");
+                assert_eq!(parts[0]["cache_control"], json!({"type": "ephemeral"}));
+                true
+            }
+            _ => false,
+        })
+        .map(|(index, _)| index)
+        .collect()
 }
 
 /// Log lines published while `action` ran that contain `marker`.
@@ -332,11 +356,21 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
         .await
         .unwrap();
     add_deck_card(app.db(), deck_id, "oracle-test-commander", 1, "commander").await;
-    stub_completions(&server, |_, _| {
-        content_response(&analysis_json(
-            "3-",
-            &json!([{"title": "Budget upgrades", "content": "- Add [[Swords to Plowshares]] before premium interaction."}]),
-        ))
+    stub_completions(&server, |attempt, _| {
+        if attempt == 1 {
+            ResponseTemplate::new(200).set_body_json(json!({
+                "choices": [{"message": {"tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup_cards", "arguments": "{\"names\":[\"Swords to Plowshares\"]}"}
+                }]}}]
+            }))
+        } else {
+            content_response(&analysis_json(
+                "3-",
+                &json!([{"title": "Budget upgrades", "content": "- Add [[Swords to Plowshares]] before premium interaction."}]),
+            ))
+        }
     })
     .await;
 
@@ -370,22 +404,34 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     assert_eq!((row.3, row.4, row.5.as_str()), (3, 2, "3-"));
 
     let requests = completion_requests(&server).await;
-    let [request] = requests.as_slice() else {
-        unreachable!("expected one request, got {requests:?}")
+    let [request, answer_request] = requests.as_slice() else {
+        unreachable!("expected two requests, got {requests:?}")
     };
     let headers = &server.received_requests().await.unwrap()[0].headers;
     assert_eq!(headers["authorization"], "Bearer test-openrouter-key");
     assert_eq!(headers["x-openrouter-title"], "ManaVault");
     assert_eq!(request["model"], "anthropic/claude-sonnet-4");
-    assert_eq!(request["response_format"]["type"], "json_schema");
+    // The first round must call a tool, so it goes without the answer format.
+    assert_eq!(request["tool_choice"], "required");
+    assert!(request.get("response_format").is_none());
+    assert!(answer_request.get("tool_choice").is_none());
     assert_eq!(
-        request["response_format"]["json_schema"]["name"],
+        answer_request["response_format"]["json_schema"]["name"],
         "manavault_deck_analysis"
     );
     assert_eq!(request["max_tokens"], 20_000);
     assert!(request.get("temperature").is_none());
     assert!(request.get("max_completion_tokens").is_none());
     assert!(request.get("plugins").is_none());
+    assert_eq!(cache_breakpoints(request), vec![0, 1]);
+    assert_eq!(cache_breakpoints(answer_request), vec![0, 1, 3]);
+    assert!(
+        request["session_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("manavault-deck-analysis-")
+    );
+    assert_eq!(request["session_id"], answer_request["session_id"]);
     let system = message_content(request, 0);
     assert!(system.contains("Use deeper reasoning"));
     assert!(system.contains("rather than making the final response longer"));
@@ -626,23 +672,15 @@ async fn saves_successful_deck_questions_newest_first_without_changing_the_analy
 
     let requests = completion_requests(&server).await;
     let request = &requests[0];
-    assert_eq!(request["response_format"]["type"], "json_schema");
     assert_eq!(request["plugins"], json!([{"id": "response-healing"}]));
     assert_eq!(request["max_tokens"], 20_000);
-    for absent in [
-        "temperature",
-        "max_completion_tokens",
-        "reasoning",
-        "tool_choice",
-    ] {
+    for absent in ["temperature", "max_completion_tokens", "reasoning"] {
         assert!(request.get(absent).is_none(), "{absent}");
     }
+    assert_eq!(request["tool_choice"], "required");
     assert!(!message_content(request, 0).contains("Never suggest infinite combos."));
-    assert_eq!(
-        request["response_format"]["json_schema"]["schema"]["required"],
-        json!(["answer", "recommended_cuts", "recommended_additions"])
-    );
-    let user = last_content(request);
+    let user = message_content(request, 1);
+    assert!(user.starts_with("Deck data:\n"));
     assert!(user.contains("Test Commander"));
     assert!(user.contains(r#""commander_color_identity":["W"]"#));
     assert!(user.contains(r#""color_identity":["W"]"#));
@@ -742,6 +780,7 @@ async fn uses_generic_question_options_and_logs_safe_diagnostics_when_output_is_
             }],
             "usage": {
                 "prompt_tokens": 12_345,
+                "prompt_tokens_details": {"cached_tokens": 10_752, "cache_write_tokens": 1_024},
                 "completion_tokens": 20_000,
                 "completion_tokens_details": {"reasoning_tokens": 7_950}
             }
@@ -763,6 +802,8 @@ async fn uses_generic_question_options_and_logs_safe_diagnostics_when_output_is_
         r#"finish_reason="length""#,
         r#"native_finish_reason="MAX_TOKENS""#,
         "prompt_tokens=12345",
+        "cached_tokens=10752",
+        "cache_write_tokens=1024",
         "completion_tokens=20000",
         "reasoning_tokens=7950",
         "result=output_token_limit",
@@ -816,6 +857,7 @@ async fn logs_reasoning_only_responses_without_model_specific_request_options() 
         r#"provider="Parasail""#,
         r#"finish_reason="stop""#,
         "prompt_tokens=10646",
+        "cached_tokens=nil",
         "completion_tokens=768",
         "reasoning_tokens=749",
         "content_bytes=nil",
@@ -870,8 +912,10 @@ async fn retries_catalog_invalid_recommendations_and_only_saves_the_corrected_an
     );
 
     let requests = completion_requests(&server).await;
-    let correction = message_content(&requests[1], 1);
-    assert!(correction.starts_with("Question:\nMake this deck stronger.\n\nThe previous draft failed ManaVault's catalog checks:\n"));
+    let correction = last_content(&requests[1]);
+    assert!(correction.starts_with(
+        "Make this deck stronger.\n\nThe previous draft failed ManaVault's catalog checks:\n"
+    ));
     assert!(correction.contains("Time Walk is not legal in commander"));
     assert!(correction.contains("outside the commander's color identity"));
     assert!(correction.contains("Missing Card is not in the current deck"));
@@ -954,18 +998,30 @@ async fn answers_card_lookup_tool_calls_from_the_catalog_before_accepting_the_fi
             .map(|tool| &tool["function"]["name"])
             .collect();
         assert_eq!(tools, vec!["lookup_cards", "check_collection"]);
-        assert_eq!(request["response_format"]["type"], "json_schema");
-        assert!(request.get("tool_choice").is_none());
+        assert_eq!(request["session_id"], requests[0]["session_id"]);
     }
-    assert_eq!(requests[0]["messages"].as_array().unwrap().len(), 2);
+    // The first round must look something up; later rounds may answer.
+    assert_eq!(requests[0]["tool_choice"], "required");
+    assert!(requests[0].get("response_format").is_none());
+    assert!(requests[1].get("tool_choice").is_none());
+    assert_eq!(
+        requests[1]["response_format"]["json_schema"]["schema"]["required"],
+        json!(["answer", "recommended_cuts", "recommended_additions"])
+    );
+    // System, deck data, and the newest message are the cache breakpoints;
+    // the question becomes plain text once a tool round follows it.
+    assert_eq!(requests[0]["messages"].as_array().unwrap().len(), 3);
+    assert_eq!(cache_breakpoints(&requests[0]), vec![0, 1, 2]);
+    assert_eq!(cache_breakpoints(&requests[1]), vec![0, 1, 4]);
     let messages = requests[1]["messages"].as_array().unwrap();
-    assert_eq!(messages.len(), 4);
-    assert_eq!(messages[2]["role"], "assistant");
-    assert_eq!(messages[2]["tool_calls"][0]["id"], "call_1");
-    assert_eq!(messages[3]["role"], "tool");
-    assert_eq!(messages[3]["tool_call_id"], "call_1");
-    assert_eq!(messages[3]["name"], "lookup_cards");
-    let content: Value = serde_json::from_str(messages[3]["content"].as_str().unwrap()).unwrap();
+    assert_eq!(messages.len(), 5);
+    assert_eq!(messages[2]["content"], "What new card fits?");
+    assert_eq!(messages[3]["role"], "assistant");
+    assert_eq!(messages[3]["tool_calls"][0]["id"], "call_1");
+    assert_eq!(messages[4]["role"], "tool");
+    assert_eq!(messages[4]["tool_call_id"], "call_1");
+    assert_eq!(messages[4]["name"], "lookup_cards");
+    let content: Value = serde_json::from_str(&text(&messages[4])).unwrap();
     assert_eq!(content["not_found"], json!(["Fake Card"]));
     assert_eq!(content["cards"][0]["name"], "Brand New Card");
     assert_eq!(content["cards"][0]["color_identity"], json!(["W"]));
@@ -1009,13 +1065,14 @@ async fn forbids_further_tool_calls_after_the_round_limit() {
         "Done looking things up."
     );
     let requests = completion_requests(&server).await;
-    for request in &requests[..4] {
+    assert_eq!(requests[0]["tool_choice"], "required");
+    for request in &requests[1..4] {
         assert!(request.get("tool_choice").is_none());
     }
     assert_eq!(requests[4]["tool_choice"], "none");
-    assert_eq!(requests[4]["messages"].as_array().unwrap().len(), 2 + 4 * 2);
-    let tool_reply: Value =
-        serde_json::from_str(requests[1]["messages"][3]["content"].as_str().unwrap()).unwrap();
+    assert_eq!(requests[4]["messages"].as_array().unwrap().len(), 3 + 4 * 2);
+    assert_eq!(cache_breakpoints(&requests[4]), vec![0, 1, 10]);
+    let tool_reply: Value = serde_json::from_str(&message_content(&requests[1], 4)).unwrap();
     assert_eq!(
         tool_reply,
         json!({"error": "Provide a names array of exact card names."})
@@ -1056,7 +1113,9 @@ async fn retries_without_tools_when_the_model_has_no_tool_capable_endpoints() {
     assert!(log.contains("does not support tool use"), "{log}");
     let requests = completion_requests(&server).await;
     assert!(requests[0].get("tools").is_some());
+    assert_eq!(requests[0]["tool_choice"], "required");
     assert!(requests[1].get("tools").is_none());
+    assert!(requests[1].get("tool_choice").is_none());
     assert_eq!(requests[1]["response_format"]["type"], "json_schema");
 }
 
@@ -1149,31 +1208,24 @@ async fn threads_swap_cards_chat_turns_and_keeps_them_out_of_ask_ai_history() {
         .unwrap();
 
     let requests = completion_requests(&server).await;
+    assert_eq!(requests[0]["session_id"], requests[1]["session_id"]);
     let first_messages = requests[0]["messages"].as_array().unwrap();
-    assert_eq!(first_messages.len(), 2);
+    assert_eq!(first_messages.len(), 3);
+    assert!(text(&first_messages[0]).contains("Swap cards workbench"));
     assert!(
-        first_messages[0]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Swap cards workbench")
-    );
-    assert!(
-        first_messages[1]["content"]
-            .as_str()
-            .unwrap()
-            .contains(r#""staged_swap":{"cuts":["Silver Bolt"],"adds":[]}"#)
+        text(&first_messages[2]).contains(r#""staged_swap":{"cuts":["Silver Bolt"],"adds":[]}"#)
     );
     let second_messages = requests[1]["messages"].as_array().unwrap();
-    assert_eq!(second_messages.len(), 4);
+    assert_eq!(second_messages.len(), 5);
     assert_eq!(
-        second_messages[1],
+        second_messages[2],
         json!({"role": "user", "content": "What replaces Silver Bolt?"})
     );
     assert_eq!(
-        second_messages[2],
+        second_messages[3],
         json!({"role": "assistant", "content": "Swap in [[White Ward]]."})
     );
-    let latest = second_messages[3]["content"].as_str().unwrap();
+    let latest = text(&second_messages[4]);
     assert!(latest.contains("Anything cheaper?"));
     assert!(!latest.contains("staged_swap"));
 
@@ -1277,12 +1329,7 @@ async fn ask_ai_follow_ups_use_the_last_six_completed_deck_answers_without_swap_
     );
     let request = &completion_requests(&server).await[0];
     let messages = request["messages"].as_array().unwrap();
-    assert!(
-        !messages[0]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Swap cards workbench")
-    );
+    assert!(!text(&messages[0]).contains("Swap cards workbench"));
     let expected: Vec<Value> = (3..=8)
         .flat_map(|number| {
             [
@@ -1291,7 +1338,7 @@ async fn ask_ai_follow_ups_use_the_last_six_completed_deck_answers_without_swap_
             ]
         })
         .collect();
-    assert_eq!(&messages[1..messages.len() - 1], expected.as_slice());
+    assert_eq!(&messages[2..messages.len() - 1], expected.as_slice());
     let latest = last_content(request);
     assert!(latest.contains("Why that choice?"));
     assert!(!latest.contains("staged_swap"));
@@ -1363,44 +1410,35 @@ async fn new_chats_isolate_context_older_chats_resume_and_follow_ups_see_deck_ed
 
     let requests = completion_requests(&server).await;
     let messages = |index: usize| requests[index]["messages"].as_array().unwrap().clone();
+    // A follow-up keeps its chat's session; another chat gets its own.
+    assert_eq!(requests[0]["session_id"], requests[1]["session_id"]);
+    assert_ne!(requests[0]["session_id"], requests[2]["session_id"]);
     let first_messages = messages(0);
-    assert_eq!(first_messages.len(), 2);
-    assert!(
-        !first_messages[0]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Swap cards workbench")
-    );
-    assert!(
-        first_messages[1]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Before edits")
-    );
-    assert!(
-        first_messages[1]["content"]
-            .as_str()
-            .unwrap()
-            .contains(r#""land_count":2"#)
-    );
+    assert_eq!(first_messages.len(), 3);
+    assert!(!text(&first_messages[0]).contains("Swap cards workbench"));
+    let first_deck = text(&first_messages[1]);
+    assert!(first_deck.contains("Before edits"));
+    assert!(first_deck.contains(r#""land_count":2"#));
+    assert_eq!(text(&first_messages[2]), "Start fresh");
     let follow_messages = messages(1);
-    assert_eq!(follow_messages.len(), 4);
+    assert_eq!(follow_messages.len(), 5);
+    let deck = text(&follow_messages[1]);
+    assert!(deck.contains("After edits"));
+    assert!(deck.contains(r#""land_count":5"#));
+    assert!(!deck.contains("Before edits"));
     assert_eq!(
-        follow_messages[1],
+        follow_messages[2],
         json!({"role": "user", "content": "Start fresh"})
     );
     assert_eq!(
-        follow_messages[2],
+        follow_messages[3],
         json!({"role": "assistant", "content": "Saved reply."})
     );
-    let latest = follow_messages[3]["content"].as_str().unwrap();
-    assert!(latest.contains("After edits"));
-    assert!(latest.contains(r#""land_count":5"#));
-    assert!(!latest.contains("Before edits"));
+    assert_eq!(text(&follow_messages[4]), "Does the change help?");
     let resumed_messages = messages(2);
-    assert_eq!(resumed_messages.len(), 4);
-    assert_eq!(resumed_messages[1]["content"], "Earlier plan");
-    assert_eq!(resumed_messages[2]["content"], "Earlier advice");
+    assert_eq!(resumed_messages.len(), 5);
+    assert_eq!(resumed_messages[2]["content"], "Earlier plan");
+    assert_eq!(resumed_messages[3]["content"], "Earlier advice");
     assert_eq!(saved(&app, archived).await.answer, "Earlier advice");
     assert_eq!(saved(&app, legacy).await.answer, "Original advice");
     assert_eq!(saved(&app, first.id).await.answer, "Saved reply.");
@@ -1697,8 +1735,8 @@ async fn graphql_openrouter(server: &MockServer) {
         .mount(server)
         .await;
     stub_completions(server, |_, request| {
-        match request["response_format"]["json_schema"]["name"].as_str() {
-            Some("manavault_deck_analysis") => content_response(&json!({
+        if message_content(request, 0).contains("deck analyst") {
+            content_response(&json!({
                 "summary": "A slow value deck.",
                 "themes": ["Value"],
                 "game_plan": "Build resources and win late.",
@@ -1714,8 +1752,9 @@ async fn graphql_openrouter(server: &MockServer) {
                 "consistency": ["Improve the curve"],
                 "mulligan_guide": ["Keep early mana and card advantage"],
                 "custom_sections": [{"title": "Budget upgrades", "content": "- Start with efficient removal."}]
-            })),
-            _ => answer_response("Cut [[Test Commander]] for [[Plains]].", &["Test Commander"], &["Plains"]),
+            }))
+        } else {
+            answer_response("Cut [[Test Commander]] for [[Plains]].", &["Test Commander"], &["Plains"])
         }
     })
     .await;
@@ -1965,9 +2004,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     ));
     let question_request = completion_requests(&server).await.last().unwrap().clone();
     assert!(!message_content(&question_request, 0).contains("Never suggest infinite combos."));
-    assert!(
-        message_content(&question_request, 1).contains("What should I cut for Doubling Season?")
-    );
+    assert!(last_content(&question_request).contains("What should I cut for Doubling Season?"));
 
     let answers = app
         .gql_data(

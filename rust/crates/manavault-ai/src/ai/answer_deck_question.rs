@@ -135,6 +135,12 @@ async fn answer(state: &AppState, turn: &QuestionAnswer) -> Result<(), AiError> 
         history: question_answers::history(&state.db, turn, THREAD_HISTORY_TURNS).await?,
         swap_context: turn.swap_context(),
         thread: turn.thread_id.is_some(),
+        conversation: format!(
+            "{}\0{}\0{}",
+            turn.deck_id,
+            turn.thread_id.as_deref().unwrap_or_default(),
+            turn.conversation_id.as_deref().unwrap_or_default()
+        ),
     };
     let result = generate(state, &settings, provider, &payload, question_turn).await?;
     let recommendations = json!({

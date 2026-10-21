@@ -134,17 +134,26 @@ struct StagedSwap<'a> {
     staged_swap: &'a SwapContext,
 }
 
-/// `user_prompt/3`: the question, any staged swap, and the deck data.
+/// The deck data, sent in its own message ahead of the conversation.
 #[must_use]
-pub fn user_prompt(question: &str, payload: &Value, swap_context: Option<&SwapContext>) -> String {
-    let staged = swap_context.map_or_else(String::new, |context| {
-        let encoded = serde_json::to_string(&StagedSwap {
-            staged_swap: context,
-        })
-        .unwrap_or_default();
-        format!("\nStaged swap:\n{encoded}\n")
-    });
-    format!("Question:\n{question}\n{staged}\nDeck data:\n{payload}\n")
+pub fn deck_prompt(payload: &Value) -> String {
+    format!("Deck data:\n{payload}\n")
+}
+
+/// `user_prompt/3`: the question and any staged swap. Without a staged swap
+/// it is the question as is, matching how later turns replay it as history.
+#[must_use]
+pub fn user_prompt(question: &str, swap_context: Option<&SwapContext>) -> String {
+    swap_context.map_or_else(
+        || question.to_owned(),
+        |context| {
+            let encoded = serde_json::to_string(&StagedSwap {
+                staged_swap: context,
+            })
+            .unwrap_or_default();
+            format!("{question}\n\nStaged swap:\n{encoded}\n")
+        },
+    )
 }
 
 /// `correction_prompt/2`: the question again with the failed catalog checks.
@@ -235,11 +244,8 @@ mod tests {
 
     #[test]
     fn frames_deck_data_and_the_question_as_untrusted_input() {
-        let prompt = user_prompt(
-            "What should I cut?",
-            &json!({"deck": {"name": "Value deck", "cards": [{"name": "Sol Ring"}]}}),
-            None,
-        );
+        let deck =
+            deck_prompt(&json!({"deck": {"name": "Value deck", "cards": [{"name": "Sol Ring"}]}}));
         let system = system_prompt();
         for expected in [
             "untrusted data",
@@ -253,8 +259,12 @@ mod tests {
             assert!(system.contains(expected), "{expected}");
         }
         assert_eq!(
-            prompt,
-            "Question:\nWhat should I cut?\n\nDeck data:\n{\"deck\":{\"cards\":[{\"name\":\"Sol Ring\"}],\"name\":\"Value deck\"}}\n"
+            deck,
+            "Deck data:\n{\"deck\":{\"cards\":[{\"name\":\"Sol Ring\"}],\"name\":\"Value deck\"}}\n"
+        );
+        assert_eq!(
+            user_prompt("What should I cut?", None),
+            "What should I cut?"
         );
     }
 
@@ -337,15 +347,11 @@ mod tests {
             cuts: vec!["Pia Nalaar".into()],
             adds: vec![],
         };
-        let prompt = user_prompt(
-            "What replaces it?",
-            &json!({"deck": {"cards": []}}),
-            Some(&context),
+        assert_eq!(
+            user_prompt("What replaces it?", Some(&context)),
+            "What replaces it?\n\nStaged swap:\n{\"staged_swap\":{\"cuts\":[\"Pia Nalaar\"],\"adds\":[]}}\n"
         );
-        assert!(prompt.contains(r#""staged_swap":{"cuts":["Pia Nalaar"],"adds":[]}"#));
-        assert!(prompt.starts_with("Question:\nWhat replaces it?\n\nStaged swap:\n{"));
         assert!(swap_chat_instructions().contains("under 120 words"));
-        assert!(!user_prompt("Q", &json!({"deck": {"cards": []}}), None).contains("staged_swap"));
         assert_eq!(
             correction_prompt("Q?", &["a".into(), "b".into()]),
             "Q?\n\nThe previous draft failed ManaVault's catalog checks:\n- a\n- b\n\nProduce a corrected answer that does not make those invalid recommendations. Keep every\noriginal user constraint.\n"

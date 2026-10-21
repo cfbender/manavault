@@ -475,14 +475,21 @@ recommendation and delete controls.
 During analysis and questions, the model can call a `lookup_cards` tool that
 returns rules text, color identity, and legality from the local Scryfall
 catalog, so it can verify cards released after its training data before
-recommending them. A `check_collection` tool reports whether the owner has a
-free copy of each candidate, has copies only in other active decks, or does not
-own it. The prompts tell the model to prefer cards with a free copy when they
-fit comparably well, treat copies in other decks the same as unowned cards, and
-still suggest cards without a free copy when they are clearly better. Answers
-say which additions the owner has a free copy of; deck analysis uses collection
-status only to choose cards and does not label them. Models whose OpenRouter
+recommending them. Its first request must call a tool, so answers rest on
+lookups rather than the model's memory. A `check_collection` tool reports
+whether the owner has a free copy of each candidate, has copies only in other
+active decks, or does not own it. The prompts tell the model to prefer cards
+with a free copy when they fit comparably well, treat copies in other decks the
+same as unowned cards, and still suggest cards without a free copy when they are
+clearly better. Answers say which additions the owner has a free copy of; deck
+analysis uses collection status only to choose cards and does not label them. Models whose OpenRouter
 endpoints lack tool support fall back to answering without tools.
+
+Requests are shaped for OpenRouter prompt caching: the system prompt and the
+decklist come first and are marked as cache breakpoints, and every request in
+one conversation shares a session so follow-ups reach the provider holding the
+cache. The server log records cached and cache-write prompt tokens for each
+request.
 
 ## Trade
 

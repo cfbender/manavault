@@ -3,8 +3,16 @@
 //! collection tools.
 //!
 //! The base URL is `config.platform_urls.openrouter_api`. Each completion
-//! logs one diagnostics line (status, finish reasons, token counts, content
-//! sizes) without the prompt, the answer, reasoning text, or the API key.
+//! logs one diagnostics line (status, finish reasons, token counts including
+//! prompt-cache reads and writes, content sizes) without the prompt, the
+//! answer, reasoning text, or the API key.
+//!
+//! Requests are shaped for prompt caching: the system prompt and the deck
+//! data come first, every request in one conversation shares a
+//! `session_id` so `OpenRouter` keeps routing it to the provider holding the
+//! cache, and [`mark_cache_breakpoints`] marks the stable prefix for
+//! providers that need explicit breakpoints (Anthropic). Providers that
+//! cache automatically ignore the marks.
 
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
@@ -34,6 +42,9 @@ pub struct Turn {
     pub swap_context: Option<SwapContext>,
     /// Whether this is a Swap cards chat thread.
     pub thread: bool,
+    /// Identifies the chat this turn belongs to, so its follow-ups share an
+    /// `OpenRouter` session (and the provider's prompt cache).
+    pub conversation: String,
 }
 
 #[derive(Clone, Copy)]
@@ -85,6 +96,7 @@ pub async fn analyze_deck(
             {"role": "system", "content": analysis_prompt::system(instructions)},
             {"role": "user", "content": analysis_prompt::user(payload)}
         ],
+        "session_id": session_id("deck-analysis", &payload.to_string()),
         "max_tokens": 20_000,
         "tools": tools::definitions(),
         "response_format": {
@@ -109,6 +121,7 @@ pub async fn ask_deck_question(
     let request = json!({
         "model": settings.model,
         "messages": question_messages(payload, turn),
+        "session_id": session_id("deck-question", &turn.conversation),
         "max_tokens": 20_000,
         "tools": tools::definitions(),
         "plugins": [{"id": "response-healing"}],
@@ -134,16 +147,60 @@ fn question_messages(payload: &Value, turn: &Turn) -> Vec<Value> {
     } else {
         deck_question::system_prompt().to_owned()
     };
-    let mut messages = vec![json!({"role": "system", "content": system})];
+    // The deck comes before the conversation so the stable system and deck
+    // prefix stays cacheable across questions.
+    let mut messages = vec![
+        json!({"role": "system", "content": system}),
+        json!({"role": "user", "content": deck_question::deck_prompt(payload)}),
+    ];
     for (question, answer) in &turn.history {
         messages.push(json!({"role": "user", "content": question}));
         messages.push(json!({"role": "assistant", "content": answer}));
     }
     messages.push(json!({
         "role": "user",
-        "content": deck_question::user_prompt(&turn.question, payload, turn.swap_context.as_ref())
+        "content": deck_question::user_prompt(&turn.question, turn.swap_context.as_ref())
     }));
     messages
+}
+
+/// A stable `OpenRouter` session id for one conversation: the same `key`
+/// gives the same id, without sending the key itself.
+fn session_id(kind: &str, key: &str) -> String {
+    let mut digest = manavault_core::crypto::sha256_hex(key.as_bytes());
+    digest.truncate(32);
+    format!("manavault-{kind}-{digest}")
+}
+
+/// Marks prompt-cache breakpoints on the system message, the first user
+/// message (the deck data), and the newest message, whose prefix the next
+/// tool round resends. Their string content becomes a single text part with
+/// `cache_control`; every other message keeps a plain string, which keeps
+/// the request within Anthropic's limit of four breakpoints.
+fn mark_cache_breakpoints(request: &mut Map<String, Value>) {
+    let Some(Value::Array(messages)) = request.get_mut("messages") else {
+        return;
+    };
+    let deck = messages
+        .iter()
+        .position(|message| message["role"] == "user");
+    for index in [Some(0), deck, messages.len().checked_sub(1)]
+        .into_iter()
+        .flatten()
+    {
+        if let Some(content) = messages
+            .get_mut(index)
+            .and_then(|message| message.get_mut("content"))
+            && let Value::String(text) = content
+        {
+            let text = std::mem::take(text);
+            *content = json!([{
+                "type": "text",
+                "text": text,
+                "cache_control": {"type": "ephemeral"}
+            }]);
+        }
+    }
 }
 
 enum Response {
@@ -186,9 +243,11 @@ async fn post_completion(state: &AppState, api_key: &str, request: &Value) -> Re
 }
 
 /// Runs the completion, executing any tool calls the model requests and
-/// feeding the results back until it returns a final message. After
-/// [`MAX_TOOL_ROUNDS`] the model may no longer call tools. A model without
-/// tool-capable endpoints is retried once without tools.
+/// feeding the results back until it returns a final message. The first
+/// round must call a tool (and so goes without the response format), so the
+/// answer rests on catalog and collection lookups rather than the model's
+/// memory; after [`MAX_TOOL_ROUNDS`] the model may no longer call tools. A
+/// model without tool-capable endpoints is retried once without tools.
 async fn complete(
     state: &AppState,
     settings: &Configured,
@@ -200,12 +259,18 @@ async fn complete(
     };
     let mut round = 0;
     loop {
+        let mut sent = request.clone();
         if round >= MAX_TOOL_ROUNDS {
-            request.insert("tool_choice".into(), json!("none"));
+            sent.insert("tool_choice".into(), json!("none"));
+        } else if round == 0 && sent.contains_key("tools") {
+            // A forced tool call carries no answer, and Gemini rejects
+            // forcing one alongside a JSON response format.
+            sent.insert("tool_choice".into(), json!("required"));
+            sent.remove("response_format");
         }
+        mark_cache_breakpoints(&mut sent);
         let started = Instant::now();
-        let request_value = Value::Object(request.clone());
-        match post_completion(state, &settings.api_key, &request_value).await {
+        match post_completion(state, &settings.api_key, &Value::Object(sent)).await {
             Response::Http { status, body, .. } if (200..300).contains(&status) => {
                 let calls = tool_calls(&body);
                 if calls.is_empty() {
@@ -484,6 +549,7 @@ fn log_completion(
     let message = value(choice, "message");
     let usage = value(Some(body), "usage");
     let token_details = value(usage, "completion_tokens_details");
+    let prompt_details = value(usage, "prompt_tokens_details");
     let content_bytes = value(message, "content")
         .and_then(Value::as_str)
         .map(str::len);
@@ -493,7 +559,7 @@ fn log_completion(
     let reasoning_bytes = reasoning.and_then(Value::as_str).map(str::len);
     let bytes = |count: Option<usize>| count.map_or_else(|| "nil".to_owned(), |n| n.to_string());
     let mut line = format!(
-        "OpenRouter completion operation={} model={} status={status} duration_ms={} provider={} finish_reason={} native_finish_reason={} prompt_tokens={} completion_tokens={} reasoning_tokens={} content_bytes={} reasoning_bytes={} result={}",
+        "OpenRouter completion operation={} model={} status={status} duration_ms={} provider={} finish_reason={} native_finish_reason={} prompt_tokens={} cached_tokens={} cache_write_tokens={} completion_tokens={} reasoning_tokens={} content_bytes={} reasoning_bytes={} result={}",
         operation.name(),
         inspect_str(model),
         started.elapsed().as_millis(),
@@ -501,6 +567,8 @@ fn log_completion(
         inspect(value(choice, "finish_reason")),
         inspect(value(choice, "native_finish_reason")),
         inspect(value(usage, "prompt_tokens")),
+        inspect(value(prompt_details, "cached_tokens")),
+        inspect(value(prompt_details, "cache_write_tokens")),
         inspect(value(usage, "completion_tokens")),
         inspect(value(token_details, "reasoning_tokens")),
         bytes(content_bytes),
