@@ -163,7 +163,7 @@ func main() {
 EOF
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /go/bin/manavault-healthcheck main.go
 
-FROM rust:1.99.0-alpine3.24 AS preview-builder
+FROM rust:1.99.1-alpine3.24 AS preview-builder
 # Public share-preview PNGs are rendered with the resvg CLI (a static musl
 # build), which avoids the GLib/GIO and Cairo dependencies of rsvg-convert.
 RUN apk add --no-cache musl-dev \
