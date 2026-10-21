@@ -54,6 +54,9 @@ pub struct Config {
     pub auth_rate_limit: AuthRateLimit,
     pub public_share_rate_limit: RateLimit,
     pub trust_proxy_headers: bool,
+    /// Peers whose forwarded header is honored (`MANAVAULT_TRUSTED_PROXIES`);
+    /// empty trusts every peer.
+    pub trusted_proxies: Vec<crate::web::client_ip::TrustedProxy>,
     pub forwarded_ip_header: String,
     pub secure_cookies: bool,
     pub session_max_age_days: u32,
@@ -151,6 +154,8 @@ pub enum ConfigError {
     Invalid(&'static str, String),
     #[error(transparent)]
     InvalidOrigin(#[from] crate::web::allowed_origins::InvalidOrigin),
+    #[error(transparent)]
+    InvalidProxy(#[from] crate::web::client_ip::InvalidProxy),
 }
 
 /// An environment-variable lookup; tests supply their own.
@@ -378,6 +383,9 @@ impl Config {
             auth_rate_limit,
             public_share_rate_limit,
             trust_proxy_headers: vars.flag("MANAVAULT_TRUST_PROXY_HEADERS"),
+            trusted_proxies: crate::web::client_ip::parse_trusted_proxies(
+                &vars.var("MANAVAULT_TRUSTED_PROXIES").unwrap_or_default(),
+            )?,
             forwarded_ip_header: vars
                 .var("MANAVAULT_FORWARDED_IP_HEADER")
                 .unwrap_or_else(|| "x-forwarded-for".to_owned())
@@ -442,6 +450,7 @@ impl Config {
             },
             public_share_rate_limit: limit,
             trust_proxy_headers: false,
+            trusted_proxies: Vec::new(),
             forwarded_ip_header: "x-forwarded-for".to_owned(),
             secure_cookies: false,
             session_max_age_days: 180,

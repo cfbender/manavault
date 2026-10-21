@@ -5,7 +5,9 @@
 //! [`middleware`] decodes the cookie into a request-scoped [`Session`] handle
 //! and writes the cookie back when a handler changed it. The owner signs in
 //! with a fresh session carrying the fingerprint of the password hash they
-//! used, so rotating the hash signs every browser out.
+//! used, so rotating the hash signs every browser out. Each sign-in is also
+//! a row in `owner_sessions`; signing out deletes it, and the middleware
+//! signs out cookies whose row is gone or expired.
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -22,6 +24,7 @@ use sha2::{Digest, Sha512};
 
 use crate::crypto;
 use crate::state::AppState;
+use crate::timestamp::Timestamp;
 
 /// The cookie name.
 pub const COOKIE_NAME: &str = "manavault_session";
@@ -45,6 +48,9 @@ pub struct SessionData {
     /// they signed in with.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner_fingerprint: Option<String>,
+    /// The `owner_sessions` row of the sign-in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 fn new_csrf_token() -> String {
@@ -124,8 +130,23 @@ impl Session {
             })
     }
 
-    /// Signs the owner in with a fresh session (new CSRF token included).
-    pub fn sign_in(&self, state: &AppState) {
+    /// Signs the owner in with a fresh session (new CSRF token included),
+    /// recording it in `owner_sessions` and pruning expired rows.
+    pub async fn sign_in(&self, state: &AppState) -> Result<(), sqlx::Error> {
+        let id = URL_SAFE_NO_PAD.encode(crypto::random_bytes::<32>());
+        let now = Timestamp::now();
+        let expires_at = now + time::Duration::days(i64::from(state.config.session_max_age_days));
+        sqlx::query!("DELETE FROM owner_sessions WHERE expires_at <= ?1", now)
+            .execute(&state.db)
+            .await?;
+        sqlx::query!(
+            "INSERT INTO owner_sessions (id, expires_at, inserted_at) VALUES (?1, ?2, ?3)",
+            id,
+            expires_at,
+            now
+        )
+        .execute(&state.db)
+        .await?;
         let mut tracked = self.lock();
         tracked.data = SessionData {
             csrf_token: Some(new_csrf_token()),
@@ -134,16 +155,52 @@ impl Session {
                 .admin_password_hash
                 .as_deref()
                 .map(crypto::password_fingerprint),
+            session_id: Some(id),
         };
         tracked.changed = true;
         tracked.dropped = false;
+        Ok(())
     }
 
-    /// Clears the session and expires the cookie.
-    pub fn sign_out(&self) {
-        let mut tracked = self.lock();
-        tracked.data = SessionData::default();
-        tracked.dropped = true;
+    /// Clears the session, expires the cookie, and deletes its
+    /// `owner_sessions` row. The cookie is expired even when the delete fails.
+    pub async fn sign_out(&self, state: &AppState) -> Result<(), sqlx::Error> {
+        let session_id = {
+            let mut tracked = self.lock();
+            let session_id = tracked.data.session_id.take();
+            tracked.data = SessionData::default();
+            tracked.dropped = true;
+            session_id
+        };
+        if let Some(id) = session_id {
+            sqlx::query!("DELETE FROM owner_sessions WHERE id = ?1", id)
+                .execute(&state.db)
+                .await?;
+        }
+        Ok(())
+    }
+}
+
+/// Whether `session_id` names an unexpired `owner_sessions` row. Database
+/// errors count as signed out.
+async fn session_active(state: &AppState, session_id: Option<&str>) -> bool {
+    let Some(id) = session_id else {
+        return false;
+    };
+    let now = Timestamp::now();
+    match sqlx::query_scalar!(
+        "SELECT id FROM owner_sessions WHERE id = ?1 AND expires_at > ?2",
+        id,
+        now
+    )
+    .fetch_optional(&state.db)
+    .await
+    {
+        Ok(row) => row.is_some(),
+        Err(error) => {
+            tracing::error!(%error, "could not check the owner session");
+            false
+        }
     }
 }
 
@@ -194,7 +251,15 @@ pub async fn middleware(
     next: Next,
 ) -> Response {
     let jar = PrivateCookieJar::from_headers(request.headers(), state.cookie_key.clone());
-    let session = Session::from_data(decode(&jar));
+    let mut data = decode(&jar);
+    let revoked = data.owner_fingerprint.is_some()
+        && !session_active(&state, data.session_id.as_deref()).await;
+    if revoked {
+        data.owner_fingerprint = None;
+        data.session_id = None;
+    }
+    let session = Session::from_data(data);
+    session.lock().changed = revoked;
     request.extensions_mut().insert(session.clone());
     let response = next.run(request).await;
     let tracked = session.lock();
@@ -286,6 +351,7 @@ mod tests {
         let data = SessionData {
             csrf_token: Some("token".to_owned()),
             owner_fingerprint: Some("fingerprint".to_owned()),
+            session_id: Some("session".to_owned()),
         };
         let encoded = serde_json::to_string(&data).unwrap();
         let headers = jar_with(&key, &encoded);

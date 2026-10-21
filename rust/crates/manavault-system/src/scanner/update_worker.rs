@@ -180,6 +180,11 @@ async fn update_from_manifest(
     ) else {
         return Err(UpdateError::InvalidManifest);
     };
+    // The version names the incoming directory, so refuse `../` and other
+    // path characters before creating it.
+    if !bundle::valid_version(version) {
+        return Err(UpdateError::Install(bundle::InstallError::InvalidVersion));
+    }
     let root = &state.config.scanner_bundle_dir;
     let current = bundle::current_manifest(root)
         .and_then(|current| current.get("version")?.as_str().map(str::to_owned));
@@ -352,6 +357,31 @@ mod tests {
         assert_eq!(bundle::current_manifest(root).unwrap()["version"], "v1");
         assert_eq!(check_for_update(&app.state).await, Ok(Status::Current));
         assert!(!root.join(".incoming").read_dir().unwrap().any(|_| true));
+    }
+
+    #[tokio::test]
+    async fn refuses_a_path_version_before_writing_anything() {
+        let server = MockServer::start().await;
+        serve_files(&server, "/v1", &manifest("../../escaped")).await;
+        let url = format!("{}/v1/manifest.json", server.uri());
+        let app = TestApp::with_config(|config| {
+            config.scanner_bundle_source = ScannerBundleSource::Url(url);
+        })
+        .await;
+        assert_eq!(
+            check_for_update(&app.state).await,
+            Err(UpdateError::Install(bundle::InstallError::InvalidVersion))
+        );
+        // Only the manifest was fetched: nothing was downloaded outside the
+        // bundle directory.
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
+        assert!(
+            !app.state
+                .config
+                .scanner_bundle_dir
+                .join(".incoming")
+                .exists()
+        );
     }
 
     #[tokio::test]

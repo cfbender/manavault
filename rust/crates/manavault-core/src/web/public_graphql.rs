@@ -49,27 +49,39 @@ pub async fn admit(State(state): State<AppState>, request: Request, next: Next) 
     }
 }
 
+/// The most selections the pre-execution checks visit after expanding
+/// fragments. Fragments can spread each other repeatedly, so a short
+/// document can expand exponentially; the largest frontend query expands
+/// to about 150 selections.
+pub const MAX_SELECTIONS: usize = 10_000;
+
 /// The depth of the selected operation, counting fields only; fragment
 /// spreads and inline fragments add no level and recursive spreads stop.
+/// `None` when expanding fragments visits more than [`MAX_SELECTIONS`]
+/// selections.
 #[must_use]
 pub fn operation_depth(
     document: &async_graphql::parser::types::ExecutableDocument,
     operation_name: Option<&str>,
-) -> usize {
+) -> Option<usize> {
     use async_graphql::parser::types::DocumentOperations;
     let operation = match (&document.operations, operation_name) {
         (DocumentOperations::Single(operation), _) => Some(operation),
         (DocumentOperations::Multiple(operations), Some(name)) => operations.get(name),
         (DocumentOperations::Multiple(operations), None) => operations.values().next(),
     };
-    operation.map_or(0, |operation| {
-        selections_depth(
-            document,
-            &operation.node.selection_set.node,
-            0,
-            &mut Vec::new(),
-        )
-    })
+    let Some(operation) = operation else {
+        return Some(0);
+    };
+    let mut remaining = MAX_SELECTIONS;
+    let depth = selections_depth(
+        document,
+        &operation.node.selection_set.node,
+        0,
+        &mut Vec::new(),
+        &mut remaining,
+    )?;
+    Some(depth)
 }
 
 fn selections_depth(
@@ -77,22 +89,27 @@ fn selections_depth(
     set: &async_graphql::parser::types::SelectionSet,
     parent: usize,
     visiting: &mut Vec<String>,
-) -> usize {
+    remaining: &mut usize,
+) -> Option<usize> {
     use async_graphql::parser::types::Selection;
-    set.items.iter().fold(parent, |deepest, selection| {
+    let mut deepest = parent;
+    for selection in &set.items {
+        *remaining = remaining.checked_sub(1)?;
         let depth = match &selection.node {
             Selection::Field(field) => selections_depth(
                 document,
                 &field.node.selection_set.node,
                 parent + 1,
                 visiting,
-            ),
+                remaining,
+            )?,
             Selection::InlineFragment(fragment) => selections_depth(
                 document,
                 &fragment.node.selection_set.node,
                 parent,
                 visiting,
-            ),
+                remaining,
+            )?,
             Selection::FragmentSpread(spread) => {
                 let name = spread.node.fragment_name.node.as_str();
                 match document.fragments.get(name) {
@@ -103,30 +120,35 @@ fn selections_depth(
                             &fragment.node.selection_set.node,
                             parent,
                             visiting,
+                            remaining,
                         );
                         visiting.pop();
-                        depth
+                        depth?
                     }
                     _ => parent,
                 }
             }
         };
-        deepest.max(depth)
-    })
+        deepest = deepest.max(depth);
+    }
+    Some(deepest)
 }
 
-/// An error message when the operation is deeper than [`MAX_DEPTH`].
+/// An error message when the operation is deeper than [`MAX_DEPTH`] or
+/// expands to more than [`MAX_SELECTIONS`] selections.
 /// Unparseable documents pass (the executor reports them).
 pub fn check_depth(query: &str, operation_name: Option<&str>) -> Result<(), String> {
     let Ok(document) = async_graphql::parser::parse_query(query) else {
         return Ok(());
     };
-    if operation_depth(&document, operation_name) <= MAX_DEPTH {
-        Ok(())
-    } else {
-        Err(format!(
+    match operation_depth(&document, operation_name) {
+        Some(depth) if depth <= MAX_DEPTH => Ok(()),
+        Some(_) => Err(format!(
             "GraphQL operation exceeds maximum depth {MAX_DEPTH}"
-        ))
+        )),
+        None => Err(format!(
+            "GraphQL operation expands to more than {MAX_SELECTIONS} selections"
+        )),
     }
 }
 
@@ -152,7 +174,26 @@ mod tests {
             "query { a { ...F ... on X { b { c } } } } fragment F on A { d { e { f } } ...F }",
         )
         .unwrap();
-        assert_eq!(operation_depth(&document, None), 4);
+        assert_eq!(operation_depth(&document, None), Some(4));
+    }
+
+    #[test]
+    fn fragment_expansion_is_bounded() {
+        // Each fragment spreads the next twice: 2^30 selections from ~1 KB.
+        let fragments = (0..30)
+            .map(|i| format!("fragment F{i} on Card {{ ...F{n} ...F{n} }}", n = i + 1))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let query =
+            format!("query {{ card {{ ...F0 }} }} {fragments} fragment F30 on Card {{ id }}");
+        let started = std::time::Instant::now();
+        assert_eq!(
+            check_depth(&query, None),
+            Err(format!(
+                "GraphQL operation expands to more than {MAX_SELECTIONS} selections"
+            ))
+        );
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
     }
 
     fn app_router(app: &TestState) -> axum::Router {

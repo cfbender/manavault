@@ -189,7 +189,9 @@ pub async fn create(
                 if let Err(error) = state.login_attempts.reset(&state.db, &client_id).await {
                     return server_error(&error);
                 }
-                session.sign_in(&state);
+                if let Err(error) = session.sign_in(&state).await {
+                    return server_error(&error);
+                }
                 redirect(&return_to)
             } else {
                 match state
@@ -217,8 +219,11 @@ pub async fn create(
 }
 
 /// `POST /logout`: drops the whole session.
-pub async fn delete(session: Session) -> Response {
-    session.sign_out();
+pub async fn delete(State(state): State<AppState>, session: Session) -> Response {
+    if let Err(error) = session.sign_out(&state).await {
+        tracing::error!(%error, "logout failed");
+        return (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response();
+    }
     redirect("/login")
 }
 

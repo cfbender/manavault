@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO owner_sessions (id, expires_at, inserted_at) VALUES (?1, ?2, ?3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f00daa093b37c024972d08c72e6de3099b22147dd44157273ecfbb12cdae1680"
+}

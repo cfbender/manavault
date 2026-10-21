@@ -147,6 +147,8 @@ CREATE TABLE "deck_card_categories" (
 );
 CREATE TABLE "scryfall_rulings" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "oracle_id" TEXT NOT NULL, "source" TEXT, "published_at" TEXT, "comment" TEXT NOT NULL);
 CREATE INDEX "scryfall_rulings_oracle_id_index" ON "scryfall_rulings" ("oracle_id");
+CREATE TABLE "owner_sessions" ("id" TEXT PRIMARY KEY NOT NULL, "expires_at" TEXT NOT NULL, "inserted_at" TEXT NOT NULL);
+CREATE INDEX "owner_sessions_expires_at_index" ON "owner_sessions" ("expires_at");
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -229,3 +231,4 @@ INSERT INTO schema_migrations VALUES(20261013233439,NULL);
 INSERT INTO schema_migrations VALUES(20261014004500,NULL);
 INSERT INTO schema_migrations VALUES(20261017050809,NULL);
 INSERT INTO schema_migrations VALUES(20261018041420,NULL);
+INSERT INTO schema_migrations VALUES(20261021201543,NULL);

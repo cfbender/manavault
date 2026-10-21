@@ -115,6 +115,8 @@ services:
       # Behind an HTTPS reverse proxy you control:
       MANAVAULT_SECURE_COOKIES: "true"
       MANAVAULT_TRUST_PROXY_HEADERS: "true"
+      # The proxy's address or network, so only it can set the client IP:
+      # MANAVAULT_TRUSTED_PROXIES: 172.18.0.0/16
 ```
 
 Keep `MANAVAULT_SECRET_KEY` stable and saved somewhere safe: it encrypts sessions and

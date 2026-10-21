@@ -63,7 +63,7 @@ async fn a_new_database_gets_every_migration_and_the_starter_tags() {
     let pool = pool_at(&dir).await;
     let outcome = prepare(&pool).await.expect("migrate");
     assert_eq!(outcome.applied.len(), migrate::MIGRATIONS.len());
-    assert_eq!(migrate::MIGRATIONS.len(), 82);
+    assert_eq!(migrate::MIGRATIONS.len(), 83);
     assert_eq!(
         applied(&pool).await,
         migrate::versions().collect::<Vec<_>>()
@@ -281,7 +281,7 @@ async fn upgrades_a_v1_0_0_database_with_data() {
     assert_eq!(before.last(), Some(&20_260_708_000_003));
 
     let outcome = prepare(&pool).await.expect("migrate");
-    assert_eq!(outcome.applied.len(), 48);
+    assert_eq!(outcome.applied.len(), 49);
     assert_eq!(
         applied(&pool).await,
         migrate::versions().collect::<Vec<_>>()

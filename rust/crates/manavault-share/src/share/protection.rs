@@ -12,6 +12,7 @@ use async_graphql::parser::types::{
     SelectionSet,
 };
 use async_graphql::{Pos, Positioned};
+use manavault_core::web::public_graphql::MAX_SELECTIONS;
 
 /// Absinthe's `token_limit`.
 pub const TOKEN_LIMIT: usize = 5_000;
@@ -215,13 +216,31 @@ struct Node {
 struct Analysis<'a> {
     document: &'a ExecutableDocument,
     visiting: Vec<String>,
+    /// Selections left to visit before the walk stops (see
+    /// [`MAX_SELECTIONS`]); `exhausted` once it runs out.
+    remaining: usize,
+    exhausted: bool,
 }
 
-impl Analysis<'_> {
+impl<'a> Analysis<'a> {
+    fn new(document: &'a ExecutableDocument) -> Self {
+        Self {
+            document,
+            visiting: Vec::new(),
+            remaining: MAX_SELECTIONS,
+            exhausted: false,
+        }
+    }
+
     fn selections(&mut self, set: &SelectionSet, at_root: bool) -> Vec<Node> {
-        set.items
-            .iter()
-            .map(|selection| match &selection.node {
+        let mut nodes = Vec::new();
+        for selection in &set.items {
+            let Some(remaining) = self.remaining.checked_sub(1) else {
+                self.exhausted = true;
+                break;
+            };
+            self.remaining = remaining;
+            nodes.push(match &selection.node {
                 Selection::Field(field) => {
                     let children = self.selections(&field.node.selection_set.node, false);
                     let sum = total(&children);
@@ -261,8 +280,9 @@ impl Analysis<'_> {
                         children,
                     }
                 }
-            })
-            .collect()
+            });
+        }
+        nodes
     }
 }
 
@@ -297,13 +317,9 @@ pub fn operation_complexity(
     operation_name: Option<&str>,
 ) -> Option<u64> {
     let operation = selected_operation(document, operation_name)?;
-    let mut analysis = Analysis {
-        document,
-        visiting: Vec::new(),
-    };
-    Some(total(
-        &analysis.selections(&operation.node.selection_set.node, true),
-    ))
+    let mut analysis = Analysis::new(document);
+    let children = analysis.selections(&operation.node.selection_set.node, true);
+    (!analysis.exhausted).then(|| total(&children))
 }
 
 /// `analyze_complexity` with `max_complexity: 100_000`: one error for the
@@ -315,11 +331,13 @@ pub fn check_complexity(
     let Some(operation) = selected_operation(document, operation_name) else {
         return Ok(());
     };
-    let mut analysis = Analysis {
-        document,
-        visiting: Vec::new(),
-    };
+    let mut analysis = Analysis::new(document);
     let children = analysis.selections(&operation.node.selection_set.node, true);
+    if analysis.exhausted {
+        return Err(vec![Rejection::new(format!(
+            "Operation expands to more than {MAX_SELECTIONS} selections"
+        ))]);
+    }
     let label = match document_operation_name(document, operation_name) {
         Some(name) => format!("Operation {name}"),
         None => "Operation".to_owned(),
@@ -400,6 +418,26 @@ mod tests {
                 "Operation is too complex: complexity is 115000 and maximum is 100000",
             ]
         );
+    }
+
+    #[test]
+    fn complexity_stops_expanding_fragments() {
+        // Each fragment spreads the next twice: 2^30 selections from ~1 KB.
+        let fragments = (0..30)
+            .map(|i| format!("fragment F{i} on Card {{ ...F{n} ...F{n} }}", n = i + 1))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let query =
+            format!("query {{ card {{ ...F0 }} }} {fragments} fragment F30 on Card {{ id }}");
+        let document = async_graphql::parser::parse_query(&query).unwrap();
+        let started = std::time::Instant::now();
+        assert_eq!(operation_complexity(&document, None), None);
+        let errors = check_complexity(&document, None).unwrap_err();
+        assert_eq!(
+            errors[0].message,
+            format!("Operation expands to more than {MAX_SELECTIONS} selections")
+        );
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
     }
 
     #[test]

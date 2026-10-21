@@ -4,6 +4,8 @@
 //! A sync downloads the symbology and set lists, saves every SVG that is not
 //! already on disk under `symbols/` and `sets/`, and writes a manifest next
 //! to them (`symbology.json`, `sets.json`) whose entries carry the local URI.
+//! SVGs come only from Scryfall's SVG host, without following redirects,
+//! since they are served back from this origin.
 
 pub mod web;
 pub mod worker;
@@ -17,12 +19,15 @@ use time::OffsetDateTime;
 
 pub const SYMBOLOGY_URL: &str = "https://api.scryfall.com/symbology";
 pub const SETS_URL: &str = "https://api.scryfall.com/sets";
+pub const SVG_ORIGIN: &str = "https://svgs.scryfall.io";
 
-/// Where a sync fetches the lists from.
+/// Where a sync fetches the lists from, and the one origin SVGs may come
+/// from.
 #[derive(Debug, Clone)]
 pub struct AssetUrls {
     pub symbology_url: String,
     pub sets_url: String,
+    pub svg_origin: String,
 }
 
 impl Default for AssetUrls {
@@ -30,6 +35,7 @@ impl Default for AssetUrls {
         Self {
             symbology_url: SYMBOLOGY_URL.to_owned(),
             sets_url: SETS_URL.to_owned(),
+            svg_origin: SVG_ORIGIN.to_owned(),
         }
     }
 }
@@ -232,9 +238,11 @@ fn filename_from_url(url: &Value) -> Result<String, String> {
 }
 
 /// Saves the SVG unless it is already on disk and returns its local URI.
+/// URLs off `svg_origin` are refused.
 async fn download_svg(
     http: &reqwest::Client,
     url: Option<&Value>,
+    svg_origin: &url::Origin,
     dir: &Path,
     uri_prefix: &str,
 ) -> Result<Option<String>, String> {
@@ -244,7 +252,14 @@ async fn download_svg(
     let filename = filename_from_url(url)?;
     let path = dir.join(&filename);
     if !path.exists() {
-        let body = fetch(http, url.as_str().unwrap_or_default()).await?;
+        let text = url.as_str().unwrap_or_default();
+        if url::Url::parse(text).map(|parsed| parsed.origin()).as_ref() != Ok(svg_origin) {
+            return Err(format!(
+                "Scryfall asset URL is not on {}: {text}",
+                svg_origin.ascii_serialization()
+            ));
+        }
+        let body = fetch(http, text).await?;
         tokio::fs::write(&path, &body)
             .await
             .map_err(|error| format!("could not write {}: {error}", path.display()))?;
@@ -278,6 +293,16 @@ pub async fn sync(
     root: &Path,
     urls: &AssetUrls,
 ) -> Result<AssetCounts, String> {
+    let svg_origin = url::Url::parse(&urls.svg_origin)
+        .map_err(|error| format!("invalid SVG origin {}: {error}", urls.svg_origin))?
+        .origin();
+    let svg_http = reqwest::Client::builder()
+        .user_agent(manavault_core::state::USER_AGENT)
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(60))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|error| error.to_string())?;
     let symbols = symbols_dir(root);
     let sets = sets_dir(root);
     for dir in [&symbols, &sets] {
@@ -289,8 +314,9 @@ pub async fn sync(
     let mut symbol_entries = Vec::new();
     for entry in fetch_list(http, &urls.symbology_url, "symbology").await? {
         let local = download_svg(
-            http,
+            &svg_http,
             entry.get("svg_uri"),
+            &svg_origin,
             &symbols,
             "/scryfall-assets/symbols",
         )
@@ -310,8 +336,9 @@ pub async fn sync(
     let mut set_entries = Vec::new();
     for entry in fetch_list(http, &urls.sets_url, "sets").await? {
         let local = download_svg(
-            http,
+            &svg_http,
             entry.get("icon_svg_uri"),
+            &svg_origin,
             &sets,
             "/scryfall-assets/sets",
         )
@@ -393,6 +420,7 @@ mod tests {
         let urls = AssetUrls {
             symbology_url: format!("{base}/symbology"),
             sets_url: format!("{base}/sets"),
+            svg_origin: base.clone(),
         };
         assert_eq!(symbol(&root, "W"), None);
         let counts = sync(&reqwest::Client::new(), &root, &urls).await.unwrap();
@@ -437,11 +465,74 @@ mod tests {
         let urls = AssetUrls {
             symbology_url: format!("{}/symbology", server.uri()),
             sets_url: format!("{}/sets", server.uri()),
+            svg_origin: server.uri(),
         };
         assert_eq!(
             sync(&reqwest::Client::new(), dir.path(), &urls).await,
             Err("Scryfall symbology response did not include data".to_owned())
         );
+    }
+
+    #[tokio::test]
+    async fn sync_fetches_svgs_only_from_the_svg_origin_without_redirects() {
+        let server = MockServer::start().await;
+        let other = MockServer::start().await;
+        let base = server.uri();
+        let list = |svg_uri: String| {
+            ResponseTemplate::new(200)
+                .set_body_json(json!({"data": [{"symbol": "{W}", "svg_uri": svg_uri}]}))
+        };
+        mount(
+            &other,
+            "/W.svg",
+            ResponseTemplate::new(200).set_body_string("<svg/>"),
+            0,
+        )
+        .await;
+        mount(
+            &server,
+            "/redirect/W.svg",
+            ResponseTemplate::new(302).insert_header("location", format!("{}/W.svg", other.uri())),
+            1,
+        )
+        .await;
+        let dir = TempDir::new();
+        let sync_with = |symbology: &str| {
+            let urls = AssetUrls {
+                symbology_url: format!("{base}/{symbology}"),
+                sets_url: format!("{base}/sets"),
+                svg_origin: base.clone(),
+            };
+            let root = dir.path().to_path_buf();
+            async move { sync(&reqwest::Client::new(), &root, &urls).await }
+        };
+
+        mount(
+            &server,
+            "/off-origin",
+            list(format!("{}/W.svg", other.uri())),
+            1,
+        )
+        .await;
+        assert_eq!(
+            sync_with("off-origin").await,
+            Err(format!(
+                "Scryfall asset URL is not on {base}: {}/W.svg",
+                other.uri()
+            ))
+        );
+        mount(
+            &server,
+            "/redirected",
+            list(format!("{base}/redirect/W.svg")),
+            1,
+        )
+        .await;
+        assert_eq!(
+            sync_with("redirected").await,
+            Err("Scryfall request failed with HTTP 302".to_owned())
+        );
+        assert!(!dir.path().join("symbols/W.svg").exists());
     }
 
     #[test]

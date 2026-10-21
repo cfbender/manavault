@@ -182,6 +182,19 @@ collapsing all clients into the proxy's IP address. Enable proxy-header trust
 only when a proxy you control overwrites or appends the configured forwarded-IP
 header (`MANAVAULT_FORWARDED_IP_HEADER`, default `x-forwarded-for`).
 
+If ManaVault can be reached other than through that proxy (a published port on
+the LAN, another container on the same network), also list the proxy's address
+or network in `MANAVAULT_TRUSTED_PROXIES`. ManaVault then reads the forwarded
+header only from those peers and uses the peer address for everyone else, so a
+direct client cannot pick its own rate-limit key:
+
+```sh
+MANAVAULT_TRUSTED_PROXIES=172.18.0.0/16
+```
+
+Behind Cloudflare, trust its client header instead of `x-forwarded-for`:
+`MANAVAULT_FORWARDED_IP_HEADER=CF-Connecting-IP`.
+
 A minimal Traefik config can stay simple:
 
 ```yaml
@@ -318,7 +331,9 @@ backend) upgrades in place. Before migrating it writes a pre-migration backup
 to `/data/backups/manavault-pre_migration-<timestamp>.zip`. Encrypted settings
 keep working as long as `MANAVAULT_SECRET_KEY` stays the same. Upgrading from a
 1.x release signs every browser out once: the session cookie changed format, so
-sign in again after the upgrade. The 1.x variable names `SECRET_KEY_BASE` and
+sign in again after the upgrade. Upgrading from 2.1.0 or earlier also signs
+every browser out once: sessions are now recorded on the server so that
+logging out revokes them. The 1.x variable names `SECRET_KEY_BASE` and
 `PHX_HOST` still work (with a warning in the server log) until you rename them
 to `MANAVAULT_SECRET_KEY` and `MANAVAULT_PUBLIC_HOST`. Background jobs move to
 a new `jobs` table: queued jobs carry over, finished job history does not, so
@@ -481,6 +496,10 @@ Authentication and sessions:
   trusted proxy that controls the header.
 - `MANAVAULT_FORWARDED_IP_HEADER` - forwarded client-IP header to trust when
   `MANAVAULT_TRUST_PROXY_HEADERS=true`. Defaults to `x-forwarded-for`.
+- `MANAVAULT_TRUSTED_PROXIES` - comma-separated IP addresses or CIDR ranges of
+  the proxies whose forwarded header is trusted, e.g. `172.18.0.0/16`. Defaults
+  to empty, which trusts the header from every peer when
+  `MANAVAULT_TRUST_PROXY_HEADERS=true`.
 - `MANAVAULT_AUTH_MAX_ATTEMPTS_PER_IP` - failed login attempts allowed per
   client IP during the rate-limit window. Defaults to `5`.
 - `MANAVAULT_AUTH_MAX_ATTEMPTS_GLOBAL` - failed login attempts allowed across all

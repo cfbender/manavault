@@ -3,9 +3,11 @@
 //!
 //! [`require_json`] refuses other bodies (415) before they are read, and
 //! [`csrf`] guards the owner endpoint with the page's CSRF token in the
-//! `x-csrf-token` header, in every authentication mode.
+//! `x-csrf-token` header, in every authentication mode. [`limit_body`]
+//! enforces [`BODY_LIMIT`], which the GraphQL extractor does not.
 
 use async_graphql::ParseRequestError;
+use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, Method, StatusCode};
 use axum::middleware::Next;
@@ -68,6 +70,20 @@ pub async fn require_json(request: Request, next: Next) -> Response {
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
             "Expected an application/json request body",
         )
+    }
+}
+
+/// Middleware: buffers the body, answering 413 past [`BODY_LIMIT`].
+/// `async-graphql-axum` reads the raw body stream, so axum's
+/// `DefaultBodyLimit` does not apply to the GraphQL routes.
+pub async fn limit_body(request: Request, next: Next) -> Response {
+    let (parts, body) = request.into_parts();
+    match axum::body::to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => {
+            next.run(Request::from_parts(parts, Body::from(bytes)))
+                .await
+        }
+        Err(_) => json_error(StatusCode::PAYLOAD_TOO_LARGE, "Request body is too large"),
     }
 }
 

@@ -668,6 +668,28 @@ mod auth_controller {
     }
 
     #[tokio::test]
+    async fn logout_revokes_copies_of_the_session_cookie() {
+        let app = TestApp::with_config(with_password("secret")).await;
+        let mut browser = Browser::new(&app);
+        browser.login("secret", "/collection").await;
+        let copied = browser.cookie.clone();
+        let token = browser.token("/collection").await;
+        browser
+            .post_form("/logout", &[("_csrf_token", &token)])
+            .await;
+        let mut replay = Browser::new(&app);
+        replay.cookie = copied;
+        let page = replay
+            .post_json("/api/graphql", &json!({"query": "{ __typename }"}), None)
+            .await;
+        assert_eq!(page.status, 401, "{}", page.body);
+        assert_eq!(
+            replay.get("/collection").await.location(),
+            Some("/login?return_to=%2Fcollection")
+        );
+    }
+
+    #[tokio::test]
     async fn login_renders_and_redirects_only_to_safe_local_destinations() {
         let app = TestApp::with_config(with_password("secret")).await;
         for (label, return_to, expected) in manavault_core::testing::RETURN_PATH_CASES {
@@ -1108,6 +1130,46 @@ mod graphql_csrf {
             .await;
         assert_eq!(unparseable.status, 400);
         assert!(unparseable.json()["errors"][0]["message"].is_string());
+    }
+
+    #[tokio::test]
+    async fn graphql_bodies_over_the_limit_are_refused() {
+        use manavault_core::web::graphql::BODY_LIMIT;
+        let app = TestApp::new().await;
+        let mut browser = Browser::new(&app);
+        let token = browser.token("/").await;
+        let padded = |size: usize| {
+            let query = "{ __typename }";
+            let padding = " ".repeat(size - query.len() - r#"{"query":""}"#.len());
+            format!(r#"{{"query":"{query}{padding}"}}"#)
+        };
+        for path in ["/share/graphql", "/api/graphql"] {
+            let at_limit = browser
+                .send(
+                    Request::post(path)
+                        .header("content-type", "application/json")
+                        .header("x-csrf-token", &token),
+                    Body::from(padded(BODY_LIMIT)),
+                )
+                .await;
+            assert_eq!(at_limit.status, 200, "{path}: {}", at_limit.body);
+            let over = browser
+                .send(
+                    Request::post(path)
+                        .header("content-type", "application/json")
+                        .header("x-csrf-token", &token),
+                    Body::from(padded(BODY_LIMIT + 1)),
+                )
+                .await;
+            assert_eq!(
+                (over.status, over.json()),
+                (
+                    413,
+                    json!({"errors": [{"message": "Request body is too large"}]})
+                ),
+                "{path}"
+            );
+        }
     }
 }
 

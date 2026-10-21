@@ -153,6 +153,7 @@ pub fn router(state: WebState) -> Router {
             "/api/scanner/corrections",
             post(scanner::http::create_correction),
         )
+        .route_layer(from_fn(graphql::limit_body))
         .route_layer(from_fn(graphql::csrf))
         .route_layer(from_fn(graphql::require_json))
         .route_layer(owner_api.clone());
@@ -195,6 +196,7 @@ pub fn router(state: WebState) -> Router {
     router = router.route(
         "/share/graphql",
         share::graphql_route()
+            .route_layer(from_fn(graphql::limit_body))
             .route_layer(from_fn(graphql::require_json))
             .route_layer(from_fn_with_state(app.clone(), public_graphql::admit)),
     );
