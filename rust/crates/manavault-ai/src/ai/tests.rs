@@ -348,6 +348,10 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
         Some("Never suggest infinite combos. Add a Budget upgrades section."),
     )
     .await;
+    sqlx::query("UPDATE ai_settings SET reasoning_effort = 'xhigh'")
+        .execute(app.db())
+        .await
+        .unwrap();
     app.import_cards(&[game_changer_commander()]).await;
     let deck_id = insert_deck(app.db(), "Guideline Gap", "commander").await;
     sqlx::query("UPDATE decks SET primer = 'Slow value' WHERE id = ?1")
@@ -411,14 +415,15 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     assert_eq!(headers["authorization"], "Bearer test-openrouter-key");
     assert_eq!(headers["x-openrouter-title"], "ManaVault");
     assert_eq!(request["model"], "anthropic/claude-sonnet-4");
-    // The first round must call a tool, so it goes without the answer format.
-    assert_eq!(request["tool_choice"], "required");
-    assert!(request.get("response_format").is_none());
-    assert!(answer_request.get("tool_choice").is_none());
-    assert_eq!(
-        answer_request["response_format"]["json_schema"]["name"],
-        "manavault_deck_analysis"
-    );
+    // Some providers accept only the default tool choice, so none is sent.
+    for request in [request, answer_request] {
+        assert!(request.get("tool_choice").is_none());
+        assert_eq!(request["reasoning"], json!({"effort": "xhigh"}));
+        assert_eq!(
+            request["response_format"]["json_schema"]["name"],
+            "manavault_deck_analysis"
+        );
+    }
     assert_eq!(request["max_tokens"], 20_000);
     assert!(request.get("temperature").is_none());
     assert!(request.get("max_completion_tokens").is_none());
@@ -674,10 +679,14 @@ async fn saves_successful_deck_questions_newest_first_without_changing_the_analy
     let request = &requests[0];
     assert_eq!(request["plugins"], json!([{"id": "response-healing"}]));
     assert_eq!(request["max_tokens"], 20_000);
-    for absent in ["temperature", "max_completion_tokens", "reasoning"] {
+    for absent in [
+        "temperature",
+        "max_completion_tokens",
+        "reasoning",
+        "tool_choice",
+    ] {
         assert!(request.get(absent).is_none(), "{absent}");
     }
-    assert_eq!(request["tool_choice"], "required");
     assert!(!message_content(request, 0).contains("Never suggest infinite combos."));
     let user = message_content(request, 1);
     assert!(user.starts_with("Deck data:\n"));
@@ -1000,14 +1009,13 @@ async fn answers_card_lookup_tool_calls_from_the_catalog_before_accepting_the_fi
         assert_eq!(tools, vec!["lookup_cards", "check_collection"]);
         assert_eq!(request["session_id"], requests[0]["session_id"]);
     }
-    // The first round must look something up; later rounds may answer.
-    assert_eq!(requests[0]["tool_choice"], "required");
-    assert!(requests[0].get("response_format").is_none());
-    assert!(requests[1].get("tool_choice").is_none());
-    assert_eq!(
-        requests[1]["response_format"]["json_schema"]["schema"]["required"],
-        json!(["answer", "recommended_cuts", "recommended_additions"])
-    );
+    for request in &requests {
+        assert!(request.get("tool_choice").is_none());
+        assert_eq!(
+            request["response_format"]["json_schema"]["schema"]["required"],
+            json!(["answer", "recommended_cuts", "recommended_additions"])
+        );
+    }
     // System, deck data, and the newest message are the cache breakpoints;
     // the question becomes plain text once a tool round follows it.
     assert_eq!(requests[0]["messages"].as_array().unwrap().len(), 3);
@@ -1029,13 +1037,13 @@ async fn answers_card_lookup_tool_calls_from_the_catalog_before_accepting_the_fi
 }
 
 #[tokio::test]
-async fn forbids_further_tool_calls_after_the_round_limit() {
+async fn refuses_tool_calls_after_the_round_limit() {
     let server = MockServer::start().await;
     let app = app_with(&server).await;
     insert_settings(&app, "anthropic/claude-sonnet-4", None).await;
     let deck_id = insert_deck(app.db(), "Looping Deck", "commander").await;
     let attempts = stub_completions(&server, |attempt, _| {
-        if attempt <= 4 {
+        if attempt <= 5 {
             ResponseTemplate::new(200).set_body_json(json!({
                 "choices": [{
                     "finish_reason": "tool_calls",
@@ -1059,24 +1067,52 @@ async fn forbids_further_tool_calls_after_the_round_limit() {
     answer_deck_question::run(&app.state, question.id)
         .await
         .unwrap();
-    assert_eq!(attempts.load(Ordering::SeqCst), 5);
+    assert_eq!(attempts.load(Ordering::SeqCst), 6);
     assert_eq!(
         saved(&app, question.id).await.answer,
         "Done looking things up."
     );
     let requests = completion_requests(&server).await;
-    assert_eq!(requests[0]["tool_choice"], "required");
-    for request in &requests[1..4] {
+    for request in &requests {
         assert!(request.get("tool_choice").is_none());
     }
-    assert_eq!(requests[4]["tool_choice"], "none");
-    assert_eq!(requests[4]["messages"].as_array().unwrap().len(), 3 + 4 * 2);
-    assert_eq!(cache_breakpoints(&requests[4]), vec![0, 1, 10]);
+    assert_eq!(requests[5]["messages"].as_array().unwrap().len(), 3 + 5 * 2);
+    assert_eq!(cache_breakpoints(&requests[5]), vec![0, 1, 12]);
     let tool_reply: Value = serde_json::from_str(&message_content(&requests[1], 4)).unwrap();
     assert_eq!(
         tool_reply,
         json!({"error": "Provide a names array of exact card names."})
     );
+    // The fifth round's call is answered without running the tool.
+    let refused: Value = serde_json::from_str(&message_content(&requests[5], 12)).unwrap();
+    assert_eq!(
+        refused,
+        json!({"error": "No more tool calls are allowed. Answer now from the results you already have."})
+    );
+}
+
+#[tokio::test]
+async fn fails_when_the_model_keeps_calling_tools_past_the_limit() {
+    let server = MockServer::start().await;
+    let app = app_with(&server).await;
+    insert_settings(&app, "anthropic/claude-sonnet-4", None).await;
+    let deck_id = insert_deck(app.db(), "Endless Deck", "commander").await;
+    let attempts = stub_completions(&server, |attempt, _| {
+        ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{"message": {"role": "assistant", "content": null, "tool_calls": [{
+                "id": format!("call_{attempt}"),
+                "type": "function",
+                "function": {"name": "lookup_cards", "arguments": "{}"}
+            }]}}]
+        }))
+    })
+    .await;
+    let question = ask_default(&app, deck_id, "Keep searching forever.").await;
+    assert_eq!(
+        user_message(answer_deck_question::run(&app.state, question.id).await),
+        "OpenRouter kept calling tools instead of answering."
+    );
+    assert_eq!(attempts.load(Ordering::SeqCst), 6);
 }
 
 #[tokio::test]
@@ -1113,9 +1149,7 @@ async fn retries_without_tools_when_the_model_has_no_tool_capable_endpoints() {
     assert!(log.contains("does not support tool use"), "{log}");
     let requests = completion_requests(&server).await;
     assert!(requests[0].get("tools").is_some());
-    assert_eq!(requests[0]["tool_choice"], "required");
     assert!(requests[1].get("tools").is_none());
-    assert!(requests[1].get("tool_choice").is_none());
     assert_eq!(requests[1]["response_format"]["type"], "json_schema");
 }
 

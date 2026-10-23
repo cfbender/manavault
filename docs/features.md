@@ -414,7 +414,9 @@ history.
 AI features are optional and currently use OpenRouter. The owner configures and
 validates an API key and model ID in **Settings -> AI**, and can add custom
 analysis instructions; the key is encrypted at rest and is never returned
-through GraphQL. Deck data is sent only when the owner explicitly runs an
+through GraphQL. A reasoning effort setting offers only the efforts OpenRouter
+lists for the selected model, or the model's default; it applies to analyses
+and questions. Deck data is sent only when the owner explicitly runs an
 analysis, sends a question, or opens a deck grouped by **AI Tag**.
 
 ### Deck analysis
@@ -475,8 +477,10 @@ recommendation and delete controls.
 During analysis and questions, the model can call a `lookup_cards` tool that
 returns rules text, color identity, and legality from the local Scryfall
 catalog, so it can verify cards released after its training data before
-recommending them. Its first request must call a tool, so answers rest on
-lookups rather than the model's memory. A `check_collection` tool reports
+recommending them. The prompts ask it to look cards up rather than rely on its
+memory; requests leave `tool_choice` at its default, the only value some
+providers accept. After four rounds of tool calls, further calls are answered
+with an instruction to answer instead. A `check_collection` tool reports
 whether the owner has a free copy of each candidate, has copies only in other
 active decks, or does not own it. The prompts tell the model to prefer cards
 with a free copy when they fit comparably well, treat copies in other decks the
@@ -588,7 +592,7 @@ The Settings page groups owner configuration:
   account (the card size slider in the app shell adjusts card images across
   the app)
 - **Pricing** - price source and vendor sync
-- **AI** - OpenRouter key, model, and custom instructions
+- **AI** - OpenRouter key, model, reasoning effort, and custom instructions
 - **Personal API keys** - read-only keys for integrations; see [api.md](api.md)
 - **Collection auto-sort** and **Default Deck Tags**
 - **Scryfall data** - force a Scryfall catalog or symbol/set icon reload

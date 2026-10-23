@@ -69,7 +69,7 @@ CREATE INDEX "vendor_prices_vendor_updated_at_index" ON "vendor_prices" ("vendor
 CREATE TABLE "pricing_settings" ("id" INTEGER PRIMARY KEY, "source" TEXT DEFAULT 'scryfall' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 CREATE INDEX "decks_cover_deck_card_id_index" ON "decks" ("cover_deck_card_id");
 CREATE INDEX "scryfall_printings_normalized_flavor_name_index" ON "scryfall_printings" ("normalized_flavor_name");
-CREATE TABLE "ai_settings" ("id" INTEGER PRIMARY KEY, "provider" TEXT DEFAULT 'openrouter' NOT NULL, "api_key" TEXT, "model" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "deck_analysis_instructions" TEXT, "decision_model" TEXT);
+CREATE TABLE "ai_settings" ("id" INTEGER PRIMARY KEY, "provider" TEXT DEFAULT 'openrouter' NOT NULL, "api_key" TEXT, "model" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "deck_analysis_instructions" TEXT, "decision_model" TEXT, "reasoning_effort" TEXT);
 CREATE TABLE "deck_question_answers" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "deck_id" INTEGER NOT NULL CONSTRAINT "deck_question_answers_deck_id_fkey" REFERENCES "decks"("id") ON DELETE CASCADE, "question" TEXT NOT NULL, "answer" TEXT NOT NULL, "inserted_at" TEXT NOT NULL, "recommendations" TEXT, "status" TEXT DEFAULT 'completed' NOT NULL, "error" TEXT, "model" TEXT, "thread_id" TEXT, "swap_context" TEXT, "conversation_id" TEXT);
 CREATE INDEX "deck_question_answers_deck_id_inserted_at_index" ON "deck_question_answers" ("deck_id", "inserted_at");
 CREATE TABLE "deck_analysis_requests" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "source_type" TEXT NOT NULL, "source" TEXT NOT NULL, "source_name" TEXT NOT NULL, "format" TEXT NOT NULL, "analysis" TEXT NOT NULL, "model" TEXT NOT NULL, "commander_bracket" INTEGER, "commander_bracket_estimate" INTEGER, "inserted_at" TEXT NOT NULL, "commander_bracket_rating" TEXT);
@@ -232,3 +232,4 @@ INSERT INTO schema_migrations VALUES(20261014004500,NULL);
 INSERT INTO schema_migrations VALUES(20261017050809,NULL);
 INSERT INTO schema_migrations VALUES(20261018041420,NULL);
 INSERT INTO schema_migrations VALUES(20261021201543,NULL);
+INSERT INTO schema_migrations VALUES(20261023210150,NULL);

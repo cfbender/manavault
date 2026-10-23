@@ -137,8 +137,9 @@ type Documents = {
     "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      prefix\n      createdAt\n      lastUsedAt\n    }\n  }\n": typeof types.ApiKeysDocument,
     "\n  mutation CreateApiKey($name: String!) {\n    createApiKey(name: $name) {\n      token\n      apiKey {\n        id\n        name\n        prefix\n        createdAt\n        lastUsedAt\n      }\n    }\n  }\n": typeof types.CreateApiKeyDocument,
     "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id) {\n      id\n    }\n  }\n": typeof types.RevokeApiKeyDocument,
-    "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      hasApiKey\n    }\n  }\n": typeof types.AiSettingsDocument,
-    "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        hasApiKey\n      }\n    }\n  }\n": typeof types.UpdateAiSettingsDocument,
+    "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      reasoningEffort\n      hasApiKey\n    }\n  }\n": typeof types.AiSettingsDocument,
+    "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        reasoningEffort\n        hasApiKey\n      }\n    }\n  }\n": typeof types.UpdateAiSettingsDocument,
+    "\n  query AIModelReasoning($model: String!) {\n    aiModelReasoning(model: $model) {\n      supportedEfforts\n      defaultEffort\n    }\n  }\n": typeof types.AiModelReasoningDocument,
     "\n  mutation RefreshAllDeckAnalyses {\n    refreshAllDeckAnalyses {\n      queuedCount\n    }\n  }\n": typeof types.RefreshAllDeckAnalysesDocument,
     "\n  query BackupSettings {\n    backupSettings {\n      enabled\n      provider\n      cron\n      retentionCount\n      s3Endpoint\n      s3Bucket\n      s3Region\n      s3Prefix\n      s3AccessKeyId\n      hasS3SecretAccessKey\n      googleClientId\n      googleFolderId\n      hasGoogleClientSecret\n      hasGoogleRefreshToken\n      lastBackupAt\n      lastBackupStatus\n      lastBackupMessage\n      lastBackupPath\n      lastRestoreAt\n      lastRestoreStatus\n      lastRestoreMessage\n      pendingRestorePath\n    }\n  }\n": typeof types.BackupSettingsDocument,
     "\n  query CloudBackups {\n    cloudBackups {\n      id\n      name\n      provider\n      size\n      modifiedAt\n    }\n  }\n": typeof types.CloudBackupsDocument,
@@ -299,8 +300,9 @@ const documents: Documents = {
     "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      prefix\n      createdAt\n      lastUsedAt\n    }\n  }\n": types.ApiKeysDocument,
     "\n  mutation CreateApiKey($name: String!) {\n    createApiKey(name: $name) {\n      token\n      apiKey {\n        id\n        name\n        prefix\n        createdAt\n        lastUsedAt\n      }\n    }\n  }\n": types.CreateApiKeyDocument,
     "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id) {\n      id\n    }\n  }\n": types.RevokeApiKeyDocument,
-    "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      hasApiKey\n    }\n  }\n": types.AiSettingsDocument,
-    "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        hasApiKey\n      }\n    }\n  }\n": types.UpdateAiSettingsDocument,
+    "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      reasoningEffort\n      hasApiKey\n    }\n  }\n": types.AiSettingsDocument,
+    "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        reasoningEffort\n        hasApiKey\n      }\n    }\n  }\n": types.UpdateAiSettingsDocument,
+    "\n  query AIModelReasoning($model: String!) {\n    aiModelReasoning(model: $model) {\n      supportedEfforts\n      defaultEffort\n    }\n  }\n": types.AiModelReasoningDocument,
     "\n  mutation RefreshAllDeckAnalyses {\n    refreshAllDeckAnalyses {\n      queuedCount\n    }\n  }\n": types.RefreshAllDeckAnalysesDocument,
     "\n  query BackupSettings {\n    backupSettings {\n      enabled\n      provider\n      cron\n      retentionCount\n      s3Endpoint\n      s3Bucket\n      s3Region\n      s3Prefix\n      s3AccessKeyId\n      hasS3SecretAccessKey\n      googleClientId\n      googleFolderId\n      hasGoogleClientSecret\n      hasGoogleRefreshToken\n      lastBackupAt\n      lastBackupStatus\n      lastBackupMessage\n      lastBackupPath\n      lastRestoreAt\n      lastRestoreStatus\n      lastRestoreMessage\n      pendingRestorePath\n    }\n  }\n": types.BackupSettingsDocument,
     "\n  query CloudBackups {\n    cloudBackups {\n      id\n      name\n      provider\n      size\n      modifiedAt\n    }\n  }\n": types.CloudBackupsDocument,
@@ -847,11 +849,15 @@ export function graphql(source: "\n  mutation RevokeApiKey($id: ID!) {\n    revo
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      hasApiKey\n    }\n  }\n"): (typeof documents)["\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      hasApiKey\n    }\n  }\n"];
+export function graphql(source: "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      reasoningEffort\n      hasApiKey\n    }\n  }\n"): (typeof documents)["\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      decisionModel\n      reasoningEffort\n      hasApiKey\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        hasApiKey\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        hasApiKey\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        reasoningEffort\n        hasApiKey\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        decisionModel\n        reasoningEffort\n        hasApiKey\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query AIModelReasoning($model: String!) {\n    aiModelReasoning(model: $model) {\n      supportedEfforts\n      defaultEffort\n    }\n  }\n"): (typeof documents)["\n  query AIModelReasoning($model: String!) {\n    aiModelReasoning(model: $model) {\n      supportedEfforts\n      defaultEffort\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

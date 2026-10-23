@@ -15,7 +15,9 @@ import {
 import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import type { AiSettingsQuery } from "../../gql/graphql"
+import { useDebouncedValue } from "../collection/form-helpers"
 import {
+  AIModelReasoningDocument,
   AISettingsDocument,
   RefreshAllDeckAnalysesDocument,
   UpdateAISettingsDocument,
@@ -24,6 +26,23 @@ import {
 import { Field } from "./ui"
 
 type AISettings = NonNullable<AiSettingsQuery["aiSettings"]>
+
+/** The select value for sending no effort, which leaves the model's default. */
+const MODEL_DEFAULT = "default"
+
+const EFFORT_LABELS: Record<string, string> = {
+  max: "Max",
+  xhigh: "Extra high",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  minimal: "Minimal",
+  none: "Off",
+}
+
+function effortLabel(effort: string) {
+  return EFFORT_LABELS[effort] ?? effort
+}
 
 export function AISettingsSection() {
   const settingsQuery = useQuery(AISettingsDocument, { fetchPolicy: "cache-and-network" })
@@ -57,6 +76,19 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
     settings.deckAnalysisInstructions ?? "",
   )
   const [decisionModel, setDecisionModel] = useState(settings.decisionModel)
+  const [reasoningEffort, setReasoningEffort] = useState(settings.reasoningEffort ?? "")
+  const lookupModel = useDebouncedValue(model.trim(), 400)
+  const reasoningQuery = useQuery(AIModelReasoningDocument, {
+    variables: { model: lookupModel },
+    skip: !lookupModel,
+  })
+  const loadedReasoning =
+    lookupModel && lookupModel === model.trim() && reasoningQuery.data && !reasoningQuery.loading
+  const supportedEfforts = reasoningQuery.data?.aiModelReasoning?.supportedEfforts ?? []
+  const defaultEffort = reasoningQuery.data?.aiModelReasoning?.defaultEffort
+  // Once the model's efforts are known, an effort it does not accept falls back to its default.
+  const effort =
+    loadedReasoning && !supportedEfforts.includes(reasoningEffort) ? "" : reasoningEffort
   const [updateSettings, updateMutation] = useMutation(UpdateAISettingsDocument)
   const [refreshAllDeckAnalyses, refreshMutation] = useMutation(RefreshAllDeckAnalysesDocument)
 
@@ -70,6 +102,7 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
           model,
           deckAnalysisInstructions,
           decisionModel,
+          reasoningEffort: effort || null,
           ...(apiKey.trim() ? { apiKey } : {}),
         },
       },
@@ -78,6 +111,7 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
         setApiKey("")
         if (nextSettings) {
           setDecisionModel(nextSettings.decisionModel)
+          setReasoningEffort(nextSettings.reasoningEffort ?? "")
           client.writeQuery({ query: AISettingsDocument, data: { aiSettings: nextSettings } })
         }
         showToast("AI settings validated and saved.")
@@ -152,6 +186,41 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
               autoComplete="new-password"
               required={!settings.hasApiKey}
             />
+          </Field>
+
+          <Field
+            label="Reasoning effort"
+            htmlFor="ai-reasoning-effort"
+            help={reasoningHelp({
+              loaded: Boolean(loadedReasoning),
+              error: reasoningQuery.error ? errorMessage(reasoningQuery.error) : null,
+              adjustable: supportedEfforts.length > 0,
+            })}
+          >
+            <Select
+              value={effort || MODEL_DEFAULT}
+              onValueChange={(value) => setReasoningEffort(value === MODEL_DEFAULT ? "" : value)}
+              disabled={!supportedEfforts.length && !effort}
+            >
+              <SelectTrigger id="ai-reasoning-effort">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={MODEL_DEFAULT}>
+                  {defaultEffort
+                    ? `Model default (${effortLabel(defaultEffort)})`
+                    : "Model default"}
+                </SelectItem>
+                {supportedEfforts.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {effortLabel(value)}
+                  </SelectItem>
+                ))}
+                {effort && !supportedEfforts.includes(effort) ? (
+                  <SelectItem value={effort}>{effortLabel(effort)}</SelectItem>
+                ) : null}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
@@ -231,4 +300,19 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
       </div>
     </form>
   )
+}
+
+function reasoningHelp({
+  loaded,
+  error,
+  adjustable,
+}: {
+  loaded: boolean
+  error: string | null
+  adjustable: boolean
+}) {
+  if (error) return `Could not load this model's reasoning options. ${error}`
+  if (!loaded) return "Options follow the selected model."
+  if (!adjustable) return "This model has no adjustable reasoning effort."
+  return "Higher effort can give better answers but takes longer and uses more credits."
 }

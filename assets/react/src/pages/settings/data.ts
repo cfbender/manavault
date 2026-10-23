@@ -60,6 +60,7 @@ export const AISettingsDocument = graphql(`
       model
       deckAnalysisInstructions
       decisionModel
+      reasoningEffort
       hasApiKey
     }
   }
@@ -73,8 +74,18 @@ export const UpdateAISettingsDocument = graphql(`
         model
         deckAnalysisInstructions
         decisionModel
+        reasoningEffort
         hasApiKey
       }
+    }
+  }
+`)
+
+export const AIModelReasoningDocument = graphql(`
+  query AIModelReasoning($model: String!) {
+    aiModelReasoning(model: $model) {
+      supportedEfforts
+      defaultEffort
     }
   }
 `)

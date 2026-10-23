@@ -28,6 +28,10 @@ use manavault_core::state::AppState;
 
 /// Rounds in which the model may call tools before it must answer.
 const MAX_TOOL_ROUNDS: usize = 4;
+/// The tool result for calls past [`MAX_TOOL_ROUNDS`].
+const TOOL_LIMIT_REACHED: &str =
+    "No more tool calls are allowed. Answer now from the results you already have.";
+const TOOL_LOOP: &str = "OpenRouter kept calling tools instead of answering.";
 const COMPLETION_TIMEOUT: Duration = Duration::from_secs(120);
 const ANSWER_TOKEN_LIMIT: &str = "OpenRouter ran out of output tokens before finishing the answer.";
 const ANSWER_INCOMPLETE: &str = "OpenRouter returned an incomplete answer.";
@@ -243,11 +247,12 @@ async fn post_completion(state: &AppState, api_key: &str, request: &Value) -> Re
 }
 
 /// Runs the completion, executing any tool calls the model requests and
-/// feeding the results back until it returns a final message. The first
-/// round must call a tool (and so goes without the response format), so the
-/// answer rests on catalog and collection lookups rather than the model's
-/// memory; after [`MAX_TOOL_ROUNDS`] the model may no longer call tools. A
-/// model without tool-capable endpoints is retried once without tools.
+/// feeding the results back until it returns a final message. Requests leave
+/// `tool_choice` at its default, the only value some providers accept, so
+/// the prompts ask for lookups and calls past [`MAX_TOOL_ROUNDS`] get a
+/// result telling the model to answer; a model that keeps calling tools
+/// after that fails. A model without tool-capable endpoints is retried once
+/// without tools.
 async fn complete(
     state: &AppState,
     settings: &Configured,
@@ -257,17 +262,12 @@ async fn complete(
     let Value::Object(mut request) = request else {
         return Err(operation.http_error().to_owned());
     };
+    if let Some(effort) = &settings.reasoning_effort {
+        request.insert("reasoning".into(), json!({"effort": effort}));
+    }
     let mut round = 0;
     loop {
         let mut sent = request.clone();
-        if round >= MAX_TOOL_ROUNDS {
-            sent.insert("tool_choice".into(), json!("none"));
-        } else if round == 0 && sent.contains_key("tools") {
-            // A forced tool call carries no answer, and Gemini rejects
-            // forcing one alongside a JSON response format.
-            sent.insert("tool_choice".into(), json!("required"));
-            sent.remove("response_format");
-        }
         mark_cache_breakpoints(&mut sent);
         let started = Instant::now();
         match post_completion(state, &settings.api_key, &Value::Object(sent)).await {
@@ -290,9 +290,12 @@ async fn complete(
                     status,
                     &body,
                 );
+                if round > MAX_TOOL_ROUNDS {
+                    return Err(TOOL_LOOP.to_owned());
+                }
                 let mut follow_up = vec![assistant_message(&body)];
                 for call in &calls {
-                    follow_up.push(tool_message(state, call).await?);
+                    follow_up.push(tool_message(state, call, round >= MAX_TOOL_ROUNDS).await?);
                 }
                 if let Some(Value::Array(messages)) = request.get_mut("messages") {
                     messages.extend(follow_up);
@@ -407,16 +410,25 @@ fn decode_arguments(arguments: Option<&Value>) -> Value {
     }
 }
 
-async fn tool_message(state: &AppState, call: &Value) -> Result<Value, String> {
+/// The tool result for one call; past the round limit the call is not run.
+async fn tool_message(
+    state: &AppState,
+    call: &Value,
+    limit_reached: bool,
+) -> Result<Value, String> {
     let function = call.get("function");
     let name = function.and_then(|function| function.get("name"));
-    let arguments = decode_arguments(function.and_then(|function| function.get("arguments")));
-    let result = tools::call(&state.db, name.and_then(Value::as_str), &arguments)
-        .await
-        .map_err(|error| {
-            tracing::error!(%error, "AI tool call failed");
-            "Something went wrong.".to_owned()
-        })?;
+    let result = if limit_reached {
+        json!({"error": TOOL_LIMIT_REACHED})
+    } else {
+        let arguments = decode_arguments(function.and_then(|function| function.get("arguments")));
+        tools::call(&state.db, name.and_then(Value::as_str), &arguments)
+            .await
+            .map_err(|error| {
+                tracing::error!(%error, "AI tool call failed");
+                "Something went wrong.".to_owned()
+            })?
+    };
     Ok(json!({
         "role": "tool",
         "tool_call_id": call.get("id").cloned().unwrap_or(Value::Null),

@@ -20,6 +20,9 @@ const SINGLETON_ID: i64 = 1;
 const PROVIDERS: [&str; 1] = ["openrouter"];
 /// The decision model used when none is saved.
 pub const DEFAULT_DECISION_MODEL: &str = "typesafe/jev-1.13";
+/// `OpenRouter`'s `reasoning.effort` values, highest first.
+pub const REASONING_EFFORTS: [&str; 7] =
+    ["max", "xhigh", "high", "medium", "low", "minimal", "none"];
 
 /// The saved settings, with the API key decrypted.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,6 +33,8 @@ pub struct AiSettings {
     pub deck_analysis_instructions: Option<String>,
     /// The saved decision model; `None` uses [`DEFAULT_DECISION_MODEL`].
     pub decision_model: Option<String>,
+    /// One of [`REASONING_EFFORTS`]; `None` leaves the model's default.
+    pub reasoning_effort: Option<String>,
 }
 
 impl AiSettings {
@@ -63,7 +68,8 @@ pub async fn settings(state: &AppState) -> Result<AiSettings, sqlx::Error> {
     .execute(&state.db)
     .await?;
     let row = sqlx::query!(
-        "SELECT provider, api_key, model, deck_analysis_instructions, decision_model
+        "SELECT provider, api_key, model, deck_analysis_instructions, decision_model,
+           reasoning_effort
          FROM ai_settings WHERE id = ?1",
         SINGLETON_ID
     )
@@ -75,6 +81,7 @@ pub async fn settings(state: &AppState) -> Result<AiSettings, sqlx::Error> {
         model: row.model,
         deck_analysis_instructions: row.deck_analysis_instructions,
         decision_model: row.decision_model,
+        reasoning_effort: row.reasoning_effort,
     })
 }
 
@@ -88,6 +95,8 @@ pub struct AiSettingsInput {
     pub deck_analysis_instructions: MaybeUndefined<String>,
     /// Omit to keep the saved model; null or blank uses the default.
     pub decision_model: MaybeUndefined<String>,
+    /// Omit to keep the saved effort; null or blank uses the model's default.
+    pub reasoning_effort: MaybeUndefined<String>,
 }
 
 /// Why saving failed.
@@ -128,6 +137,11 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
                 normalize(&text).filter(|model| model != DEFAULT_DECISION_MODEL)
             }
         },
+        reasoning_effort: match input.reasoning_effort {
+            MaybeUndefined::Undefined => current.reasoning_effort.clone(),
+            MaybeUndefined::Null => None,
+            MaybeUndefined::Value(text) => normalize(&text),
+        },
     };
 
     let mut errors = ValidationError::new();
@@ -163,6 +177,13 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
     {
         errors.add("deck_analysis_instructions", too_long(4000));
     }
+    if candidate
+        .reasoning_effort
+        .as_deref()
+        .is_some_and(|effort| !REASONING_EFFORTS.contains(&effort))
+    {
+        errors.add("reasoning_effort", INVALID);
+    }
     errors.into_result().map_err(UpdateError::Invalid)?;
 
     let mut validated = openrouter::validate_settings(state, &candidate).await;
@@ -184,12 +205,14 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
     let now = Timestamp::now();
     sqlx::query!(
         "UPDATE ai_settings SET provider = ?1, api_key = ?2, model = ?3,
-           deck_analysis_instructions = ?4, decision_model = ?5, updated_at = ?6 WHERE id = ?7",
+           deck_analysis_instructions = ?4, decision_model = ?5, reasoning_effort = ?6,
+           updated_at = ?7 WHERE id = ?8",
         candidate.provider,
         stored_key,
         candidate.model,
         candidate.deck_analysis_instructions,
         candidate.decision_model,
+        candidate.reasoning_effort,
         now,
         SINGLETON_ID
     )
@@ -347,6 +370,36 @@ pub mod openrouter {
             ));
         }
 
+        let model = settings.model.as_deref().unwrap_or_default();
+        let entry = find_model(state, api_key, model).await?.ok_or_else(|| {
+            (
+                "model",
+                format!("OpenRouter model \"{model}\" was not found."),
+            )
+        })?;
+        match settings.reasoning_effort.as_deref() {
+            Some(effort)
+                if !supported_efforts(&entry)
+                    .is_some_and(|efforts| efforts.iter().any(|supported| supported == effort)) =>
+            {
+                Err((
+                    "reasoning_effort",
+                    format!(
+                        "OpenRouter model \"{model}\" does not support the \"{effort}\" reasoning effort."
+                    ),
+                ))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// The model's entry in `OpenRouter`'s model list, if it has one. Errors
+    /// name the field, like [`validate_settings`].
+    pub async fn find_model(
+        state: &AppState,
+        api_key: &str,
+        model: &str,
+    ) -> Result<Option<Value>, (&'static str, String)> {
         let response = request(state, "/models", api_key)
             .send()
             .await
@@ -356,29 +409,48 @@ pub mod openrouter {
         let models = serde_json::from_str::<Value>(&body)
             .ok()
             .filter(|_| status.is_success())
-            .and_then(|value| value.get("data").and_then(Value::as_array).cloned());
-        let Some(models) = models else {
-            return Err((
-                "model",
-                response_error(
-                    status.as_u16(),
-                    &body,
-                    "OpenRouter could not validate the model.",
-                ),
-            ));
+            .and_then(|mut value| match value.get_mut("data").map(Value::take) {
+                Some(Value::Array(models)) => Some(models),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                (
+                    "model",
+                    response_error(
+                        status.as_u16(),
+                        &body,
+                        "OpenRouter could not validate the model.",
+                    ),
+                )
+            })?;
+        Ok(models
+            .into_iter()
+            .find(|entry| entry.get("id").and_then(Value::as_str) == Some(model)))
+    }
+
+    /// The `reasoning.effort` values a model entry accepts, highest first, or
+    /// `None` when the model offers no effort setting. A null
+    /// `supported_efforts` accepts every value; a mandatory model rejects
+    /// `none`.
+    #[must_use]
+    pub fn supported_efforts(entry: &Value) -> Option<Vec<String>> {
+        let reasoning = entry.get("reasoning")?.as_object()?;
+        let efforts = match reasoning.get("supported_efforts")? {
+            Value::Array(efforts) => efforts
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect(),
+            Value::Null => super::REASONING_EFFORTS.map(str::to_owned).to_vec(),
+            _ => return None,
         };
-        let model = settings.model.as_deref().unwrap_or_default();
-        if models
-            .iter()
-            .any(|entry| entry.get("id").and_then(Value::as_str) == Some(model))
-        {
-            Ok(())
-        } else {
-            Err((
-                "model",
-                format!("OpenRouter model \"{model}\" was not found."),
-            ))
-        }
+        let mandatory = reasoning.get("mandatory") == Some(&Value::Bool(true));
+        Some(
+            efforts
+                .into_iter()
+                .filter(|effort| !(mandatory && effort == "none"))
+                .collect(),
+        )
     }
 }
 
@@ -390,6 +462,8 @@ pub struct AiSettingsObject {
     pub deck_analysis_instructions: Option<String>,
     /// The decision model in use, the default when none is saved.
     pub decision_model: String,
+    /// The reasoning effort; null leaves the model's default.
+    pub reasoning_effort: Option<String>,
     pub has_api_key: bool,
 }
 
@@ -400,9 +474,19 @@ impl From<&AiSettings> for AiSettingsObject {
             model: settings.model.clone(),
             deck_analysis_instructions: settings.deck_analysis_instructions.clone(),
             decision_model: settings.decision_model().to_owned(),
+            reasoning_effort: settings.reasoning_effort.clone(),
             has_api_key: settings.has_api_key(),
         }
     }
+}
+
+/// The reasoning efforts an `OpenRouter` model accepts.
+#[derive(SimpleObject)]
+pub struct AiModelReasoning {
+    /// Accepted `reasoning.effort` values, highest first.
+    pub supported_efforts: Vec<String>,
+    /// The effort the model uses when none is sent.
+    pub default_effort: Option<String>,
 }
 
 #[derive(SimpleObject)]
@@ -417,6 +501,33 @@ pub struct AiSettingsQueries;
 impl AiSettingsQueries {
     async fn ai_settings(&self, ctx: &Context<'_>) -> GqlResult<AiSettingsObject> {
         Ok((&settings(state(ctx)).await?).into())
+    }
+
+    /// The reasoning efforts `model` accepts; null when `OpenRouter` does not
+    /// list the model or the model has no effort setting.
+    async fn ai_model_reasoning(
+        &self,
+        ctx: &Context<'_>,
+        model: String,
+    ) -> GqlResult<Option<AiModelReasoning>> {
+        let state = state(ctx);
+        let saved = settings(state).await?;
+        let entry = openrouter::find_model(
+            state,
+            saved.api_key.as_deref().unwrap_or_default(),
+            model.trim(),
+        )
+        .await
+        .map_err(|(_, message)| crate::graphql::user_error(message))?;
+        Ok(entry.and_then(|entry| {
+            Some(AiModelReasoning {
+                supported_efforts: openrouter::supported_efforts(&entry)?,
+                default_effort: entry
+                    .pointer("/reasoning/default_effort")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+            })
+        }))
     }
 }
 
@@ -451,6 +562,10 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     async fn openrouter(models: &[&str]) -> MockServer {
+        openrouter_with(models.iter().map(|id| json!({"id": id})).collect()).await
+    }
+
+    async fn openrouter_with(data: Vec<Value>) -> MockServer {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/api/v1/key"))
@@ -460,7 +575,6 @@ mod tests {
             )
             .mount(&server)
             .await;
-        let data: Vec<Value> = models.iter().map(|id| json!({"id": id})).collect();
         Mock::given(method("GET"))
             .and(path("/api/v1/models"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": data})))
@@ -490,6 +604,104 @@ mod tests {
             model: model.into(),
             deck_analysis_instructions: instructions,
             decision_model: MaybeUndefined::Undefined,
+            reasoning_effort: MaybeUndefined::Undefined,
+        }
+    }
+
+    #[tokio::test]
+    async fn reasoning_efforts_follow_what_each_model_supports() {
+        let server = openrouter_with(vec![
+            json!({"id": "openai/gpt-6.1-sol", "reasoning": {
+                "mandatory": true,
+                "supported_efforts": ["max", "xhigh", "high", "medium", "low"],
+                "default_effort": "medium"
+            }}),
+            json!({"id": "any/effort", "reasoning": {"mandatory": true, "supported_efforts": null}}),
+            json!({"id": "no/effort-setting", "reasoning": {"mandatory": false}}),
+            json!({"id": "plain/model"}),
+        ])
+        .await;
+        let app = gql_app_with(&server).await;
+        // `None` omits the effort.
+        let save = |model: &str, effort: Option<Value>| {
+            let mut input = json!({"provider": "openrouter", "apiKey": "key", "model": model});
+            if let Some(effort) = effort {
+                input["reasoningEffort"] = effort;
+            }
+            json!({"input": input})
+        };
+        let mutation = r"mutation($input: AiSettingsInput!) { updateAiSettings(input: $input) { aiSettings { model reasoningEffort } } }";
+        let error = |response: Value| {
+            response["errors"][0]["message"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+
+        let data = app
+            .gql_data(mutation, save("openai/gpt-6.1-sol", Some(json!("xhigh"))))
+            .await;
+        assert_eq!(
+            data["updateAiSettings"]["aiSettings"],
+            json!({"model": "openai/gpt-6.1-sol", "reasoningEffort": "xhigh"})
+        );
+        assert_eq!(
+            error(
+                app.gql(mutation, save("openai/gpt-6.1-sol", Some(json!("none"))))
+                    .await
+            ),
+            "reasoning effort OpenRouter model \"openai/gpt-6.1-sol\" does not support the \"none\" reasoning effort."
+        );
+        assert_eq!(
+            error(
+                app.gql(mutation, save("openai/gpt-6.1-sol", Some(json!("turbo"))))
+                    .await
+            ),
+            "reasoning effort is invalid"
+        );
+        // A null supported_efforts accepts every effort a mandatory model can use.
+        assert!(
+            app.gql(mutation, save("any/effort", Some(json!("minimal"))))
+                .await
+                .get("errors")
+                .is_none()
+        );
+        assert_eq!(
+            error(
+                app.gql(mutation, save("any/effort", Some(json!("none"))))
+                    .await
+            ),
+            "reasoning effort OpenRouter model \"any/effort\" does not support the \"none\" reasoning effort."
+        );
+        // An omitted effort keeps the saved one, which the next model must accept.
+        assert_eq!(
+            error(app.gql(mutation, save("no/effort-setting", None)).await),
+            "reasoning effort OpenRouter model \"no/effort-setting\" does not support the \"minimal\" reasoning effort."
+        );
+        let data = app
+            .gql_data(mutation, save("plain/model", Some(Value::Null)))
+            .await;
+        assert_eq!(
+            data["updateAiSettings"]["aiSettings"],
+            json!({"model": "plain/model", "reasoningEffort": null})
+        );
+
+        let query = r"query($model: String!) { aiModelReasoning(model: $model) { supportedEfforts defaultEffort } }";
+        let reasoning = |model: &'static str| app.gql_data(query, json!({"model": model}));
+        assert_eq!(
+            reasoning("openai/gpt-6.1-sol").await["aiModelReasoning"],
+            json!({"supportedEfforts": ["max", "xhigh", "high", "medium", "low"], "defaultEffort": "medium"})
+        );
+        assert_eq!(
+            reasoning("any/effort").await["aiModelReasoning"]["supportedEfforts"],
+            json!(["max", "xhigh", "high", "medium", "low", "minimal"])
+        );
+        for model in ["no/effort-setting", "plain/model", "missing/model"] {
+            assert_eq!(
+                reasoning(model).await["aiModelReasoning"],
+                Value::Null,
+                "{model}"
+            );
         }
     }
 

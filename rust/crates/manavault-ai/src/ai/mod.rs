@@ -81,6 +81,8 @@ pub struct Configured {
     pub deck_analysis_instructions: Option<String>,
     /// The decision model that assigns AI tags to deck cards.
     pub decision_model: String,
+    /// `OpenRouter`'s `reasoning.effort`; `None` leaves the model's default.
+    pub reasoning_effort: Option<String>,
 }
 
 impl Configured {
@@ -95,6 +97,7 @@ impl Configured {
                 model,
                 deck_analysis_instructions: settings.deck_analysis_instructions,
                 decision_model,
+                reasoning_effort: settings.reasoning_effort,
             }),
             _ => Err(AiError::User(NOT_CONFIGURED.to_owned())),
         }

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT provider, api_key, model, deck_analysis_instructions, decision_model\n         FROM ai_settings WHERE id = ?1",
+  "query": "SELECT provider, api_key, model, deck_analysis_instructions, decision_model,\n           reasoning_effort\n         FROM ai_settings WHERE id = ?1",
   "describe": {
     "columns": [
       {
@@ -57,6 +57,17 @@
             "name": "decision_model"
           }
         }
+      },
+      {
+        "name": "reasoning_effort",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_settings",
+            "name": "reasoning_effort"
+          }
+        }
       }
     ],
     "parameters": {
@@ -67,8 +78,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "0458a86bb597487b0dc9b84511ee34bda2c7ffb14754d627ef5b72918a6d6ef2"
+  "hash": "0285e0819fe27638b939aa544b95b7162d2c7fb6000bb5c52b2ca62189223975"
 }
