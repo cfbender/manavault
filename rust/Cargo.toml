@@ -70,13 +70,18 @@ futures-util = { version = "0.3", features = ["channel"] }
 hex = "0.4"
 hmac = "0.12"
 # Not used directly: manavault-server depends on these only to enable the
-# features wiremock (a dev-dependency) turns on, plus futures-util's `channel`
-# above. With matching features, `cargo build` and `cargo test` share one
-# compiled dependency graph instead of building every workspace crate twice
-# (about 60s of a cold `rust:prebuild`). Check with `cargo tree -e normal,build`
-# against `cargo tree -e normal,build,dev` when bumping wiremock or hyper.
+# features its dev-dependencies turn on (wiremock: hyper, hyper-util, tokio-util
+# and futures-util's `channel` above; jsonschema: hashbrown, num-traits and
+# regex-automata). With matching features, `cargo build` and `cargo test` share
+# one compiled dependency graph instead of building every workspace crate twice
+# (about 60s of a cold `rust:prebuild`). When adding or bumping a dev-dependency,
+# check that `cargo build --workspace` right after `cargo test --workspace
+# --no-run` compiles nothing.
+hashbrown = "0.17"
 hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["http2"] }
+num-traits = { version = "0.2", default-features = false, features = ["i128"] }
+regex-automata = { version = "0.4", default-features = false, features = ["nfa", "perf"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 mimalloc = "0.1"
 moka = { version = "0.12", features = ["future"] }
