@@ -47,7 +47,8 @@ impl Worker for DeckAnalysisWorker {
         Some(Unique::WorkerArgs)
     }
     fn timeout(&self) -> Duration {
-        Duration::from_secs(10 * 60)
+        // Covers every tool round at the full OpenRouter request timeout.
+        Duration::from_secs(30 * 60)
     }
     fn backoff(&self, attempt: i64) -> Duration {
         Duration::from_secs(u64::try_from(attempt).unwrap_or(1).saturating_mul(15))
@@ -85,7 +86,8 @@ impl Worker for DeckQuestionWorker {
         3
     }
     fn timeout(&self) -> Duration {
-        Duration::from_secs(10 * 60)
+        // Covers every tool round at the full OpenRouter request timeout.
+        Duration::from_secs(30 * 60)
     }
     fn backoff(&self, attempt: i64) -> Duration {
         Duration::from_secs(u64::try_from(attempt).unwrap_or(1).saturating_mul(15))

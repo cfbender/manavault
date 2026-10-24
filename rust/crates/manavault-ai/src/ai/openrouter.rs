@@ -32,7 +32,8 @@ const MAX_TOOL_ROUNDS: usize = 4;
 const TOOL_LIMIT_REACHED: &str =
     "No more tool calls are allowed. Answer now from the results you already have.";
 const TOOL_LOOP: &str = "OpenRouter kept calling tools instead of answering.";
-const COMPLETION_TIMEOUT: Duration = Duration::from_secs(120);
+/// High reasoning efforts can think for several minutes before answering.
+const COMPLETION_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const ANSWER_TOKEN_LIMIT: &str = "OpenRouter ran out of output tokens before finishing the answer.";
 const ANSWER_INCOMPLETE: &str = "OpenRouter returned an incomplete answer.";
 const ANSWER_INVALID: &str = "OpenRouter returned an invalid answer.";
