@@ -34,8 +34,8 @@
     "@capacitor/ios": "^8.5.2",
     "@capacitor/status-bar": "^8.0.3",
     "@cfbender/playtest": "https://github.com/cfbender/playtest/archive/refs/tags/v0.1.2.tar.gz",
-    "@graphql-codegen/cli": "^7.4.3",
-    "@graphql-codegen/client-preset": "^6.2.0",
+    "@graphql-codegen/cli": "^7.4.6",
+    "@graphql-codegen/client-preset": "^6.2.3",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-dropdown-menu": "^2.1.24",
@@ -71,18 +71,18 @@
     "remark-math": "^6.0.0",
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7",
-    "vite": "^8.3.2",
-    "vite-plus": "^1.0.0"
+    "vite": "^8.3.5",
+    "vite-plus": "^1.4.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
-    "@voidzero-dev/vite-plus-core": "^1.0.0",
+    "@voidzero-dev/vite-plus-core": "^1.4.0",
     "jsdom": "^30.1.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "@babel/runtime@^7": "7.29.7",
@@ -92,7 +92,7 @@
     "katex": "0.19.0",
     "nanoid@^3": "3.3.19",
     "tar": "7.5.22",
-    "undici": "7.30.0",
+    "undici": "7.30.1",
     "uuid": "11.1.1"
   }
 }
