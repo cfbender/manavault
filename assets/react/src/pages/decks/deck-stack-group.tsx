@@ -278,7 +278,9 @@ export function DeckStackGroup({
         style={{ width: `min(${size.widthPx}px, 100%)` }}
       >
         <GroupIcon icon={group.icon} />
-        <h3 className="truncate">{group.label}</h3>
+        <h3 className="truncate" title={group.label}>
+          {group.label}
+        </h3>
         <span className="text-base-content/55">({group.quantity})</span>
       </div>
 
