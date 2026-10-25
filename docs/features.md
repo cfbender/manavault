@@ -377,7 +377,7 @@ Deck detail pages include:
     untap all, `S` shuffle, and, for the hovered card or every selected card,
     `T` tap, `F` flip, `C` copy, `]`/`[` add or remove a +1/+1 counter,
     `B`/`H`/`G`/`E` move to battlefield, hand, graveyard, or exile, `L`/`Shift
-L` top or bottom of library
+    L` top or bottom of library
 
 ## Recommendations: EDHREC and Recommander
 
