@@ -8,6 +8,64 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.2.0] - 2026-10-25
+
+### Bug Fixes
+
+- **deps:** Bump katex to 0.19.0 and override its transitive copies (#160) ([`ea25450f`](../../commit/ea25450fa287bb6a717de9288d068aaaf8c3a09f))
+- **pricing:** Sync vendor prices after the first catalog import ([`b64e9def`](../../commit/b64e9defaf6c2befe6c6bd053a0ee1f9289fc7da))
+- **deps:** Bump actions/upload-artifact from 7.0.1 to 7.0.2 (#164) ([`5a0cb321`](../../commit/5a0cb3216fba799fe87b5e907a96360a399f9583))
+- **deps:** Bump actions/download-artifact from 8.0.1 to 8.0.2 (#165) ([`2abcd9fb`](../../commit/2abcd9fb146b9adde21e94ad3c3b70bd5de2a39d))
+- **docker:** Build the healthcheck helper with Go 1.26.9 (#166) ([`d508167b`](../../commit/d508167bf163fee6497934995323e305c04c97e9))
+- **deps:** Update rustls and track Dockerfile base images with Dependabot (#167) ([`00f1e318`](../../commit/00f1e31864d15b2456c4ac83509be4e638a36dff))
+- **deps:** Bump golang from 1.26.9-alpine3.24 to 1.27.2-alpine3.24 (#168) ([`e83313f9`](../../commit/e83313f91c392e4bc4ce584284ac7cef266d6347))
+- **deps:** Bump rust from 1.98.0-alpine3.24 to 1.99.0-alpine3.24 (#169) ([`f6992df1`](../../commit/f6992df1960f7901d60fc3ed36b3f1b1d3160528))
+- **ui:** Stop card animations flickering on mobile ([`cc4b75a6`](../../commit/cc4b75a65a005522db8ff53651fd2556024e5af7))
+- **deps:** Distrust the compromised eMudhra intermediates (webpki-roots 1.0.10, rustls-webpki 0.103.16) (#170) ([`82ed1e7a`](../../commit/82ed1e7ae077d0dfdb4b49a0fe7fb5a2883f6e21))
+- **deps:** Bump jdx/mise-action from 5.1.1 to 5.2.0 (#171) ([`d72179d2`](../../commit/d72179d2e7c441a02bfbf910de2114dd6f8db9cb))
+- **deps:** Bump rust from 1.99.0-alpine3.24 to 1.99.1-alpine3.24 (#172) ([`bceb3cea`](../../commit/bceb3ceae20c522169bb3d277d3cda904887b461))
+- **security:** Harden public GraphQL, sessions, and proxy trust ([`54c5cbba`](../../commit/54c5cbba93fa648c05ec4251f51f0a2c1b0667b5))
+- **ai:** Allow slower OpenRouter completions ([`cafe9bf0`](../../commit/cafe9bf0ab9f47842ed079de2d5113df4e3c8695))
+- **deps:** Patch tokio, vite/vite-plus/vitest, graphql-codegen tooling and undici ([`aced8939`](../../commit/aced8939a37c36e0d4a0229a9fe1cecdf530f36f))
+
+### Build
+
+- Upgrade aube to 2.8.1 ([`b686da12`](../../commit/b686da129b2619499a1c7c0bcce0fff5c4abbf33))
+- **rust:** Unify jsonschema's dev-dependency features to avoid double compilation ([`90aac35d`](../../commit/90aac35d9bf84d22655fa55ace013c16c7db1d85))
+
+### CI
+
+- Key the Rust cache on the toolchain and Cargo.lock ([`3587beb4`](../../commit/3587beb4a45a79ee2bed11fed23c141b52d1b2a9))
+
+### Chores
+
+- **deps:** Bump docker/build-push-action from 7.3.0 to 7.4.0 (#154) ([`070844cb`](../../commit/070844cb2e599c20bd9de9587c6c5c2f00711a97))
+- **deps:** Bump docker/setup-buildx-action from 4.3.0 to 4.4.1 (#155) ([`153d4d14`](../../commit/153d4d14039fc37e27137aba78740497c6d5ddca))
+- **deps:** Bump jdx/mise-action from 4.3.0 to 5.1.1 (#159) ([`80b49191`](../../commit/80b4919111dea64ae098dbeeec669a9f0708af94))
+
+### Features
+
+- **catalog:** Add a set browser with a flip-through card stack ([`1d217762`](../../commit/1d21776279378ee6528ac24b3ba3631004586b9c))
+- **catalog:** Import Scryfall rulings in the catalog sync ([`a63eb423`](../../commit/a63eb423defac0a4b1fac9e4282dae477448cf6c))
+- **playtest:** Use the @cfbender/playtest v0.1.2 release ([`7d227537`](../../commit/7d2275372cd7475a3470606887b932bf4365f6a7))
+- **decks:** Add Duel Commander and Canadian Highlander deck formats ([`2b95507d`](../../commit/2b95507d74f91d26b8cfabfb2c53a183b68be2b6))
+- **ai:** Cache OpenRouter prompts and require a first-round tool call ([`d3dbffb5`](../../commit/d3dbffb5b6e24f81078ce8e8b774769446fb1a9f))
+- **ai:** Configurable reasoning effort and default tool choice ([`d4bd7ce7`](../../commit/d4bd7ce7f74ea4f85d1ddafb2c9dc882329eab43))
+- **decks:** Add a rules-based deck health section ([`31ea8693`](../../commit/31ea86933e58e6cdf2dbffb6fdfad54b9865f0c5))
+- **ai:** Replace strengths and pressure points with closing out and playing from behind ([`41c2b1a4`](../../commit/41c2b1a49522286baf26b2e4bae79795a00a2311))
+
+### Performance
+
+- **db:** Keep SQLite planner statistics fresh and remove global cache locks ([`29fcbefd`](../../commit/29fcbefd08f7cd0f62487ab985750fbfc86e0c20))
+
+### Refactoring
+
+- **playtest:** Move the deck playtester into a shared @cfbender/playtest package ([`0548b9ad`](../../commit/0548b9ada4987edfb25e4ca2d2406559187f700c))
+
+### Style
+
+- Apply oxfmt 0.74 formatting from vite-plus 1.4.0 ([`0cd66fc2`](../../commit/0cd66fc21527a0b7ef4fb1a2a9254862037f0444))
+
 ## [2.1.0] - 2026-10-14
 
 ### Bug Fixes
