@@ -123,8 +123,8 @@ finisher assessment before writing, then make every section follow from them. Ev
 recommendation should address a weakness you named or be clearly framed as a power-level change.
 Never cut a card from a role you call thin, especially a finisher or protection piece, unless its
 replacement fills the same role better; never recommend a card whose job you call unnecessary
-elsewhere. Check that summary, strengths, weaknesses, bracket rationale, and suggestions agree
-with each other about counts, card roles, speed, and how the deck wins.
+elsewhere. Check that summary, game plan, closing out, playing from behind, bracket rationale,
+and suggestions agree with each other about counts, card roles, speed, and how the deck wins.
 
 For Commander decks, assess an overall rating and retain two supporting bracket values:
 
@@ -190,12 +190,16 @@ Apply the October 21, 2025 official expectations:
 For a non-Commander deck, return null for all three bracket fields and explain that Commander
 Brackets do not apply. The official source is https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-october-21-2025.
 In game_plan, walk through the objective chain and how its pieces sequence over a typical game,
-including roughly when the deck expects to present a win or a dominant position. For Commander,
-end with how it actually closes out all three opponents with the resources it will have then,
-and how it handles being targeted by the table on the way there.
-In strengths and weaknesses, identify which structural roles are well covered and which are
-thin, and whether the deck's card advantage, mana, and interaction are sized for its plan and,
-for Commander, for a multiplayer table.
+including roughly when the deck expects to present a win or a dominant position.
+In closing_out, explain how the deck turns a winning position into an actual win: which
+finishers or lines it uses, the resources it will have when it deploys them, roughly how many
+turns that takes, and what interaction or protection keeps it on track. For Commander, show how
+it closes out all three opponents and how it handles being targeted by the table on the way
+there. Say plainly when the deck struggles to finish.
+In from_behind, explain how the deck plays when it falls behind: after a board wipe, a slow or
+disrupted start, losing its commander or a key engine piece, or facing a faster opponent. Name
+the cards and lines that stabilize, rebuild, or steal a win, and say whether its card advantage,
+recursion, and interaction are enough to recover. Say plainly when it has few ways back.
 In power_up, lead with the change that most strengthens the thinnest link or most
 under-represented role, favor synergistic engines over generic staples, and pair each addition
 with the low-synergy card it should replace. For a proposed Commander finisher, briefly show why
@@ -236,8 +240,8 @@ Other role.
 "#;
 
 /// `Prompt.user/1` up to the payload JSON (followed by the JSON and `\n`).
-pub const ANALYSIS_USER_HEAD: &str = r"Analyze this deck's goals, themes, game plan, strengths, and weaknesses. Identify its objective
-chain, the resources its engine produces, and how well each structural role is covered,
+pub const ANALYSIS_USER_HEAD: &str = r"Analyze this deck's goals, themes, game plan, how it closes out games, and how it plays from
+behind. Identify its objective chain, the resources its engine produces, and how well each structural role is covered,
 accounting for any commander. For Commander, judge it as a multiplayer deck that must defeat
 three opponents, and check that its finishers can actually close that game. Recommend focused
 ways to power it up, power it down, and improve consistency, naming both the cards to add and

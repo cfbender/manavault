@@ -35,8 +35,8 @@ pub struct Analysis {
     pub themes: Vec<String>,
     pub game_plan: String,
     pub opponent_experience: String,
-    pub strengths: Vec<String>,
-    pub weaknesses: Vec<String>,
+    pub closing_out: String,
+    pub from_behind: String,
     /// The official bracket, raised to the Game Changer minimum.
     pub official_bracket: Option<i64>,
     pub play_bracket: Option<i64>,
@@ -184,10 +184,10 @@ pub fn normalize(
         summary: string(map, "summary").ok_or_else(incomplete)?,
         game_plan: string(map, "game_plan").ok_or_else(incomplete)?,
         opponent_experience: string(map, "opponent_experience").ok_or_else(incomplete)?,
+        closing_out: string(map, "closing_out").ok_or_else(incomplete)?,
+        from_behind: string(map, "from_behind").ok_or_else(incomplete)?,
         bracket_rationale: string(map, "bracket_rationale").ok_or_else(incomplete)?,
         themes: string_list(map, "themes").ok_or_else(incomplete)?,
-        strengths: string_list(map, "strengths").ok_or_else(incomplete)?,
-        weaknesses: string_list(map, "weaknesses").ok_or_else(incomplete)?,
         power_up: string_list(map, "power_up").ok_or_else(incomplete)?,
         power_down: string_list(map, "power_down").ok_or_else(incomplete)?,
         consistency: string_list(map, "consistency").ok_or_else(incomplete)?,
@@ -281,8 +281,8 @@ pub fn render_markdown(analysis: &Analysis) -> String {
             &analysis.opponent_experience,
         ),
         section("Bracket read", &bracket_section(analysis)),
-        list_section("Strengths", &analysis.strengths),
-        list_section("Pressure points", &analysis.weaknesses),
+        section("How it closes out games", &analysis.closing_out),
+        section("How it plays from behind", &analysis.from_behind),
         list_section("Ways to power it up", &analysis.power_up),
         list_section("Ways to power it down", &analysis.power_down),
         list_section("Consistency improvements", &analysis.consistency),
@@ -308,8 +308,8 @@ mod tests {
             "themes": ["Tempo"],
             "game_plan": "Apply pressure while interacting.",
             "opponent_experience": "Its turns are quick and leave room for interaction.",
-            "strengths": ["Efficient threats"],
-            "weaknesses": ["Limited late game"],
+            "closing_out": "Swings with evasive threats behind countermagic.",
+            "from_behind": "Bounces blockers to buy time but runs out of gas.",
             "official_bracket": 2,
             "play_bracket": 3,
             "bracket_rating": "3+",
@@ -340,6 +340,9 @@ mod tests {
         let analysis = normalize(&response, "commander", 0, Some("Include Budget")).unwrap();
         let markdown = render_markdown(&analysis);
         assert!(markdown.contains("## Overview\n\nRecur [[Sun Titan]]."));
+        assert!(markdown.contains(
+            "## How it closes out games\n\nSwings with evasive threats behind countermagic.\n\n## How it plays from behind\n\nBounces blockers to buy time but runs out of gas.\n\n## Ways to power it up"
+        ));
         assert!(markdown.contains("- Add [[Emeria, the Sky Ruin]]."));
         assert!(markdown.contains("## Budget\n\nTry [[Sevinne's Reclamation]]."));
     }
