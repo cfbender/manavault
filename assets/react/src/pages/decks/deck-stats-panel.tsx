@@ -1,5 +1,6 @@
 import { ChevronDown, Sparkles, TrendingUp, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
+import { buildDeckHealth, type DeckHealth } from "../../lib/deck-health"
 import { buildDeckStats, type DeckStats } from "../../lib/deck-stats"
 import { buildDeckTokens, type DeckTokenSummary } from "../../lib/deck-tokens"
 import { scryfallCardUrl } from "../cards/card-links"
@@ -14,11 +15,15 @@ import {
 } from "./mana-balance"
 
 export type DeferredDeckAnalysis = {
+  health: DeckHealth
   stats: DeckStats
   tokens: readonly DeckTokenSummary[]
 }
 
-export function useDeferredDeckAnalysis(deckCards: DeckCardEntry[]) {
+export function useDeferredDeckAnalysis(
+  deckCards: DeckCardEntry[],
+  format: string | null | undefined,
+) {
   const [analysis, setAnalysis] = useState<DeferredDeckAnalysis | null>(null)
 
   useEffect(() => {
@@ -30,8 +35,10 @@ export function useDeferredDeckAnalysis(deckCards: DeckCardEntry[]) {
     const cancel = scheduleDeferredWork(() => {
       if (cancelled) return
 
+      const stats = buildDeckStats(deckCards)
       setAnalysis({
-        stats: buildDeckStats(deckCards),
+        health: buildDeckHealth(deckCards, { format, stats }),
+        stats,
         tokens: buildDeckTokens(deckCards),
       })
     })
@@ -40,7 +47,7 @@ export function useDeferredDeckAnalysis(deckCards: DeckCardEntry[]) {
       cancelled = true
       cancel()
     }
-  }, [deckCards])
+  }, [deckCards, format])
 
   return analysis
 }

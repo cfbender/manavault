@@ -27,6 +27,7 @@ import { useDeckDetailSelection } from "./detail-page-selection"
 import { edhrecCardPrintingId } from "./edhrec"
 import { deckLegalityIssues } from "./deck-legality"
 import { hasDeckBuylistWork, hasDeckPullWork } from "./deck-readiness"
+import { DeckHealthSection } from "./deck-health-panel"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
 import { DeckStatsSection, DeckTokensSection } from "./deck-stats-panel"
 import { useDeckDetailShortcuts } from "./use-deck-detail-shortcuts"
@@ -148,7 +149,7 @@ export function DeckDetailScreen({
   const hasReadinessWork = useMemo(() => hasDeckPullWork(deckCards), [deckCards])
   const hasBuylistWork = useMemo(() => hasDeckBuylistWork(deckCards), [deckCards])
   const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
-  const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
+  const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards, deck?.format)
   const deckPrice = useMemo<DeckPrice | null>(() => {
     if (!deck) return null
     const price = deckCardsTotalPrice(deckCards)
@@ -434,6 +435,14 @@ export function DeckDetailScreen({
             shareMode={shareMode}
           />
           <DeckTokensSection showOwned={!shareMode} tokens={deferredDeckAnalysis?.tokens ?? null} />
+          <DeckHealthSection
+            deckCards={deckCards}
+            deckId={deck.id}
+            health={deferredDeckAnalysis?.health ?? null}
+            onHighlightDeckCards={selection.setHighlightedDeckCardIds}
+            onOpenCombos={() => setOverlay({ kind: "combos" })}
+            shareMode={shareMode}
+          />
           <DeckStatsSection
             stats={deferredDeckAnalysis?.stats ?? null}
             onHighlightDeckCards={selection.setHighlightedDeckCardIds}
