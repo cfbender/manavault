@@ -79,7 +79,7 @@ function DeckGallerySkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className="grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3"
+      className="grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3 min-[160rem]:grid-cols-4 min-[200rem]:grid-cols-5"
     >
       <span className="sr-only">Loading deck gallery</span>
       {[0, 1, 2].map((index) => (
@@ -239,7 +239,7 @@ function DeckFormatSections({
               {countSuffix ? ` ${countSuffix}` : ""}
             </span>
           </div>
-          <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3 min-[160rem]:grid-cols-4 min-[200rem]:grid-cols-5">
             {decks.map((deck) => (
               <DeckGalleryCard
                 key={deck.id}
@@ -376,9 +376,9 @@ export function DecksPage() {
     navigate({ to: "/decks" })
   }
   return (
-    // 90% of the shell's 105rem cap: on wide screens the boxes read better a
+    // 90% of the shell's width cap: on wide screens the boxes read better a
     // touch smaller, the way the page looks at 90% browser zoom.
-    <div className="mx-auto max-w-[94.5rem]">
+    <div className="mx-auto max-w-[max(94.5rem,90%)]">
       <DeckGalleryHeader
         canPickDeck={activeDecks.length > 0}
         onAnalyzeDeck={() => setIsDeckAnalysisOpen(true)}

@@ -194,7 +194,9 @@ export function AppShell() {
         >
           <div
             className={cn(
-              "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",
+              // 105rem up to ~2100px wide, then grow with the screen (keeping
+              // ~13.5rem of margin per side) so ultrawides fill with content.
+              "mx-auto w-full max-w-[clamp(105rem,100%_-_27rem,240rem)] py-8 sm:py-12 lg:py-16",
               isShareRoute && "px-4",
               isPlaytestRoute && "h-full max-w-none p-0 sm:p-0 lg:p-0",
             )}
