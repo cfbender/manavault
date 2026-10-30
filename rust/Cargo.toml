@@ -36,6 +36,7 @@ sqlx = { version = "0.9", default-features = false, features = [
   "sqlite-bundled",
   "json",
   "time",
+  "regexp",
 ] }
 thiserror = "2"
 tokio = { version = "1", features = [

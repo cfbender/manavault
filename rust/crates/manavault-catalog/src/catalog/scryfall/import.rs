@@ -314,13 +314,16 @@ async fn write_batch(
         let core = &row.core;
         if replace_tags {
             sqlx::query!(
-                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, oracle_tags, deck_category, deck_themes, inserted_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17)
+                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, power, toughness, loyalty, keywords, produced_mana, reserved, search_flags, oracle_tags, deck_category, deck_themes, inserted_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?24)
                  ON CONFLICT (oracle_id) DO UPDATE SET name = excluded.name, normalized_name = excluded.normalized_name,
                    layout = excluded.layout, type_line = excluded.type_line, oracle_text = excluded.oracle_text,
                    mana_cost = excluded.mana_cost, cmc = excluded.cmc, colors = excluded.colors,
                    color_identity = excluded.color_identity, legalities = excluded.legalities,
                    game_changer = excluded.game_changer, edhrec_rank = excluded.edhrec_rank,
+                   power = excluded.power, toughness = excluded.toughness, loyalty = excluded.loyalty,
+                   keywords = excluded.keywords, produced_mana = excluded.produced_mana,
+                   reserved = excluded.reserved, search_flags = excluded.search_flags,
                    oracle_tags = excluded.oracle_tags,
                    deck_category = excluded.deck_category, deck_themes = excluded.deck_themes,
                    updated_at = excluded.updated_at",
@@ -337,6 +340,13 @@ async fn write_batch(
                 core.legalities,
                 core.game_changer,
                 core.edhrec_rank,
+                core.power,
+                core.toughness,
+                core.loyalty,
+                core.keywords,
+                core.produced_mana,
+                core.reserved,
+                core.search_flags,
                 row.tags.oracle_tags,
                 row.tags.deck_category,
                 row.tags.deck_themes,
@@ -346,13 +356,16 @@ async fn write_batch(
             .await?;
         } else {
             sqlx::query!(
-                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, inserted_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
+                "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, power, toughness, loyalty, keywords, produced_mana, reserved, search_flags, inserted_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?21)
                  ON CONFLICT (oracle_id) DO UPDATE SET name = excluded.name, normalized_name = excluded.normalized_name,
                    layout = excluded.layout, type_line = excluded.type_line, oracle_text = excluded.oracle_text,
                    mana_cost = excluded.mana_cost, cmc = excluded.cmc, colors = excluded.colors,
                    color_identity = excluded.color_identity, legalities = excluded.legalities,
                    game_changer = excluded.game_changer, edhrec_rank = excluded.edhrec_rank,
+                   power = excluded.power, toughness = excluded.toughness, loyalty = excluded.loyalty,
+                   keywords = excluded.keywords, produced_mana = excluded.produced_mana,
+                   reserved = excluded.reserved, search_flags = excluded.search_flags,
                    updated_at = excluded.updated_at",
                 row.oracle_id,
                 core.name,
@@ -367,6 +380,13 @@ async fn write_batch(
                 core.legalities,
                 core.game_changer,
                 core.edhrec_rank,
+                core.power,
+                core.toughness,
+                core.loyalty,
+                core.keywords,
+                core.produced_mana,
+                core.reserved,
+                core.search_flags,
                 now,
             )
             .execute(&mut *tx)
@@ -376,8 +396,8 @@ async fn write_batch(
     for row in &changes.printings {
         let p = &row.fields;
         sqlx::query!(
-            "INSERT INTO scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, frame_effects, border_color, full_art, inserted_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23)
+            "INSERT INTO scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, frame_effects, border_color, full_art, artist, watermark, frame, security_stamp, set_type, games, reprint, booster, story_spotlight, highres_image, inserted_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?33)
              ON CONFLICT (scryfall_id) DO UPDATE SET oracle_id = excluded.oracle_id, set_code = excluded.set_code,
                set_name = excluded.set_name, collector_number = excluded.collector_number,
                illustration_id = excluded.illustration_id, lang = excluded.lang, flavor_name = excluded.flavor_name,
@@ -386,7 +406,12 @@ async fn write_batch(
                promo = excluded.promo, image_uris = excluded.image_uris, prices = excluded.prices,
                released_at = excluded.released_at, tcgplayer_id = excluded.tcgplayer_id,
                tcgplayer_etched_id = excluded.tcgplayer_etched_id, frame_effects = excluded.frame_effects,
-               border_color = excluded.border_color, full_art = excluded.full_art, updated_at = excluded.updated_at",
+               border_color = excluded.border_color, full_art = excluded.full_art,
+               artist = excluded.artist, watermark = excluded.watermark, frame = excluded.frame,
+               security_stamp = excluded.security_stamp, set_type = excluded.set_type, games = excluded.games,
+               reprint = excluded.reprint, booster = excluded.booster,
+               story_spotlight = excluded.story_spotlight, highres_image = excluded.highres_image,
+               updated_at = excluded.updated_at",
             row.scryfall_id,
             p.oracle_id,
             p.set_code,
@@ -409,6 +434,16 @@ async fn write_batch(
             p.frame_effects,
             p.border_color,
             p.full_art,
+            p.artist,
+            p.watermark,
+            p.frame,
+            p.security_stamp,
+            p.set_type,
+            p.games,
+            p.reprint,
+            p.booster,
+            p.story_spotlight,
+            p.highres_image,
             now,
         )
         .execute(&mut *tx)

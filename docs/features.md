@@ -58,6 +58,22 @@ search uses that local catalog, supports sorting and recent searches, shows how
 many copies you own, and shares structured filters with collection search. The
 search page also shows a gallery of top EDHREC commanders.
 
+Card and collection search accept [Scryfall's search syntax](https://scryfall.com/docs/syntax):
+colors and identity (with guild, shard, wedge, college, and four-color
+nicknames; as on Scryfall, `c:uw` finds cards that are at least blue and
+white, `id:uw` cards that fit an Azorius commander, and `=` is exact), types, Oracle text with `~` and `/regex/`, keywords, mana symbols
+and devotion, `produces:`, power/toughness/loyalty (also against each other,
+as in `pow>tou`), rarity, sets, set types, blocks and set groups, collector
+numbers, legality, prices in USD/EUR/TIX and `cheapest:`, artist, flavor text,
+watermark, border, frame, security stamp, games, dates and years (including
+set codes and `now`), print and set counts, `in:` and `new:`, languages,
+EDHREC rank, oracle tags (`otag:` for the tags ManaVault keeps), and the `is:`,
+`not:`, and `has:` flags, including land cycles and commander roles.
+`order:` and `direction:` sort card search; the other display keywords are
+accepted and ignored. Cube lists, art tags, and digital-only printings are not
+in the local catalog, so those keywords match nothing. In collection search,
+`is:foil`, `lang:`, and `usd` describe the copy rather than the printing.
+
 The sync imports paper cards plus tokens, emblems, and the game helpers Wizards
 prints in token slots (The Monarch, City's Blessing, On an Adventure,
 Day // Night, Punchcard). It skips art cards, World Championship decklists and

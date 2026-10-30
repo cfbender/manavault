@@ -8,6 +8,7 @@ use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
 use crate::catalog::card::{Card, CardRecord, NON_TOKEN_SQL, TOKEN_SQL};
 use crate::catalog::printing::{self, Printing};
+use crate::catalog::scryfall_query::{self, Expr, Field, Predicate};
 use crate::catalog::search::predicates;
 use crate::catalog::sql::json_list;
 use crate::{card_query, printing_query};
@@ -36,6 +37,7 @@ pub enum SortField {
     Released,
     Rarity,
     Price,
+    Edhrec,
 }
 
 /// A normalized sort: unknown fields sort by name, unknown directions ascend.
@@ -82,8 +84,53 @@ impl Sort {
             SortField::Rarity => format!("min({RARITY}) ASC, {tiebreak}"),
             SortField::Price if self.descending => format!("max({PRICE}) DESC, {tiebreak}"),
             SortField::Price => format!("min({PRICE}) ASC, {tiebreak}"),
+            SortField::Edhrec => {
+                format!("c.edhrec_rank IS NULL, c.edhrec_rank {dir}, {tiebreak}")
+            }
             SortField::Name => format!("c.name {dir}, c.oracle_id ASC"),
         }
+    }
+
+    /// The sort a query's `order:` and `direction:` keywords ask for, over
+    /// `fallback`. Orders the catalog cannot sort by keep the fallback field.
+    #[must_use]
+    pub fn from_query(term: &str, fallback: Self) -> Self {
+        let Ok(expr) = scryfall_query::parse(term) else {
+            return fallback;
+        };
+        let terms = match &expr {
+            Expr::And(terms) => terms.as_slice(),
+            single => std::slice::from_ref(single),
+        };
+        let mut sort = fallback;
+        for term in terms {
+            let Expr::Predicate(Predicate { field, value, .. }) = term else {
+                continue;
+            };
+            let value = value.trim().to_lowercase();
+            match field {
+                Field::Order => {
+                    sort.field = match value.as_str() {
+                        "name" => SortField::Name,
+                        "cmc" | "mv" | "manavalue" => SortField::ManaValue,
+                        "color" | "identity" => SortField::Color,
+                        "type" => SortField::Type,
+                        "released" | "set" | "spoiled" => SortField::Released,
+                        "rarity" => SortField::Rarity,
+                        "usd" | "eur" | "tix" | "price" => SortField::Price,
+                        "edhrec" => SortField::Edhrec,
+                        _ => sort.field,
+                    };
+                }
+                Field::Direction => match value.as_str() {
+                    "asc" => sort.descending = false,
+                    "desc" => sort.descending = true,
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+        sort
     }
 }
 
@@ -145,7 +192,7 @@ pub async fn search_cards(
         filter.push_to(&mut builder);
     }
     builder.push(" GROUP BY c.oracle_id ORDER BY ");
-    builder.push(options.sort.order_by());
+    builder.push(Sort::from_query(term, options.sort).order_by());
     builder.push(" LIMIT ");
     builder.push_bind(options.limit);
     builder.push(" OFFSET ");

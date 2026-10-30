@@ -126,7 +126,7 @@ export function CollectionFilterModal({
               />
             </FilterSection>
 
-            <FilterSection label="Colors" syntax="c:w, c>=uw, c:c">
+            <FilterSection label="Colors" syntax="c:uw, c=uw, c:c">
               <ColorFilterControl
                 operator={draft.colorOperator}
                 selected={draft.colors}
@@ -255,7 +255,7 @@ export function CollectionFilterModal({
                   />
                 </FilterSection>
 
-                <FilterSection label="Color identity" syntax="id:u, id<=esper, id:c">
+                <FilterSection label="Color identity" syntax="id:esper, id=uw, id:c">
                   <ColorFilterControl
                     operator={draft.identityOperator}
                     selected={draft.identity}

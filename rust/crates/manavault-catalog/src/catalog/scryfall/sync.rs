@@ -2,9 +2,9 @@
 //! `Manavault.Catalog.Sync` for the `scryfall_syncs` rows).
 //!
 //! A sync downloads the `default_cards` bulk file to disk, validates it,
-//! fetches the optional extras (oracle tags, rulings, MTGJSON saltiness,
-//! EDHREC commander ranks), imports the paper printings, and then refreshes
-//! the rulings and metrics. An extra that cannot be fetched is skipped and its stored values
+//! fetches the optional extras (oracle tags, rulings, the set list, MTGJSON
+//! saltiness, EDHREC commander ranks), imports the paper printings, and then
+//! refreshes the rulings, sets, and metrics. An extra that cannot be fetched is skipped and its stored values
 //! preserved; a failure of the bulk file itself fails the sync before any
 //! catalog row is written.
 
@@ -19,6 +19,7 @@ use crate::catalog::metrics::{commander_ranks, saltiness};
 use crate::catalog::scryfall::bulk::{self, BulkMetadata};
 use crate::catalog::scryfall::import::{self, ImportOptions, OracleTags};
 use crate::catalog::scryfall::rulings::{self, BulkRuling};
+use crate::catalog::scryfall::sets::{self, ScryfallSet};
 use manavault_core::state::AppState;
 use manavault_core::timestamp::Timestamp;
 
@@ -31,10 +32,11 @@ pub const ORACLE_TAGS_BULK_METADATA_URL: &str = "https://api.scryfall.com/bulk-d
 /// Bump when the importer starts writing data older syncs lack (v2:
 /// paper-only printings; v3: token printings and card -> token links; v4:
 /// emblems; v5: bare "Card" helper tokens such as The Monarch and On an
-/// Adventure); v6: rulings from the rulings bulk file). A succeeded sync with an older bulk type is treated as stale
+/// Adventure); v6: rulings from the rulings bulk file; v7: search fields and
+/// sets). A succeeded sync with an older bulk type is treated as stale
 /// so the next scheduled run re-imports instead of waiting out the daily
 /// interval.
-pub const BULK_TYPE: &str = "default_cards_paper_v6";
+pub const BULK_TYPE: &str = "default_cards_paper_v7";
 
 /// Where a sync fetches from. `None` skips that extra.
 #[derive(Debug, Clone)]
@@ -42,6 +44,7 @@ pub struct SyncOptions {
     pub bulk_url: String,
     pub oracle_tags_bulk_url: Option<String>,
     pub rulings_bulk_url: Option<String>,
+    pub sets_url: Option<String>,
     pub saltiness_url: Option<String>,
     pub commander_ranks_url: Option<String>,
     /// Base for EDHREC's relative continuation paths.
@@ -55,6 +58,7 @@ impl Default for SyncOptions {
             bulk_url: BULK_METADATA_URL.to_owned(),
             oracle_tags_bulk_url: Some(ORACLE_TAGS_BULK_METADATA_URL.to_owned()),
             rulings_bulk_url: Some(rulings::BULK_METADATA_URL.to_owned()),
+            sets_url: Some(sets::SETS_URL.to_owned()),
             saltiness_url: Some(saltiness::SALTINESS_URL.to_owned()),
             commander_ranks_url: Some(commander_ranks::COMMANDER_RANKS_URL.to_owned()),
             commander_ranks_pages_base_url: commander_ranks::PAGES_BASE_URL.to_owned(),
@@ -306,6 +310,7 @@ async fn sync(
 
     let oracle_tags = fetch_oracle_tags(&client, options, &dir, sync_id).await;
     let rulings = fetch_rulings(&client, options, &dir, sync_id).await;
+    let sets = fetch_sets(&client, options, sync_id).await;
     let scores = fetch_saltiness(&client, options, &dir, sync_id).await;
     let ranks = fetch_commander_ranks(&client, options, sync_id).await;
 
@@ -338,6 +343,12 @@ async fn sync(
             .await
             .map_err(|error| error.to_string())?;
         tracing::info!("Scryfall catalog sync updated rulings sync_id={sync_id} count={count}");
+    }
+    if let Some(sets) = sets {
+        let count = sets::replace(&state.db, &sets)
+            .await
+            .map_err(|error| error.to_string())?;
+        tracing::info!("Scryfall catalog sync updated sets sync_id={sync_id} count={count}");
     }
     if let Some(scores) = scores {
         let count = saltiness::update_cards(&state.db, &scores)
@@ -422,6 +433,33 @@ async fn fetch_rulings(
         Err(error) => {
             tracing::warn!(
                 "Scryfall catalog sync preserving existing rulings sync_id={sync_id} error={error}"
+            );
+            None
+        }
+    }
+}
+
+async fn fetch_sets(
+    client: &ScryfallClient,
+    options: &SyncOptions,
+    sync_id: i64,
+) -> Option<Vec<ScryfallSet>> {
+    let Some(url) = options.sets_url.as_deref() else {
+        tracing::info!("Scryfall catalog sync skipping sets sync_id={sync_id}");
+        return None;
+    };
+    tracing::info!("Scryfall catalog sync fetching sets sync_id={sync_id}");
+    match sets::fetch(client, url).await {
+        Ok(sets) => {
+            tracing::info!(
+                "Scryfall catalog sync decoded sets sync_id={sync_id} count={}",
+                sets.len()
+            );
+            Some(sets)
+        }
+        Err(error) => {
+            tracing::warn!(
+                "Scryfall catalog sync preserving existing sets sync_id={sync_id} error={error}"
             );
             None
         }

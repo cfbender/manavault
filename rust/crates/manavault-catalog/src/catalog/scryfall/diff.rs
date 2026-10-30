@@ -57,7 +57,7 @@ async fn stored_cards(
     let mut stored = HashMap::new();
     for chunk in ids.chunks(LOOKUP_BATCH_SIZE) {
         let mut builder = QueryBuilder::new(
-            "SELECT oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, CAST(cmc AS REAL) AS cmc, colors, color_identity, legalities, game_changer, edhrec_rank, oracle_tags, deck_category, deck_themes FROM scryfall_cards WHERE oracle_id IN",
+            "SELECT oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, CAST(cmc AS REAL) AS cmc, colors, color_identity, legalities, game_changer, edhrec_rank, power, toughness, loyalty, keywords, produced_mana, reserved, search_flags, oracle_tags, deck_category, deck_themes FROM scryfall_cards WHERE oracle_id IN",
         );
         push_in_list(&mut builder, chunk);
         for row in builder.build().fetch_all(pool).await? {
@@ -77,6 +77,13 @@ async fn stored_cards(
                         legalities: row.try_get("legalities")?,
                         game_changer: row.try_get("game_changer")?,
                         edhrec_rank: row.try_get("edhrec_rank")?,
+                        power: row.try_get("power")?,
+                        toughness: row.try_get("toughness")?,
+                        loyalty: row.try_get("loyalty")?,
+                        keywords: row.try_get("keywords")?,
+                        produced_mana: row.try_get("produced_mana")?,
+                        reserved: row.try_get("reserved")?,
+                        search_flags: row.try_get("search_flags")?,
                     },
                     tags: TagFields {
                         oracle_tags: row.try_get("oracle_tags")?,
@@ -97,7 +104,7 @@ async fn stored_printings(
     let mut stored = HashMap::new();
     for chunk in ids.chunks(LOOKUP_BATCH_SIZE) {
         let mut builder = QueryBuilder::new(
-            "SELECT scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, frame_effects, border_color, full_art FROM scryfall_printings WHERE scryfall_id IN",
+            "SELECT scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, frame_effects, border_color, full_art, artist, watermark, frame, security_stamp, set_type, games, reprint, booster, story_spotlight, highres_image FROM scryfall_printings WHERE scryfall_id IN",
         );
         push_in_list(&mut builder, chunk);
         for row in builder.build().fetch_all(pool).await? {
@@ -125,6 +132,16 @@ async fn stored_printings(
                     frame_effects: row.try_get("frame_effects")?,
                     border_color: row.try_get("border_color")?,
                     full_art: row.try_get("full_art")?,
+                    artist: row.try_get("artist")?,
+                    watermark: row.try_get("watermark")?,
+                    frame: row.try_get("frame")?,
+                    security_stamp: row.try_get("security_stamp")?,
+                    set_type: row.try_get("set_type")?,
+                    games: row.try_get("games")?,
+                    reprint: row.try_get("reprint")?,
+                    booster: row.try_get("booster")?,
+                    story_spotlight: row.try_get("story_spotlight")?,
+                    highres_image: row.try_get("highres_image")?,
                 },
             );
         }

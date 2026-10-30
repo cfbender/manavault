@@ -11,7 +11,7 @@ use manavault_catalog::catalog::price::price_value_sql as price_value_sql_for;
 use manavault_catalog::catalog::scryfall_query::{self, Expr, Field, Op, Predicate};
 use manavault_catalog::catalog::search::name_match;
 use manavault_catalog::catalog::search::predicates::{
-    self, ColorField, TextField, color_count, downcase, parse_float, parse_int, text_field,
+    self, downcase, equality_op, negate_if, parse_float, parse_int,
 };
 use manavault_catalog::catalog::sql::Fragment;
 use manavault_core::timestamp::Timestamp;
@@ -146,32 +146,13 @@ pub fn search_filter(term: &str) -> Option<Fragment> {
     }
     match scryfall_query::parse(term) {
         Ok(Expr::And(terms)) if terms.is_empty() => None,
-        Ok(expr) => Some(for_expr(&expr)),
+        Ok(expr) => Some(predicates::filter(&expr, &for_predicate)),
         Err(_) => Some(plain_text(term)),
     }
 }
 
-fn for_expr(expr: &Expr) -> Fragment {
-    match expr {
-        Expr::And(terms) => terms
-            .iter()
-            .fold(Fragment::truth(), |acc, term| acc.and(for_expr(term))),
-        Expr::Or(terms) => terms
-            .iter()
-            .fold(Fragment::falsity(), |acc, term| acc.or(for_expr(term))),
-        Expr::Not(inner) => for_expr(inner).negate(),
-        Expr::ExactName(name) => {
-            let name = name_match::sql_normalize(name);
-            Fragment::sql("(c.normalized_name = ")
-                .text(name.clone())
-                .push(" OR p.normalized_flavor_name = ")
-                .text(name)
-                .push(")")
-        }
-        Expr::Predicate(predicate) => for_predicate(predicate),
-    }
-}
-
+/// The condition for one predicate: the catalog's, except for loose text
+/// and the fields that describe the copy rather than the card.
 fn for_predicate(predicate: &Predicate) -> Fragment {
     let Predicate {
         field,
@@ -179,43 +160,17 @@ fn for_predicate(predicate: &Predicate) -> Fragment {
         value,
         regex,
     } = predicate;
-    if *regex {
-        return Fragment::falsity();
-    }
     let op = *op;
     match field {
+        _ if *regex => predicates::predicate(predicate),
         Field::Text => plain_text(value),
-        Field::Name => text_field(TextField::Name, op, value),
-        Field::Type => text_field(TextField::Type, op, value),
-        Field::Oracle => text_field(TextField::Oracle, op, value),
-        Field::Mana => text_field(TextField::Mana, op, value),
-        Field::ManaValue => predicates::mana_value(op, value),
-        Field::Colors => predicates::colors(ColorField::Colors, op, value),
-        Field::Identity => predicates::colors(ColorField::Identity, op, value),
-        Field::Rarity => predicates::rarity(op, value),
-        Field::Set => predicates::set(op, value),
-        Field::CollectorNumber => predicates::collector_number(op, value),
-        Field::Date => predicates::date(op, value),
-        Field::Year => predicates::year(op, value),
-        Field::Language => language(op, value),
+        Field::Language => predicates::language_of("i.language", op, value),
         Field::Quantity => quantity(op, value),
         Field::Usd => price(op, value),
         Field::Paid => purchase_price(op, value),
         Field::Added => added(op, value),
         Field::Is => is_predicate(op, value),
-        _ => Fragment::falsity(),
-    }
-}
-
-fn equality_op(op: Op) -> bool {
-    matches!(op, Op::Colon | Op::Eq | Op::Neq)
-}
-
-fn negate_if(condition: Fragment, op: Op) -> Fragment {
-    if op == Op::Neq {
-        condition.negate()
-    } else {
-        condition
+        _ => predicates::predicate(predicate),
     }
 }
 
@@ -242,17 +197,6 @@ pub fn plain_text(term: &str) -> Fragment {
             .push(" ESCAPE '\\'");
     }
     fragment.push(")")
-}
-
-/// `lang:` matches the copy's language.
-fn language(op: Op, value: &str) -> Fragment {
-    if !equality_op(op) {
-        return Fragment::falsity();
-    }
-    negate_if(
-        Fragment::sql("lower(i.language) = ").text(downcase(value)),
-        op,
-    )
 }
 
 /// `quantity:` compares copies in the item.
@@ -315,22 +259,9 @@ fn added(op: Op, value: &str) -> Fragment {
     }
 }
 
-fn permanent() -> Fragment {
-    [
-        "artifact",
-        "creature",
-        "enchantment",
-        "land",
-        "planeswalker",
-        "battle",
-    ]
-    .into_iter()
-    .fold(Fragment::falsity(), |acc, word| {
-        acc.or(text_field(TextField::Type, Op::Colon, word))
-    })
-}
-
-/// `is:`/`not:` flags of a copy (`ScalarPredicates.is_predicate/2`).
+/// `is:`/`not:` flags of a copy: its finish, allocation, and purchase
+/// price; anything else is the printing's flag
+/// (`ScalarPredicates.is_predicate/2`).
 fn is_predicate(op: Op, value: &str) -> Fragment {
     if !equality_op(op) {
         return Fragment::falsity();
@@ -343,13 +274,7 @@ fn is_predicate(op: Op, value: &str) -> Fragment {
         "unallocated" => Fragment::sql(ALLOCATED_SQL).negate(),
         "paid" => Fragment::sql("i.purchase_price_cents IS NOT NULL"),
         "unpaid" => Fragment::sql("i.purchase_price_cents IS NULL"),
-        "colorless" => color_count(ColorField::Colors, Op::Eq, 0, Op::Eq),
-        "multicolor" => color_count(ColorField::Colors, Op::Gte, 2, Op::Gte),
-        word @ ("land" | "creature" | "artifact" | "enchantment" | "planeswalker" | "instant"
-        | "sorcery") => text_field(TextField::Type, Op::Colon, word),
-        "permanent" => permanent(),
-        "spell" => Fragment::sql("NOT (lower(coalesce(c.type_line, '')) LIKE '%land%')"),
-        _ => Fragment::falsity(),
+        _ => return predicates::is_predicate(op, value),
     };
     negate_if(condition, op)
 }

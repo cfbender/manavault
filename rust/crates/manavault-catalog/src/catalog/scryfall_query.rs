@@ -102,31 +102,61 @@ fields! {
     Keyword => "keyword",
     Mana => "mana",
     ManaValue => "mana_value",
+    Devotion => "devotion",
+    Produces => "produces",
+    Power => "power",
+    Toughness => "toughness",
+    PowTou => "powtou",
+    Loyalty => "loyalty",
     Colors => "colors",
     Identity => "identity",
     Rarity => "rarity",
     Set => "set",
+    SetType => "set_type",
+    Block => "block",
+    Group => "group",
+    In => "in",
     CollectorNumber => "collector_number",
     Language => "language",
     Is => "is",
+    Has => "has",
+    New => "new",
     Usd => "usd",
     Eur => "eur",
     Tix => "tix",
+    Cheapest => "cheapest",
     Quantity => "quantity",
     Date => "date",
     Year => "year",
     Paid => "paid",
     Added => "added",
     Artist => "artist",
+    Artists => "artists",
+    Illustrations => "illustrations",
     Flavor => "flavor",
+    Watermark => "watermark",
+    Border => "border",
+    Frame => "frame",
+    Stamp => "stamp",
     Game => "game",
     Format => "format",
     Legal => "legal",
     Banned => "banned",
     Restricted => "restricted",
+    EdhrecRank => "edhrec_rank",
+    Prints => "prints",
+    Sets => "sets",
+    PaperPrints => "paperprints",
+    PaperSets => "papersets",
+    OracleTag => "otag",
+    ArtTag => "atag",
+    Cube => "cube",
+    Include => "include",
     Unique => "unique",
     Order => "order",
     Direction => "direction",
+    Display => "display",
+    Prefer => "prefer",
 }
 
 impl Field {
@@ -139,31 +169,30 @@ impl Field {
             "keyword" | "kw" => Self::Keyword,
             "m" | "mana" => Self::Mana,
             "mv" | "cmc" | "manavalue" => Self::ManaValue,
+            "pow" | "power" => Self::Power,
+            "tou" | "toughness" => Self::Toughness,
+            "pt" | "powtou" => Self::PowTou,
+            "loy" | "loyalty" => Self::Loyalty,
             "c" | "color" => Self::Colors,
-            "id" | "identity" => Self::Identity,
+            "id" | "identity" | "ci" => Self::Identity,
             "r" | "rarity" => Self::Rarity,
             "s" | "e" | "set" | "edition" => Self::Set,
+            "st" | "settype" => Self::SetType,
+            "b" | "block" => Self::Block,
+            "g" | "group" => Self::Group,
             "cn" | "number" => Self::CollectorNumber,
             "lang" | "language" => Self::Language,
-            "is" => Self::Is,
-            "usd" => Self::Usd,
-            "eur" => Self::Eur,
-            "tix" => Self::Tix,
             "qty" | "quantity" => Self::Quantity,
             "date" | "released" => Self::Date,
-            "year" => Self::Year,
-            "paid" => Self::Paid,
-            "added" => Self::Added,
-            "artist" => Self::Artist,
+            "a" | "artist" => Self::Artist,
             "flavor" | "ft" => Self::Flavor,
-            "game" => Self::Game,
-            "format" => Self::Format,
-            "legal" => Self::Legal,
-            "banned" => Self::Banned,
-            "restricted" => Self::Restricted,
-            "unique" => Self::Unique,
-            "order" => Self::Order,
-            "direction" => Self::Direction,
+            "wm" | "watermark" => Self::Watermark,
+            "f" | "format" => Self::Format,
+            "edhrec" | "edhrecrank" => Self::EdhrecRank,
+            "otag" | "oracletag" | "function" => Self::OracleTag,
+            "atag" | "arttag" | "art" => Self::ArtTag,
+            "order" | "sort" => Self::Order,
+            "direction" | "dir" => Self::Direction,
             _ => return None,
         })
     }
@@ -396,19 +425,6 @@ fn parse_unary(tokens: &[Token]) -> Parsed<'_> {
             if let Some(raw) = word.strip_prefix('-').filter(|raw| !raw.is_empty()) {
                 return Ok((Expr::Not(Box::new(parse_word(raw))), rest));
             }
-            if let Some(raw) = word
-                .strip_prefix("not:")
-                .or_else(|| word.strip_prefix("NOT:"))
-                .filter(|raw| !raw.is_empty())
-            {
-                let predicate = Expr::Predicate(Predicate {
-                    field: Field::Is,
-                    op: Op::Colon,
-                    value: unquote_value(raw),
-                    regex: false,
-                });
-                return Ok((Expr::Not(Box::new(predicate)), rest));
-            }
             parse_primary(tokens)
         }
         _ => parse_primary(tokens),
@@ -449,7 +465,30 @@ fn parse_word(raw: &str) -> Expr {
     if let Some(name) = raw.strip_prefix('!').filter(|name| !name.is_empty()) {
         return Expr::ExactName(unquote_value(name));
     }
+    // Scryfall's older shorthands for `unique:prints` and `unique:art`.
+    let unique = match raw {
+        "++" => Some("prints"),
+        "@@" => Some("art"),
+        _ => None,
+    };
+    if let Some(value) = unique {
+        return Expr::Predicate(Predicate {
+            field: Field::Unique,
+            op: Op::Colon,
+            value: value.to_owned(),
+            regex: false,
+        });
+    }
     match split_predicate(raw) {
+        // `not:x` is `-is:x`.
+        Some((field, op, value)) if field.eq_ignore_ascii_case("not") => {
+            Expr::Not(Box::new(Expr::Predicate(Predicate {
+                field: Field::Is,
+                op,
+                value: unquote_value(value),
+                regex: false,
+            })))
+        }
         Some((field, op, value)) => Expr::Predicate(Predicate {
             field: Field::normalize(field),
             op,
@@ -526,7 +565,10 @@ fn simplify(expr: Expr) -> Expr {
             }
             Expr::Or(terms)
         }
-        Expr::Not(inner) => Expr::Not(Box::new(simplify(*inner))),
+        Expr::Not(inner) => match simplify(*inner) {
+            Expr::Not(inner) => *inner,
+            inner => Expr::Not(Box::new(inner)),
+        },
         other => other,
     }
 }
@@ -661,6 +703,43 @@ mod tests {
                 pred(Field::Language, Op::Colon, "ja"),
             ])
         );
+    }
+
+    #[test]
+    fn normalizes_reference_keywords_and_shorthands() {
+        assert_eq!(
+            parse(
+                "pow>tou a:avon wm:orzhov f:edh st:masters b:wwk g:fic function:removal sort:edhrec"
+            )
+            .unwrap(),
+            Expr::And(vec![
+                pred(Field::Power, Op::Gt, "tou"),
+                pred(Field::Artist, Op::Colon, "avon"),
+                pred(Field::Watermark, Op::Colon, "orzhov"),
+                pred(Field::Format, Op::Colon, "edh"),
+                pred(Field::SetType, Op::Colon, "masters"),
+                pred(Field::Block, Op::Colon, "wwk"),
+                pred(Field::Group, Op::Colon, "fic"),
+                pred(Field::OracleTag, Op::Colon, "removal"),
+                pred(Field::Order, Op::Colon, "edhrec"),
+            ])
+        );
+        // `-not:` cancels out; `++` and `@@` are `unique:` shorthands.
+        assert_eq!(
+            parse("-not:reprint ++ @@").unwrap(),
+            Expr::And(vec![
+                pred(Field::Is, Op::Colon, "reprint"),
+                pred(Field::Unique, Op::Colon, "prints"),
+                pred(Field::Unique, Op::Colon, "art"),
+            ])
+        );
+        for query in [
+            "pt>=8 loyalty=3 devotion:{U/B} edhrec_rank<=100",
+            "-is:spell",
+        ] {
+            let first = parse(query).unwrap();
+            assert_eq!(parse(&to_query(&first)).unwrap(), first, "{query}");
+        }
     }
 
     #[test]

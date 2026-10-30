@@ -323,18 +323,25 @@ async fn color_text_and_flag_predicates() {
         .await;
     let all = SearchOptions::default();
     for (query, expected) in [
-        // `:` compares colors exactly, as in earlier releases.
-        ("c:u", vec!["Time Walk"]),
+        // As on Scryfall, `c:` means at least these colors and `id:` fits
+        // within this identity; `=` is exact.
+        ("c:u", vec!["Gold Card", "Time Walk"]),
         ("c=u", vec!["Time Walk"]),
+        (
+            "id:wu",
+            vec!["Black Lotus", "Gold Card", "Plains", "Time Walk"],
+        ),
+        ("id=wu", vec!["Gold Card"]),
         ("c>=wu", vec!["Gold Card"]),
         ("c<=u", vec!["Black Lotus", "Plains", "Time Walk"]),
         ("c:m", vec!["Gold Card"]),
         ("c:colorless", vec!["Black Lotus", "Plains"]),
-        ("id:w", vec!["Plains"]),
+        ("id:w", vec!["Black Lotus", "Plains"]),
+        ("id=w", vec!["Plains"]),
         ("id>w", vec!["Gold Card"]),
         ("c:2", vec!["Gold Card"]),
         ("c!=u", vec!["Black Lotus", "Gold Card", "Plains"]),
-        ("c:blue", vec!["Time Walk"]),
+        ("c:blue", vec!["Gold Card", "Time Walk"]),
         ("t:creature", vec!["Gold Card"]),
         ("is:creature", vec!["Gold Card"]),
         ("-t:land cmc=0", vec!["Black Lotus"]),
@@ -550,5 +557,192 @@ async fn card_name_lookups_skip_tokens() {
             .await
             .unwrap()
             .is_none()
+    );
+}
+
+/// A printing with only the fields the reference-syntax test sets.
+fn printing(fields: serde_json::Value) -> serde_json::Value {
+    merge(
+        json!({
+            "lang": "en", "games": ["paper"], "finishes": ["nonfoil"], "image_uris": {},
+            "legalities": {}, "colors": [], "color_identity": [], "collector_number": "1",
+            "rarity": "common", "frame": "2015", "border_color": "black"
+        }),
+        fields,
+    )
+}
+
+/// The keywords of <https://scryfall.com/docs/syntax>, over a small catalog
+/// where each query picks out cards a near miss would get wrong.
+#[tokio::test]
+async fn scryfall_reference_syntax_filters_cards() {
+    let app = TestApp::new().await;
+    let serra = json!({
+        "oracle_id": "oracle-serra", "name": "Serra Angel", "type_line": "Creature — Angel",
+        "mana_cost": "{3}{W}{W}", "cmc": 5.0, "colors": ["W"], "color_identity": ["W"],
+        "power": "4", "toughness": "4", "keywords": ["Flying", "Vigilance"],
+        "oracle_text": "Flying, vigilance", "rarity": "uncommon",
+        "legalities": {"modern": "legal", "commander": "legal"}
+    });
+    let serra_alpha = printing(merge(
+        serra.clone(),
+        json!({"id": "serra-lea", "set": "lea", "set_type": "core", "released_at": "1993-08-05",
+               "artist": "Douglas Shuler", "illustration_id": "art-serra-1", "frame": "1993",
+               "flavor_text": "Born with wings of light.", "prices": {"usd": "50.00"}}),
+    ));
+    let serra_m10 = printing(merge(
+        serra,
+        json!({"id": "serra-m10", "set": "m10", "set_type": "core", "released_at": "2009-07-17",
+               "artist": "Greg Staples", "illustration_id": "art-serra-2", "frame": "2003",
+               "reprint": true, "prices": {"usd": "0.25", "eur": "0.30"}}),
+    ));
+    let chancery = printing(json!({
+        "id": "chancery-rav", "oracle_id": "oracle-chancery", "name": "Azorius Chancery",
+        "type_line": "Land", "color_identity": ["W", "U"], "produced_mana": ["W", "U"],
+        "oracle_text": "Azorius Chancery enters tapped.\nWhen Azorius Chancery enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.",
+        "set": "rav", "released_at": "2005-10-07", "watermark": "azorius",
+        "legalities": {"commander": "legal", "pauper": "legal"}
+    }));
+    let finks = printing(json!({
+        "id": "finks-shm", "oracle_id": "oracle-finks", "name": "Kitchen Finks",
+        "type_line": "Creature — Ouphe", "mana_cost": "{1}{G/W}{G/W}", "cmc": 3.0,
+        "colors": ["G", "W"], "color_identity": ["G", "W"], "power": "3", "toughness": "2",
+        "keywords": ["Persist"],
+        "oracle_text": "When Kitchen Finks enters, you gain 2 life.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
+        "set": "shm", "released_at": "2008-05-02", "legalities": {"modern": "legal", "legacy": "banned"}
+    }));
+    let delver = printing(json!({
+        "id": "delver-isd", "oracle_id": "oracle-delver", "name": "Delver of Secrets // Insectile Aberration",
+        "layout": "transform", "type_line": "Creature — Human Wizard // Creature — Human Insect",
+        "cmc": 1.0, "colors": ["U"], "color_identity": ["U"], "set": "isd", "released_at": "2011-09-30",
+        "games": ["paper", "mtgo"],
+        "card_faces": [
+            {"name": "Delver of Secrets", "mana_cost": "{U}", "type_line": "Creature — Human Wizard",
+             "oracle_text": "At the beginning of your upkeep, look at the top card of your library.",
+             "power": "1", "toughness": "1"},
+            {"name": "Insectile Aberration", "mana_cost": "", "type_line": "Creature — Human Insect",
+             "oracle_text": "Flying", "power": "3", "toughness": "2", "color_indicator": ["U"]}
+        ]
+    }));
+    let bolt = printing(json!({
+        "id": "bolt-2ed", "oracle_id": "oracle-bolt", "name": "Lightning Bolt", "type_line": "Instant",
+        "mana_cost": "{R}", "cmc": 1.0, "colors": ["R"], "color_identity": ["R"],
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.", "set": "2ed",
+        "released_at": "1993-12-01", "frame": "1993", "border_color": "white",
+        "games": ["paper", "arena"], "edhrec_rank": 5, "legalities": {"vintage": "legal"}
+    }));
+    app.import_cards(&[serra_alpha, serra_m10, chancery, finks, delver, bolt])
+        .await;
+    sqlx::query(
+        "INSERT INTO scryfall_sets (code, block_code, parent_set_code) VALUES
+         ('rav', 'rav', NULL), ('gpt', 'rav', NULL), ('isd', 'isd', NULL), ('tisd', NULL, 'isd')",
+    )
+    .execute(app.db())
+    .await
+    .unwrap();
+
+    let (serra, chancery, finks, delver, bolt) = (
+        "Serra Angel",
+        "Azorius Chancery",
+        "Kitchen Finks",
+        "Delver of Secrets // Insectile Aberration",
+        "Lightning Bolt",
+    );
+    let cases: Vec<(&str, Vec<&str>)> = vec![
+        // Colors and identity, with nicknames.
+        ("id:azorius", vec![chancery, delver, serra]),
+        ("id=azorius", vec![chancery]),
+        ("c:w t:creature", vec![finks, serra]),
+        ("id<=esper t:land", vec![chancery]),
+        ("c>=selesnya", vec![finks]),
+        ("produces:w", vec![chancery]),
+        ("produces=w", vec![]),
+        // Stats, compared with numbers or each other; faces count.
+        ("pow>tou", vec![finks]),
+        ("pt=8", vec![serra]),
+        ("pow=1", vec![delver]),
+        // Keywords by full name only.
+        ("kw:flying", vec![serra]),
+        ("kw:fly", vec![]),
+        // Mana symbols, hybrid in either order, and devotion.
+        ("m:{w/g}", vec![finks]),
+        ("m:3W", vec![serra]),
+        ("m=3WW", vec![serra]),
+        ("m=3W", vec![]),
+        ("m<=4WWW", vec![serra]),
+        ("devotion:WW", vec![finks, serra]),
+        // Oracle text with ~, regexes, flavor, artist, watermark.
+        ("o:\"~ enters tapped\"", vec![chancery]),
+        ("o:/^when .* you gain/", vec![finks]),
+        ("name:/^serra/", vec![serra]),
+        ("o:/(unclosed/", vec![]),
+        ("ft:wings", vec![serra]),
+        ("a:shuler", vec![serra]),
+        ("wm:azorius", vec![chancery]),
+        ("has:watermark", vec![chancery]),
+        // Legality.
+        ("f:modern", vec![finks, serra]),
+        ("banned:legacy", vec![finks]),
+        ("edhrec<10", vec![bolt]),
+        // Flags: layouts, derived flags, aliases, not:.
+        ("is:transform", vec![delver]),
+        ("has:indicator", vec![delver]),
+        ("is:karoo", vec![chancery]),
+        ("is:frenchvanilla", vec![serra]),
+        ("is:hybrid", vec![finks]),
+        ("is:spell -t:creature", vec![bolt]),
+        ("not:spell", vec![chancery]),
+        ("-not:spell t:instant", vec![bolt]),
+        // Printing history.
+        ("is:reprint", vec![serra]),
+        ("new:art e:m10", vec![serra]),
+        ("new:rarity e:m10", vec![]),
+        ("in:lea in:m10", vec![serra]),
+        ("in:arena", vec![bolt]),
+        ("prints>=2", vec![serra]),
+        ("is:unique t:land", vec![chancery]),
+        ("cheapest:usd e:m10", vec![serra]),
+        ("cheapest:usd e:lea", vec![]),
+        ("eur>0.2", vec![serra]),
+        // Dates by year, set code, and now.
+        ("year<=1994", vec![bolt, serra]),
+        ("date>rav", vec![delver, finks, serra]),
+        ("date<=2005-10-07 t:land", vec![chancery]),
+        ("date>now", vec![]),
+        // Games, frames, borders, set types, blocks, groups, languages.
+        ("game:mtgo", vec![delver]),
+        ("is:old", vec![bolt, serra]),
+        ("frame:2003", vec![serra]),
+        ("border:white", vec![bolt]),
+        ("st:core", vec![serra]),
+        ("b:gpt", vec![chancery]),
+        ("g:tisd", vec![delver]),
+        ("lang:english t:land", vec![chancery]),
+        ("lang:any t:land", vec![chancery]),
+        ("lang:ja", vec![]),
+        // Display keywords keep results; unstored data matches nothing.
+        (
+            "t:land unique:prints display:grid prefer:newest include:extras",
+            vec![chancery],
+        ),
+        ("t:land ++", vec![chancery]),
+        ("cube:vintage", vec![]),
+        ("art:squirrel", vec![]),
+    ];
+    for (query, expected) in cases {
+        assert_eq!(
+            names(&app, query, SearchOptions::default()).await,
+            expected,
+            "{query}"
+        );
+    }
+    assert_eq!(
+        names(
+            &app,
+            "t:creature order:cmc direction:desc",
+            SearchOptions::default()
+        )
+        .await,
+        [serra, finks, delver]
     );
 }

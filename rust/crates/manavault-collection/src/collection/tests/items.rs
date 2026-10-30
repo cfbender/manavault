@@ -761,6 +761,10 @@ async fn filters_support_scryfall_search_syntax() {
     assert_eq!(search_ids(&app, "is:spell").await, [lotus, walk]);
     assert_eq!(search_ids(&app, "quantity>1").await, Vec::<i64>::new());
     assert_eq!(search_ids(&app, "lang!=ja").await, [lotus, plains]);
+    // Language names match the copy's language; card keywords come from
+    // the catalog search.
+    assert_eq!(search_ids(&app, "lang:japanese").await, [walk]);
+    assert_eq!(search_ids(&app, "restricted:vintage").await, [lotus]);
     // The search filter only matches the copy's finish, not the printing's.
     assert_eq!(search_ids(&app, "is:nonfoil").await, [lotus, plains]);
 }

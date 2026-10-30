@@ -34,6 +34,7 @@ fn connect_options(path: &Path) -> Result<SqliteConnectOptions, sqlx::Error> {
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .foreign_keys(true)
+            .with_regexp()
             .busy_timeout(BUSY_TIMEOUT)
             .pragma("temp_store", "memory")
             .pragma("cache_size", "-64000"),

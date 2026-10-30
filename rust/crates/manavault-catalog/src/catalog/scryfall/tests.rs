@@ -11,6 +11,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::bulk::tests::{gzip_jsonl, gzip_lines};
 use super::import::{self, ImportError, ImportOptions, ImportSummary, OracleTags};
 use super::rulings;
+use super::sets;
 use super::sync::{self, SyncError, SyncOptions, SyncRecord, SyncStatus};
 use super::worker;
 use crate::test_app::TestApp;
@@ -508,12 +509,38 @@ async fn import_only_writes_rows_whose_stored_data_changed() {
     assert_eq!(tokens, vec!["scryfall-treasure-token"]);
 
     // Oracle-level changes rewrite the card only.
-    let summary = import(&app, &[merge(unlinked, json!({"edhrec_rank": 7})), walk]).await;
+    let ranked = merge(unlinked, json!({"edhrec_rank": 7}));
+    let summary = import(&app, &[ranked.clone(), walk.clone()]).await;
     assert_eq!(
         (summary.written_cards_count, summary.written_printings_count),
         (1, 0)
     );
     assert_eq!(card_column::<i64>(&app, "oracle-1", "edhrec_rank").await, 7);
+
+    // Search fields are compared too: a card keyword and a printing's
+    // artist each rewrite their row.
+    let searched = merge(
+        ranked,
+        json!({"keywords": ["Flying"], "artist": "Christopher Rush"}),
+    );
+    let summary = import(&app, &[searched.clone(), walk.clone()]).await;
+    assert_eq!(
+        (summary.written_cards_count, summary.written_printings_count),
+        (1, 1)
+    );
+    assert_eq!(
+        card_column::<String>(&app, "oracle-1", "keywords").await,
+        r#"["Flying"]"#
+    );
+    assert_eq!(
+        printing_column::<String>(&app, "scryfall-printing-1", "artist").await,
+        "Christopher Rush"
+    );
+    let summary = import(&app, &[searched, walk]).await;
+    assert_eq!(
+        (summary.written_cards_count, summary.written_printings_count),
+        (0, 0)
+    );
 }
 
 #[tokio::test]
@@ -1154,6 +1181,7 @@ impl Feed {
             bulk_url: self.url("/metadata"),
             oracle_tags_bulk_url: None,
             rulings_bulk_url: None,
+            sets_url: None,
             saltiness_url: None,
             commander_ranks_url: None,
             commander_ranks_pages_base_url: self.url("/pages/"),
@@ -1713,6 +1741,89 @@ async fn sync_preserves_existing_rulings_when_the_rulings_bulk_is_invalid() {
     assert_eq!(
         stored_rulings(&app).await,
         vec![("oracle-1".to_owned(), "Kept.".to_owned())]
+    );
+}
+
+async fn stored_sets(app: &TestApp) -> Vec<(String, Option<String>, Option<String>)> {
+    sqlx::query_as("SELECT code, block_code, parent_set_code FROM scryfall_sets ORDER BY code")
+        .fetch_all(app.db())
+        .await
+        .unwrap()
+}
+
+fn scryfall_set(code: &str) -> sets::ScryfallSet {
+    sets::ScryfallSet {
+        code: code.to_owned(),
+        name: None,
+        set_type: None,
+        block_code: None,
+        parent_set_code: None,
+        released_at: None,
+    }
+}
+
+#[tokio::test]
+async fn sync_replaces_every_set_with_scryfalls_paged_set_list() {
+    let app = TestApp::new().await;
+    sets::replace(app.db(), &[scryfall_set("gone")])
+        .await
+        .unwrap();
+    let feed = Feed::new().await;
+    feed.cards(&[fixtures::black_lotus()]).await;
+    feed.json(
+        "/sets",
+        json!({"object": "list", "has_more": true, "next_page": feed.url("/sets-2"), "data": [
+            {"object": "set", "code": "KTK", "name": "Khans of Tarkir", "set_type": "expansion",
+             "block_code": "ktk", "released_at": "2014-09-26", "card_count": 269}
+        ]}),
+    )
+    .await;
+    feed.json(
+        "/sets-2",
+        json!({"object": "list", "has_more": false, "data": [
+            {"object": "set", "code": "pktk", "name": "Khans of Tarkir Promos", "set_type": "promo",
+             "block_code": "ktk", "parent_set_code": "ktk", "released_at": "2014-09-20"}
+        ]}),
+    )
+    .await;
+    let mut options = feed.options();
+    options.sets_url = Some(feed.url("/sets"));
+    sync_ok(&app, &options).await;
+    let ktk = || Some("ktk".to_owned());
+    assert_eq!(
+        stored_sets(&app).await,
+        vec![
+            ("ktk".to_owned(), ktk(), None),
+            ("pktk".to_owned(), ktk(), ktk()),
+        ]
+    );
+    let (name, set_type, released_at): (String, String, String) =
+        sqlx::query_as("SELECT name, set_type, released_at FROM scryfall_sets WHERE code = 'pktk'")
+            .fetch_one(app.db())
+            .await
+            .unwrap();
+    assert_eq!(
+        (name.as_str(), set_type.as_str(), released_at.as_str()),
+        ("Khans of Tarkir Promos", "promo", "2014-09-20")
+    );
+}
+
+#[tokio::test]
+async fn sync_preserves_existing_sets_when_the_set_list_cannot_be_fetched() {
+    let app = TestApp::new().await;
+    sets::replace(app.db(), &[scryfall_set("lea")])
+        .await
+        .unwrap();
+    let feed = Feed::new().await;
+    feed.cards(&[fixtures::black_lotus()]).await;
+    let mut options = feed.options();
+    // Nothing is served there: the fetch fails with a 404.
+    options.sets_url = Some(feed.url("/sets"));
+    let record = sync_ok(&app, &options).await;
+    assert_eq!((record.status, record.error), (SyncStatus::Succeeded, None));
+    assert_eq!(
+        stored_sets(&app).await,
+        vec![("lea".to_owned(), None, None)]
     );
 }
 

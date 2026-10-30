@@ -1,5 +1,5 @@
 export type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<="
-export type ColorOperator = ":" | ">=" | "<="
+export type ColorOperator = "=" | ">=" | "<="
 export type FinishFilter = "any" | "foil" | "nonfoil" | "etched"
 export type AllocationFilter = "any" | "allocated" | "unallocated"
 export type RarityFilter = "common" | "uncommon" | "rare" | "mythic"
@@ -37,7 +37,7 @@ export type CollectionFilterState = {
 }
 
 const COMPARISON_OPERATORS: readonly ComparisonOperator[] = ["=", "!=", ">", ">=", "<", "<="]
-const COLOR_OPERATORS: readonly ColorOperator[] = [":", ">=", "<="]
+const COLOR_OPERATORS: readonly ColorOperator[] = ["=", ">=", "<="]
 const FINISH_FILTERS: readonly FinishFilter[] = ["any", "foil", "nonfoil", "etched"]
 const ALLOCATION_FILTERS: readonly AllocationFilter[] = ["any", "allocated", "unallocated"]
 const RARITY_FILTERS: readonly RarityFilter[] = ["common", "uncommon", "rare", "mythic"]
@@ -48,9 +48,10 @@ export const EMPTY_COLLECTION_FILTERS: CollectionFilterState = {
   oracle: "",
   typeLine: "",
   colors: [],
-  colorOperator: ":",
+  // Scryfall's `c:` (at least these colors) and `id:` (fits this identity).
+  colorOperator: ">=",
   identity: [],
-  identityOperator: ":",
+  identityOperator: "<=",
   manaValueOperator: "=",
   manaValue: "",
   rarities: [],
@@ -150,16 +151,11 @@ export function encodeCollectionFilters(filters: CollectionFilterState) {
     oracle: trimmedValue(filters.oracle),
     typeLine: trimmedValue(filters.typeLine),
     colors: filters.colors.length ? filters.colors : undefined,
-    colorOperator:
-      filters.colors.length && filters.colorOperator !== EMPTY_COLLECTION_FILTERS.colorOperator
-        ? filters.colorOperator
-        : undefined,
+    // Always written with colors: filters saved before the Scryfall defaults
+    // omitted the operator to mean "exactly".
+    colorOperator: filters.colors.length ? filters.colorOperator : undefined,
     identity: filters.identity.length ? filters.identity : undefined,
-    identityOperator:
-      filters.identity.length &&
-      filters.identityOperator !== EMPTY_COLLECTION_FILTERS.identityOperator
-        ? filters.identityOperator
-        : undefined,
+    identityOperator: filters.identity.length ? filters.identityOperator : undefined,
     manaValue: trimmedValue(filters.manaValue),
     manaValueOperator:
       filters.manaValue.trim() &&
@@ -223,15 +219,15 @@ export function decodeCollectionFilters(value: unknown): CollectionFilterState {
   filters.oracle = stringValue(decoded.oracle)
   filters.typeLine = stringValue(decoded.typeLine)
   filters.colors = filteredValues(decoded.colors, MANA_COLORS)
-  filters.colorOperator = operatorValue(
+  filters.colorOperator = colorOperatorValue(
     decoded.colorOperator,
-    COLOR_OPERATORS,
+    filters.colors,
     filters.colorOperator,
   )
   filters.identity = filteredValues(decoded.identity, MANA_COLORS)
-  filters.identityOperator = operatorValue(
+  filters.identityOperator = colorOperatorValue(
     decoded.identityOperator,
-    COLOR_OPERATORS,
+    filters.identity,
     filters.identityOperator,
   )
   filters.manaValue = stringValue(decoded.manaValue)
@@ -305,6 +301,19 @@ function filteredValues<T extends string>(value: unknown, allowed: readonly T[])
   return Array.from(new Set(value.filter((item): item is T => isAllowedValue(item, allowed))))
 }
 
+/**
+ * A saved color operator. Filters saved before the Scryfall defaults wrote
+ * nothing (or `:`) alongside their colors to mean "exactly".
+ */
+function colorOperatorValue(
+  value: unknown,
+  colors: ManaColor[],
+  fallback: ColorOperator,
+): ColorOperator {
+  if (colors.length && (value === undefined || value === ":")) return "="
+  return operatorValue(value, COLOR_OPERATORS, fallback)
+}
+
 function operatorValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T) {
   return isAllowedValue(value, allowed) ? value : fallback
 }
@@ -323,11 +332,16 @@ function comparisonPredicate(field: string, operator: ComparisonOperator, value:
   return trimmed ? `${field}${operator}${quoteScryfallValue(trimmed)}` : ""
 }
 
+/** Writes the field's default comparison as Scryfall's `:` (`c:wu`, `id:wu`). */
 function colorPredicate(field: "c" | "id", operator: ColorOperator, colors: ManaColor[]) {
   if (!colors.length) return ""
   if (colors.includes("c")) return `${field}:c`
 
-  return `${field}${operator}${colors.join("")}`
+  const defaultOperator =
+    field === "c"
+      ? EMPTY_COLLECTION_FILTERS.colorOperator
+      : EMPTY_COLLECTION_FILTERS.identityOperator
+  return `${field}${operator === defaultOperator ? ":" : operator}${colors.join("")}`
 }
 
 /** Trims, drops blanks, and removes case-insensitive duplicates, keeping the first spelling. */

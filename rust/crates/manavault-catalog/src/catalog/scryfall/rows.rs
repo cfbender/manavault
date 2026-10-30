@@ -1,11 +1,13 @@
 //! Catalog rows built from Scryfall cards
 //! (`Manavault.Catalog.Scryfall.ImportRows`).
 
+use lotus::Game;
 use lotus::scryfall::ScryfallCard;
 use serde::Serialize;
 
 use crate::catalog::oracle_tags::{self, OracleTagIndex, TagFields};
-use crate::catalog::scryfall::bulk::{BulkCard, Frame};
+use crate::catalog::scryfall::bulk::{BulkCard, Details, Frame};
+use crate::catalog::search::flags::card_flags;
 
 /// Card columns the import owns, other than the key and the oracle tag
 /// columns. They are compared against the stored row to decide
@@ -25,6 +27,13 @@ pub struct CardCore {
     pub legalities: String,
     pub game_changer: bool,
     pub edhrec_rank: Option<i64>,
+    pub power: Option<String>,
+    pub toughness: Option<String>,
+    pub loyalty: Option<String>,
+    pub keywords: String,
+    pub produced_mana: String,
+    pub reserved: bool,
+    pub search_flags: String,
 }
 
 /// One `scryfall_cards` row.
@@ -59,6 +68,16 @@ pub struct PrintingFields {
     pub frame_effects: String,
     pub border_color: Option<String>,
     pub full_art: bool,
+    pub artist: Option<String>,
+    pub watermark: Option<String>,
+    pub frame: Option<String>,
+    pub security_stamp: Option<String>,
+    pub set_type: Option<String>,
+    pub games: String,
+    pub reprint: bool,
+    pub booster: bool,
+    pub story_spotlight: bool,
+    pub highres_image: bool,
 }
 
 /// One `scryfall_printings` row.
@@ -103,7 +122,12 @@ fn json<T: Serialize>(value: &T) -> String {
 #[must_use]
 pub fn rows(cards: Vec<BulkCard>, tag_index: &OracleTagIndex) -> Rows {
     let mut rows = Rows::default();
-    for BulkCard { card, frame } in cards {
+    for BulkCard {
+        card,
+        frame,
+        details,
+    } in cards
+    {
         let card = card.with_face_identity();
         for token in card.token_ids() {
             rows.card_tokens.push(TokenRow {
@@ -114,8 +138,10 @@ pub fn rows(cards: Vec<BulkCard>, tag_index: &OracleTagIndex) -> Rows {
         let Some(oracle_id) = card.oracle_id.as_ref().map(|id| id.as_str().to_owned()) else {
             continue;
         };
-        rows.cards.push(card_row(&card, &oracle_id, tag_index));
-        rows.printings.push(printing_row(&card, frame, oracle_id));
+        rows.cards
+            .push(card_row(&card, &details, &oracle_id, tag_index));
+        rows.printings
+            .push(printing_row(&card, frame, &details, oracle_id));
     }
     rows
 }
@@ -129,7 +155,12 @@ fn faces_text(card: &ScryfallCard, joined: Option<String>) -> Option<String> {
     }
 }
 
-fn card_row(card: &ScryfallCard, oracle_id: &str, tag_index: &OracleTagIndex) -> CardRow {
+fn card_row(
+    card: &ScryfallCard,
+    details: &Details,
+    oracle_id: &str,
+    tag_index: &OracleTagIndex,
+) -> CardRow {
     CardRow {
         oracle_id: oracle_id.to_owned(),
         core: CardCore {
@@ -145,6 +176,13 @@ fn card_row(card: &ScryfallCard, oracle_id: &str, tag_index: &OracleTagIndex) ->
             legalities: json(&card.legalities),
             game_changer: card.game_changer,
             edhrec_rank: card.edhrec_rank.map(i64::from),
+            power: details.power().map(str::to_owned),
+            toughness: details.toughness().map(str::to_owned),
+            loyalty: details.loyalty().map(str::to_owned),
+            keywords: json(&details.keywords),
+            produced_mana: json(&details.produced_mana),
+            reserved: details.reserved,
+            search_flags: json(&card_flags(card, details)),
         },
         tags: oracle_tags::fields_for_card(Some(oracle_id), card.type_line.as_deref(), tag_index),
     }
@@ -158,7 +196,12 @@ fn image_uris(card: &ScryfallCard) -> String {
     }
 }
 
-fn printing_row(card: &ScryfallCard, frame: Frame, oracle_id: String) -> PrintingRow {
+fn printing_row(
+    card: &ScryfallCard,
+    frame: Frame,
+    details: &Details,
+    oracle_id: String,
+) -> PrintingRow {
     let flavor_name = faces_text(card, card.full_flavor_name());
     PrintingRow {
         scryfall_id: card.id.as_str().to_owned(),
@@ -186,6 +229,24 @@ fn printing_row(card: &ScryfallCard, frame: Frame, oracle_id: String) -> Printin
             frame_effects: json(&frame.frame_effects),
             border_color: frame.border_color,
             full_art: frame.full_art,
+            artist: details.artist().map(str::to_owned),
+            watermark: details.watermark().map(str::to_owned),
+            frame: details.frame.clone(),
+            security_stamp: details.security_stamp.clone(),
+            set_type: card.set_type.clone(),
+            // Scryfall's own names ("paper", "arena", "mtgo"); platforms
+            // lotus does not know are dropped rather than stored as "other".
+            games: json(
+                &card
+                    .games
+                    .iter()
+                    .filter(|game| **game != Game::Other)
+                    .collect::<Vec<_>>(),
+            ),
+            reprint: details.reprint,
+            booster: details.booster,
+            story_spotlight: details.story_spotlight,
+            highres_image: details.highres_image,
         },
     }
 }
@@ -209,11 +270,24 @@ mod tests {
                 "finishes": ["nonfoil", "foil"],
                 "image_uris": {"small": "s", "normal": "n", "large": "l", "png": "p", "art_crop": "a", "border_crop": "b"},
                 "prices": {"usd": "1.00", "eur": null},
-                "released_at": "1996-06-10", "set": "ALL", "collector_number": "1"
+                "released_at": "1996-06-10", "set": "ALL", "collector_number": "1",
+                "power": "*", "toughness": "1+*", "keywords": ["Flying", "Trample"],
+                "produced_mana": ["U", "B"], "reserved": true, "color_indicator": ["U"],
+                "artist": "Rob Alexander", "watermark": "set", "frame": "1993",
+                "security_stamp": "oval", "set_type": "expansion",
+                "games": ["paper", "mtgo", "astral"], "reprint": true, "booster": true,
+                "story_spotlight": false, "highres_image": true
             }))],
             &OracleTagIndex::new(),
         );
         let card = &rows.cards[0];
+        assert_eq!(card.core.power.as_deref(), Some("*"));
+        assert_eq!(card.core.toughness.as_deref(), Some("1+*"));
+        assert_eq!(card.core.loyalty, None);
+        assert_eq!(card.core.keywords, r#"["Flying","Trample"]"#);
+        assert_eq!(card.core.produced_mana, r#"["U","B"]"#);
+        assert!(card.core.reserved);
+        assert_eq!(card.core.search_flags, r#"["indicator"]"#);
         assert_eq!(card.core.normalized_name.as_deref(), Some("lim-duls vault"));
         assert_eq!(card.core.colors, r#"["U","B"]"#);
         assert_eq!(
@@ -230,6 +304,22 @@ mod tests {
         );
         assert_eq!(printing.prices, r#"{"eur":null,"usd":"1.00"}"#);
         assert_eq!(printing.released_at.as_deref(), Some("1996-06-10"));
+        assert_eq!(printing.artist.as_deref(), Some("Rob Alexander"));
+        assert_eq!(printing.watermark.as_deref(), Some("set"));
+        assert_eq!(printing.frame.as_deref(), Some("1993"));
+        assert_eq!(printing.security_stamp.as_deref(), Some("oval"));
+        assert_eq!(printing.set_type.as_deref(), Some("expansion"));
+        // A platform lotus does not know is dropped.
+        assert_eq!(printing.games, r#"["paper","mtgo"]"#);
+        assert_eq!(
+            (
+                printing.reprint,
+                printing.booster,
+                printing.story_spotlight,
+                printing.highres_image
+            ),
+            (true, true, false, true)
+        );
     }
 
     #[test]
@@ -238,11 +328,32 @@ mod tests {
             vec![card(json!({
                 "id": "p", "oracle_id": "o", "name": "A // B",
                 "card_faces": [
-                    {"name": "A", "oracle_text": "front", "flavor_name": "Fa", "image_uris": {"normal": "a"}, "colors": ["R"]},
-                    {"name": "B", "oracle_text": "back", "image_uris": {"normal": "b"}}
+                    {"name": "A", "oracle_text": "front", "flavor_name": "Fa", "image_uris": {"normal": "a"}, "colors": ["R"],
+                     "power": "2", "toughness": "3", "artist": "Front Artist"},
+                    {"name": "B", "oracle_text": "back", "image_uris": {"normal": "b"},
+                     "loyalty": "4", "artist": "Back Artist", "watermark": "phyrexian"}
                 ]
             }))],
             &OracleTagIndex::new(),
+        );
+        // The first face that has a value supplies it: the loyalty and
+        // watermark only the back face has, the front face's artist.
+        let core = &rows.cards[0].core;
+        assert_eq!(
+            (
+                core.power.as_deref(),
+                core.toughness.as_deref(),
+                core.loyalty.as_deref()
+            ),
+            (Some("2"), Some("3"), Some("4"))
+        );
+        assert_eq!(
+            rows.printings[0].fields.artist.as_deref(),
+            Some("Front Artist")
+        );
+        assert_eq!(
+            rows.printings[0].fields.watermark.as_deref(),
+            Some("phyrexian")
         );
         assert_eq!(
             rows.cards[0].core.oracle_text.as_deref(),

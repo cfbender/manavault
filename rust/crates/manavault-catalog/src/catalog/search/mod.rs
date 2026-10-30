@@ -2,6 +2,7 @@
 
 pub mod cards;
 pub mod cards_by_name;
+pub mod flags;
 pub mod name_match;
 pub mod predicates;
 pub mod printings;

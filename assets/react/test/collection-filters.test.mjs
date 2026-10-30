@@ -28,6 +28,37 @@ test("buildCollectionFilterQuery quotes and combines structured predicates", () 
   )
 })
 
+test("color filters default to Scryfall's c: and id: meanings", () => {
+  const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+  filters.colors = ["w", "u"]
+  filters.identity = ["w", "u", "b"]
+  assert.equal(buildCollectionFilterQuery(filters), "c:wu id:wub")
+
+  filters.colorOperator = "="
+  filters.identityOperator = ">="
+  assert.equal(buildCollectionFilterQuery(filters), "c=wu id>=wub")
+
+  filters.colorOperator = "<="
+  filters.identityOperator = "="
+  assert.equal(buildCollectionFilterQuery(filters), "c<=wu id=wub")
+  assert.deepEqual(decodeCollectionFilters(encodeCollectionFilters(filters)), filters)
+})
+
+test("color filters saved before the Scryfall defaults keep meaning exactly", () => {
+  for (const legacy of [{}, { colorOperator: ":", identityOperator: ":" }]) {
+    const decoded = decodeCollectionFilters(
+      JSON.stringify({ colors: ["r"], identity: ["r", "g"], ...legacy }),
+    )
+    assert.equal(decoded.colorOperator, "=")
+    assert.equal(decoded.identityOperator, "=")
+    assert.equal(buildCollectionFilterQuery(decoded), "c=r id=rg")
+  }
+  // A saved default round trips as the new default.
+  const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+  filters.colors = ["r"]
+  assert.deepEqual(decodeCollectionFilters(encodeCollectionFilters(filters)), filters)
+})
+
 test("combineCollectionQueries trims empty parts and scopes each clause", () => {
   assert.equal(
     combineCollectionQueries(" dragon ", "", "type:creature"),
@@ -90,6 +121,7 @@ test("collection filter search params drop empty and invalid filters", () => {
     {
       ...EMPTY_COLLECTION_FILTERS,
       colors: ["u"],
+      colorOperator: "=",
       rarities: ["common"],
       manaValue: "3",
       manaValueOperator: "<=",

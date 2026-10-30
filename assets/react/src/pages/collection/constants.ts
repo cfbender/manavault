@@ -65,9 +65,9 @@ export const RARITY_OPTIONS: {
 
 export const COMPARISON_OPTIONS: ComparisonOperator[] = ["=", "!=", ">", ">=", "<", "<="]
 export const COLOR_OPERATOR_OPTIONS: { value: ColorOperator; label: string }[] = [
-  { value: ":", label: "Exactly" },
   { value: ">=", label: "Includes" },
-  { value: "<=", label: "At most" },
+  { value: "=", label: "Exactly" },
+  { value: "<=", label: "Within" },
 ]
 
 export const TYPE_OPTIONS = [

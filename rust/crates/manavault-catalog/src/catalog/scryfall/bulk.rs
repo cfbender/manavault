@@ -112,11 +112,117 @@ pub struct Frame {
     pub full_art: bool,
 }
 
-/// A bulk record: lotus's card and its [`Frame`]. Derefs to the card.
+/// The Scryfall fields the search syntax filters on that lotus's
+/// [`ScryfallCard`] does not decode. A record whose fields cannot be read
+/// gets the defaults rather than being skipped.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+pub struct Details {
+    #[serde(default)]
+    pub power: Option<String>,
+    #[serde(default)]
+    pub toughness: Option<String>,
+    #[serde(default)]
+    pub loyalty: Option<String>,
+    #[serde(default)]
+    pub keywords: Vec<String>,
+    #[serde(default)]
+    pub produced_mana: Vec<String>,
+    #[serde(default)]
+    pub reserved: bool,
+    #[serde(default)]
+    pub color_indicator: Option<Vec<String>>,
+    #[serde(default)]
+    pub artist: Option<String>,
+    #[serde(default)]
+    pub watermark: Option<String>,
+    /// The frame edition: `1993`, `1997`, `2003`, `2015`, or `future`.
+    #[serde(default)]
+    pub frame: Option<String>,
+    #[serde(default)]
+    pub security_stamp: Option<String>,
+    #[serde(default)]
+    pub reprint: bool,
+    #[serde(default)]
+    pub booster: bool,
+    #[serde(default)]
+    pub story_spotlight: bool,
+    #[serde(default)]
+    pub highres_image: bool,
+    #[serde(default)]
+    pub card_faces: Vec<FaceDetails>,
+}
+
+/// The [`Details`] fields Scryfall sets per face on multi-faced cards.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+pub struct FaceDetails {
+    #[serde(default)]
+    pub power: Option<String>,
+    #[serde(default)]
+    pub toughness: Option<String>,
+    #[serde(default)]
+    pub loyalty: Option<String>,
+    #[serde(default)]
+    pub color_indicator: Option<Vec<String>>,
+    #[serde(default)]
+    pub artist: Option<String>,
+    #[serde(default)]
+    pub watermark: Option<String>,
+}
+
+impl Details {
+    /// The card's value, else the first face's that has one.
+    fn first<'a>(
+        &'a self,
+        card: Option<&'a String>,
+        face: impl Fn(&'a FaceDetails) -> Option<&'a String>,
+    ) -> Option<&'a str> {
+        card.or_else(|| self.card_faces.iter().find_map(face))
+            .map(String::as_str)
+    }
+
+    #[must_use]
+    pub fn power(&self) -> Option<&str> {
+        self.first(self.power.as_ref(), |face| face.power.as_ref())
+    }
+
+    #[must_use]
+    pub fn toughness(&self) -> Option<&str> {
+        self.first(self.toughness.as_ref(), |face| face.toughness.as_ref())
+    }
+
+    #[must_use]
+    pub fn loyalty(&self) -> Option<&str> {
+        self.first(self.loyalty.as_ref(), |face| face.loyalty.as_ref())
+    }
+
+    #[must_use]
+    pub fn artist(&self) -> Option<&str> {
+        self.first(self.artist.as_ref(), |face| face.artist.as_ref())
+    }
+
+    #[must_use]
+    pub fn watermark(&self) -> Option<&str> {
+        self.first(self.watermark.as_ref(), |face| face.watermark.as_ref())
+    }
+
+    /// Whether the card or any face has a color indicator.
+    #[must_use]
+    pub fn has_color_indicator(&self) -> bool {
+        self.color_indicator.is_some()
+            || self
+                .card_faces
+                .iter()
+                .any(|face| face.color_indicator.is_some())
+    }
+}
+
+/// A bulk record: lotus's card, its [`Frame`], and its search [`Details`].
+/// Derefs to the card.
 #[derive(Debug, Clone)]
 pub struct BulkCard {
     pub card: ScryfallCard,
     pub frame: Frame,
+    pub details: Details,
 }
 
 impl std::ops::Deref for BulkCard {
@@ -142,6 +248,7 @@ pub fn decode_card(record: &Value) -> Result<BulkCard, serde_json::Error> {
     Ok(BulkCard {
         card: ScryfallCard::deserialize(record)?,
         frame: Frame::deserialize(record).unwrap_or_default(),
+        details: Details::deserialize(record).unwrap_or_default(),
     })
 }
 

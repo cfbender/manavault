@@ -7,6 +7,7 @@ pub mod import;
 pub mod reconcile;
 pub mod rows;
 pub mod rulings;
+pub mod sets;
 pub mod sync;
 pub mod worker;
 
