@@ -415,14 +415,14 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     assert_eq!(headers["authorization"], "Bearer test-openrouter-key");
     assert_eq!(headers["x-openrouter-title"], "ManaVault");
     assert_eq!(request["model"], "anthropic/claude-sonnet-4");
-    // Some providers accept only the default tool choice, so none is sent.
+    // Some providers accept only the default tool choice, so none is sent,
+    // and tool rounds carry the schema in the prompt instead of enforcing
+    // it, since some endpoints cannot emit a tool call under a schema.
     for request in [request, answer_request] {
         assert!(request.get("tool_choice").is_none());
         assert_eq!(request["reasoning"], json!({"effort": "xhigh"}));
-        assert_eq!(
-            request["response_format"]["json_schema"]["name"],
-            "manavault_deck_analysis"
-        );
+        assert!(request.get("tools").is_some());
+        assert!(request.get("response_format").is_none());
     }
     assert_eq!(request["max_tokens"], 20_000);
     assert!(request.get("temperature").is_none());
@@ -442,6 +442,17 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     assert!(system.contains("rather than making the final response longer"));
     assert!(system.contains("Never suggest infinite combos."));
     assert!(system.contains("Add a Budget upgrades section."));
+    // The schema follows the custom instructions, so the model knows the
+    // answer shape without response_format.
+    let (instructions, schema) = system
+        .split_once("respond with exactly one JSON object that conforms to this JSON Schema")
+        .unwrap();
+    assert!(
+        instructions
+            .ends_with("</custom_analysis_instructions>\n\nOnce you are done calling tools, ")
+    );
+    assert!(schema.contains(r#""bracket_rating":{"anyOf""#));
+    assert!(schema.contains(r#""custom_sections""#));
     let user = message_content(request, 1);
     assert!(user.contains("Test Commander"));
     assert!(user.contains(r#""land_count":0"#));
@@ -1011,9 +1022,10 @@ async fn answers_card_lookup_tool_calls_from_the_catalog_before_accepting_the_fi
     }
     for request in &requests {
         assert!(request.get("tool_choice").is_none());
-        assert_eq!(
-            request["response_format"]["json_schema"]["schema"]["required"],
-            json!(["answer", "recommended_cuts", "recommended_additions"])
+        assert!(request.get("response_format").is_none());
+        assert!(
+            message_content(request, 0)
+                .contains(r#""required":["answer","recommended_cuts","recommended_additions"]"#)
         );
     }
     // System, deck data, and the newest message are the cache breakpoints;
@@ -1113,6 +1125,120 @@ async fn fails_when_the_model_keeps_calling_tools_past_the_limit() {
         "OpenRouter kept calling tools instead of answering."
     );
     assert_eq!(attempts.load(Ordering::SeqCst), 6);
+}
+
+#[tokio::test]
+async fn repairs_an_unstructured_final_answer_with_one_schema_enforced_round() {
+    let server = MockServer::start().await;
+    let app = app_with(&server).await;
+    insert_settings(&app, "deepseek/deepseek-v4.1-flash", None).await;
+    let deck_id = insert_deck(app.db(), "Markdown Deck", "commander").await;
+    let attempts = stub_completions(&server, |attempt, _| {
+        if attempt == 1 {
+            ResponseTemplate::new(200).set_body_json(json!({
+                "choices": [{
+                    "finish_reason": "stop",
+                    "message": {
+                        "role": "assistant",
+                        "content": "## Verdict\n\nKeep the list as it is.",
+                        "reasoning": "The deck needs nothing."
+                    }
+                }]
+            }))
+        } else {
+            answer_response("Keep the list as it is.", &[], &[])
+        }
+    })
+    .await;
+    let log = capture_logs("deepseek/deepseek-v4.1-flash", async {
+        let question = ask_default(&app, deck_id, "Anything to change?").await;
+        answer_deck_question::run(&app.state, question.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            saved(&app, question.id).await.answer,
+            "Keep the list as it is."
+        );
+    })
+    .await;
+    assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    assert!(log.contains("result=unstructured_answer"), "{log}");
+    assert!(!log.contains("Keep the list"), "{log}");
+
+    let requests = completion_requests(&server).await;
+    let [answer_request, repair_request] = requests.as_slice() else {
+        unreachable!("expected two requests, got {requests:?}")
+    };
+    assert!(answer_request.get("tools").is_some());
+    assert!(answer_request.get("response_format").is_none());
+    // The repair round enforces the schema and withdraws the tools, so the
+    // model can only restate its answer.
+    assert!(repair_request.get("tools").is_none());
+    assert_eq!(
+        repair_request["response_format"]["json_schema"]["name"],
+        "manavault_deck_question_answer"
+    );
+    assert_eq!(repair_request["session_id"], answer_request["session_id"]);
+    let messages = repair_request["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 5);
+    assert_eq!(messages[2]["content"], "Anything to change?");
+    assert_eq!(
+        messages[3],
+        json!({
+            "role": "assistant",
+            "content": "## Verdict\n\nKeep the list as it is.",
+            "reasoning": "The deck needs nothing."
+        })
+    );
+    assert_eq!(messages[4]["role"], "user");
+    assert_eq!(
+        last_content(repair_request),
+        "Return that answer as exactly one JSON object matching the required schema, with no other text."
+    );
+    assert_eq!(cache_breakpoints(repair_request), vec![0, 1, 4]);
+}
+
+#[tokio::test]
+async fn accepts_a_fenced_json_answer_without_a_repair_round() {
+    let server = MockServer::start().await;
+    let app = app_with(&server).await;
+    insert_settings(&app, "deepseek/deepseek-v4.1-flash", None).await;
+    let deck_id = insert_deck(app.db(), "Fenced Deck", "commander").await;
+    let attempts = stub_completions(&server, |_, _| {
+        ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{"message": {"content": format!(
+                "```json\n{}\n```",
+                json!({"answer": "Fenced answer.", "recommended_cuts": [], "recommended_additions": []})
+            )}}]
+        }))
+    })
+    .await;
+    let question = ask_default(&app, deck_id, "Anything?").await;
+    answer_deck_question::run(&app.state, question.id)
+        .await
+        .unwrap();
+    assert_eq!(saved(&app, question.id).await.answer, "Fenced answer.");
+    assert_eq!(attempts.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn fails_when_the_repaired_answer_is_still_not_json() {
+    let server = MockServer::start().await;
+    let app = app_with(&server).await;
+    insert_settings(&app, "deepseek/deepseek-v4.1-flash", None).await;
+    let deck_id = insert_deck(app.db(), "Stubborn Deck", "commander").await;
+    let attempts = stub_completions(&server, |_, _| {
+        ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{"message": {"content": "Still Markdown."}}]
+        }))
+    })
+    .await;
+    let question = ask_default(&app, deck_id, "Anything?").await;
+    assert_eq!(
+        user_message(answer_deck_question::run(&app.state, question.id).await),
+        "OpenRouter returned an invalid answer."
+    );
+    assert_eq!(attempts.load(Ordering::SeqCst), 2);
 }
 
 #[tokio::test]

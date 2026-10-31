@@ -13,6 +13,14 @@
 //! cache, and [`mark_cache_breakpoints`] marks the stable prefix for
 //! providers that need explicit breakpoints (Anthropic). Providers that
 //! cache automatically ignore the marks.
+//!
+//! Tools and `response_format` never travel in the same request. Some
+//! endpoints enforce a JSON schema by constraining every output token, which
+//! leaves the model no way to emit a tool call; it then invents the lookup
+//! inside the answer instead. So rounds that offer tools describe the
+//! schema in the system prompt and leave `response_format` out, and the
+//! schema is enforced only in a repair round, without tools, when the
+//! model's final message is not the JSON object asked for.
 
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
@@ -32,11 +40,10 @@ const MAX_TOOL_ROUNDS: usize = 4;
 const TOOL_LIMIT_REACHED: &str =
     "No more tool calls are allowed. Answer now from the results you already have.";
 const TOOL_LOOP: &str = "OpenRouter kept calling tools instead of answering.";
+/// Asks the model to restate a final message that was not the JSON object.
+const REPAIR_PROMPT: &str = "Return that answer as exactly one JSON object matching the required schema, with no other text.";
 /// High reasoning efforts can think for several minutes before answering.
 const COMPLETION_TIMEOUT: Duration = Duration::from_secs(5 * 60);
-const ANSWER_TOKEN_LIMIT: &str = "OpenRouter ran out of output tokens before finishing the answer.";
-const ANSWER_INCOMPLETE: &str = "OpenRouter returned an incomplete answer.";
-const ANSWER_INVALID: &str = "OpenRouter returned an invalid answer.";
 
 /// One question turn (`Provider.question_turn`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,12 +87,37 @@ impl Operation {
         }
     }
 
-    fn decode(self, body: &Value) -> Result<Value, String> {
-        match self {
-            Self::DeckAnalysis => decode_analysis(body),
-            Self::DeckQuestion => decode_answer(body),
+    fn decode_error(self, error: DecodeError) -> &'static str {
+        match (self, error) {
+            (Self::DeckAnalysis, DecodeError::TokenLimit) => {
+                "OpenRouter ran out of output tokens before finishing the deck analysis."
+            }
+            (Self::DeckAnalysis, DecodeError::Incomplete) => {
+                "OpenRouter returned an incomplete deck analysis."
+            }
+            (Self::DeckAnalysis, DecodeError::Invalid) => {
+                "OpenRouter returned an invalid deck analysis."
+            }
+            (Self::DeckQuestion, DecodeError::TokenLimit) => {
+                "OpenRouter ran out of output tokens before finishing the answer."
+            }
+            (Self::DeckQuestion, DecodeError::Incomplete) => {
+                "OpenRouter returned an incomplete answer."
+            }
+            (Self::DeckQuestion, DecodeError::Invalid) => "OpenRouter returned an invalid answer.",
         }
     }
+}
+
+/// Why a final message did not decode as the structured result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecodeError {
+    /// The output token limit cut the message short.
+    TokenLimit,
+    /// The message has no content.
+    Incomplete,
+    /// The content is not a JSON object.
+    Invalid,
 }
 
 /// `analyze_deck/2`: the raw structured analysis object.
@@ -254,6 +286,12 @@ async fn post_completion(state: &AppState, api_key: &str, request: &Value) -> Re
 /// result telling the model to answer; a model that keeps calling tools
 /// after that fails. A model without tool-capable endpoints is retried once
 /// without tools.
+///
+/// While tools are offered, `response_format` stays out of the request (see
+/// the module docs) and the system prompt carries the schema instead. A
+/// final message that is not a JSON object gets one repair round: the
+/// message is echoed back with [`REPAIR_PROMPT`], tools are withdrawn, and
+/// the response format is enforced.
 async fn complete(
     state: &AppState,
     settings: &Configured,
@@ -266,22 +304,45 @@ async fn complete(
     if let Some(effort) = &settings.reasoning_effort {
         request.insert("reasoning".into(), json!({"effort": effort}));
     }
+    describe_response_format(&mut request);
     let mut round = 0;
+    let mut repaired = false;
     loop {
         let mut sent = request.clone();
+        let tools_offered = sent.contains_key("tools");
+        if tools_offered {
+            sent.remove("response_format");
+        }
         mark_cache_breakpoints(&mut sent);
         let started = Instant::now();
         match post_completion(state, &settings.api_key, &Value::Object(sent)).await {
             Response::Http { status, body, .. } if (200..300).contains(&status) => {
                 let calls = tool_calls(&body);
                 if calls.is_empty() {
-                    let result = operation.decode(&body);
-                    let outcome = match &result {
+                    let result = decode(&body);
+                    if matches!(result, Err(DecodeError::Invalid)) && tools_offered && !repaired {
+                        log_completion(
+                            &LogResult::Unstructured,
+                            operation,
+                            &settings.model,
+                            started,
+                            status,
+                            &body,
+                        );
+                        if let Some(Value::Array(messages)) = request.get_mut("messages") {
+                            messages.push(assistant_message(&body));
+                            messages.push(json!({"role": "user", "content": REPAIR_PROMPT}));
+                        }
+                        request.remove("tools");
+                        repaired = true;
+                        continue;
+                    }
+                    let outcome = match result {
                         Ok(_) => LogResult::Ok,
-                        Err(message) => LogResult::Error(message),
+                        Err(error) => LogResult::Decode(error),
                     };
                     log_completion(&outcome, operation, &settings.model, started, status, &body);
-                    return result;
+                    return result.map_err(|error| operation.decode_error(error).to_owned());
                 }
                 log_completion(
                     &LogResult::ToolCalls,
@@ -445,21 +506,36 @@ fn tool_use_unsupported(body: &Value) -> bool {
         .is_some_and(|message| message.to_lowercase().contains("tool use"))
 }
 
-fn decode_analysis(body: &Value) -> Result<Value, String> {
-    let content = first_choice(body)
-        .and_then(|choice| choice.get("message"))
-        .and_then(|message| message.get("content"))
-        .and_then(Value::as_str)
-        .ok_or_else(|| "OpenRouter returned an incomplete deck analysis.".to_owned())?;
-    match serde_json::from_str(content) {
-        Ok(Value::Object(map)) => Ok(Value::Object(map)),
-        _ => Err("OpenRouter returned an invalid deck analysis.".to_owned()),
+/// Appends the response schema to the system message, so the model knows
+/// the shape to answer in on rounds that cannot enforce it.
+fn describe_response_format(request: &mut Map<String, Value>) {
+    let Some(schema) = request
+        .get("response_format")
+        .and_then(|format| format.pointer("/json_schema/schema"))
+    else {
+        return;
+    };
+    let instruction = format!(
+        "\nOnce you are done calling tools, respond with exactly one JSON object that conforms to this JSON Schema, with no other text or Markdown fences:\n{schema}\n"
+    );
+    if let Some(Value::String(system)) = request
+        .get_mut("messages")
+        .and_then(Value::as_array_mut)
+        .and_then(|messages| {
+            messages
+                .iter_mut()
+                .find(|message| message["role"] == "system")
+        })
+        .and_then(|message| message.get_mut("content"))
+    {
+        system.push_str(&instruction);
     }
 }
 
-fn decode_answer(body: &Value) -> Result<Value, String> {
+/// The final message's content as the structured result object.
+fn decode(body: &Value) -> Result<Value, DecodeError> {
     let Some(choice) = first_choice(body) else {
-        return Err(ANSWER_INCOMPLETE.to_owned());
+        return Err(DecodeError::Incomplete);
     };
     let content = choice
         .get("message")
@@ -471,20 +547,40 @@ fn decode_answer(body: &Value) -> Result<Value, String> {
             Some("MAX_TOKENS" | "max_tokens")
         );
     match content {
-        None if limited => Err(ANSWER_TOKEN_LIMIT.to_owned()),
-        None => Err(ANSWER_INCOMPLETE.to_owned()),
-        Some(content) => match serde_json::from_str(content) {
-            Ok(Value::Object(map)) => Ok(Value::Object(map)),
-            _ if limited => Err(ANSWER_TOKEN_LIMIT.to_owned()),
-            _ => Err(ANSWER_INVALID.to_owned()),
+        None if limited => Err(DecodeError::TokenLimit),
+        None => Err(DecodeError::Incomplete),
+        Some(content) => match json_object(content) {
+            Some(map) => Ok(Value::Object(map)),
+            None if limited => Err(DecodeError::TokenLimit),
+            None => Err(DecodeError::Invalid),
         },
     }
+}
+
+/// The JSON object in `content`, bare or inside a Markdown code fence.
+fn json_object(content: &str) -> Option<Map<String, Value>> {
+    let object = |text: &str| match serde_json::from_str(text) {
+        Ok(Value::Object(map)) => Some(map),
+        _ => None,
+    };
+    let content = content.trim();
+    object(content).or_else(|| {
+        let fenced = content.strip_prefix("```")?.strip_suffix("```")?;
+        // The first fence line is a language tag unless the JSON starts there.
+        let body = match fenced.split_once('\n') {
+            Some((tag, rest)) if !tag.trim_start().starts_with('{') => rest,
+            _ => fenced,
+        };
+        object(body.trim())
+    })
 }
 
 enum LogResult<'a> {
     Ok,
     ToolCalls,
-    Error(&'a str),
+    /// The final message was not the JSON object; a repair round follows.
+    Unstructured,
+    Decode(DecodeError),
     /// The raw response text, for the error message.
     HttpError(&'a str),
 }
@@ -494,9 +590,10 @@ impl LogResult<'_> {
         match self {
             Self::Ok => "ok",
             Self::ToolCalls => "tool_calls",
-            Self::Error(message) if *message == ANSWER_TOKEN_LIMIT => "output_token_limit",
-            Self::Error(message) if *message == ANSWER_INCOMPLETE => "incomplete_response",
-            Self::Error(_) => "invalid_response",
+            Self::Unstructured => "unstructured_answer",
+            Self::Decode(DecodeError::TokenLimit) => "output_token_limit",
+            Self::Decode(DecodeError::Incomplete) => "incomplete_response",
+            Self::Decode(DecodeError::Invalid) => "invalid_response",
             Self::HttpError(_) => "http_error",
         }
     }
@@ -635,37 +732,76 @@ mod tests {
     fn answers_decode_with_token_limit_diagnostics() {
         let body = |choice: Value| json!({"choices": [choice]});
         assert_eq!(
-            decode_answer(&body(
+            decode(&body(
                 json!({"finish_reason": "length", "message": {"content": "{\"answer\":\"unf"}})
             )),
-            Err(ANSWER_TOKEN_LIMIT.to_owned())
+            Err(DecodeError::TokenLimit)
         );
         assert_eq!(
-            decode_answer(&body(
+            decode(&body(
                 json!({"native_finish_reason": "max_tokens", "message": {}})
             )),
-            Err(ANSWER_TOKEN_LIMIT.to_owned())
+            Err(DecodeError::TokenLimit)
         );
         assert_eq!(
-            decode_answer(&body(json!({"message": {"content": null}}))),
-            Err(ANSWER_INCOMPLETE.to_owned())
+            decode(&body(json!({"message": {"content": null}}))),
+            Err(DecodeError::Incomplete)
         );
         assert_eq!(
-            decode_answer(&body(json!({"message": {"content": "[1]"}}))),
-            Err(ANSWER_INVALID.to_owned())
+            decode(&body(json!({"message": {"content": "[1]"}}))),
+            Err(DecodeError::Invalid)
         );
         assert_eq!(
-            decode_answer(&json!({"choices": []})),
-            Err(ANSWER_INCOMPLETE.to_owned())
+            decode(&json!({"choices": []})),
+            Err(DecodeError::Incomplete)
         );
         assert_eq!(
-            decode_analysis(&json!({"choices": [{"message": {"content": "nope"}}]})),
-            Err("OpenRouter returned an invalid deck analysis.".to_owned())
+            decode(&json!({"choices": [{"message": {"content": "nope"}}]})),
+            Err(DecodeError::Invalid)
+        );
+        assert_eq!(decode(&json!("text")), Err(DecodeError::Incomplete));
+        assert_eq!(
+            Operation::DeckAnalysis.decode_error(DecodeError::Invalid),
+            "OpenRouter returned an invalid deck analysis."
         );
         assert_eq!(
-            decode_analysis(&json!("text")),
-            Err("OpenRouter returned an incomplete deck analysis.".to_owned())
+            Operation::DeckQuestion.decode_error(DecodeError::TokenLimit),
+            "OpenRouter ran out of output tokens before finishing the answer."
         );
+    }
+
+    #[test]
+    fn decodes_json_objects_with_or_without_code_fences() {
+        let object = json!({"answer": "ok"});
+        let map = object.as_object().cloned();
+        assert_eq!(json_object(" {\"answer\":\"ok\"} \n"), map);
+        assert_eq!(json_object("```json\n{\"answer\":\"ok\"}\n```"), map);
+        assert_eq!(json_object("```\n{\"answer\":\"ok\"}\n```"), map);
+        assert_eq!(json_object("```{\"answer\":\"ok\"}```"), map);
+        assert_eq!(json_object("Here you go:\n```json\n{}\n```"), None);
+        assert_eq!(json_object("```json\n[1]\n```"), None);
+        assert_eq!(json_object("## Markdown answer"), None);
+    }
+
+    #[test]
+    fn describes_the_response_schema_in_the_system_message() {
+        let mut request = json!({
+            "messages": [
+                {"role": "system", "content": "Be helpful."},
+                {"role": "user", "content": "Deck data"}
+            ],
+            "response_format": {"type": "json_schema", "json_schema": {"schema": {"type": "object"}}}
+        });
+        describe_response_format(request.as_object_mut().unwrap());
+        assert_eq!(
+            request["messages"][0]["content"],
+            "Be helpful.\nOnce you are done calling tools, respond with exactly one JSON object that conforms to this JSON Schema, with no other text or Markdown fences:\n{\"type\":\"object\"}\n"
+        );
+        assert_eq!(request["messages"][1]["content"], "Deck data");
+
+        let mut plain = json!({"messages": [{"role": "system", "content": "Be helpful."}]});
+        describe_response_format(plain.as_object_mut().unwrap());
+        assert_eq!(plain["messages"][0]["content"], "Be helpful.");
     }
 
     #[test]
