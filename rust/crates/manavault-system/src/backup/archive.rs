@@ -115,7 +115,11 @@ pub fn extract(artifact: &Path, extract_dir: &Path) -> Result<(), ArchiveError> 
     let file = std::fs::File::open(artifact).map_err(|e| read_error(e.to_string()))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| read_error(e.to_string()))?;
     let root = lexical_root(extract_dir);
-    let names: Vec<String> = archive.file_names().map(str::to_owned).collect();
+    let names: Vec<String> = archive
+        .file_names()
+        .map(|name| name.map(String::from))
+        .collect::<Result<_, _>>()
+        .map_err(|e| read_error(e.to_string()))?;
     for name in &names {
         let resolved = expand(&root, name);
         if resolved != root && !resolved.starts_with(&root) {
@@ -134,7 +138,10 @@ pub fn extract(artifact: &Path, extract_dir: &Path) -> Result<(), ArchiveError> 
         let mut entry = archive
             .by_index(index)
             .map_err(|e| extract_error(e.to_string()))?;
-        let target = expand(&root, entry.name());
+        let target = expand(
+            &root,
+            &entry.name().map_err(|e| extract_error(e.to_string()))?,
+        );
         if entry.is_dir() {
             std::fs::create_dir_all(&target).map_err(|e| extract_error(e.to_string()))?;
             continue;

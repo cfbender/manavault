@@ -112,7 +112,7 @@ utoipa = "6"
 # `vendored` embeds the Swagger UI distribution in the binary, so the build
 # never downloads it and the release image serves the assets itself.
 utoipa-swagger-ui = { version = "10", default-features = false, features = ["axum", "vendored"] }
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 http-body-util = "0.1"
 pretty_assertions = "1"
 tokio-tungstenite = "0.29"
