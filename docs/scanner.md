@@ -106,9 +106,16 @@ Code lives in `assets/react/src/pages/scan/`.
   tracking never sticks to a wrong window. Measured on the 2026-09-29 bundle in single-threaded
   WASM: card frames 264 → 190 ms, empty frames 264 → 87 ms, with identical matches.
 - `scan-decision.ts` decides when to log. A card is in view when the detector's upright vote is at
-  least 0.5 and its short side at least 60 px. A match is logged on one frame at a score of 0.75
-  or more with a 0.08 lead over the runner-up, otherwise after two agreeing frames scoring at least
-  0.6. The same card (both faces count as one) is not logged again until a different card is.
+  least 0.5 and its short side at least 60 px. A match scoring 0.75 or more with a 0.08 lead over
+  the runner-up is logged after two consecutive agreeing frames, any other match scoring at least
+  0.6 after three. The card must hold still across them: between frames its centre may move at
+  most a tenth of its short side and its size change at most 10%, otherwise the count restarts.
+  A blurred card (slid off a stack, or crossed by a moving camera) matches random artwork at
+  0.6–0.67, often the same wrong card on consecutive frames, so this is what keeps cards in
+  motion out of the list. A frame whose best match is a blank gallery art (`BLANK_ARTS`: Mystery
+  Booster 2's playtest Whiteout, whose art crop is all white and which any card with glare on
+  its art matches at about 0.98) is treated as a card not yet identified. The same card (both
+  faces count as one) is not logged again until a different card is.
   With locked sets, only artwork printed in those sets can be logged
   (`scannerSetIllustrations(setCodes)` lists their illustration IDs); a card that clearly
   matches something outside them is reported as "Not in locked sets" instead. Tokens mode

@@ -203,7 +203,9 @@ camera; the browser or OS asks for camera access once.
 
 - Hold one card at a time in view (a phone scanner stand works well; the whole
   camera image is scanned). Cards are recognized and logged
-  automatically, with no tap. The same card is never logged twice in a row;
+  automatically, with no tap, once they hold still for a moment; a card being
+  moved, or one with glare washing out its art, is not logged. The same card is
+  never logged twice in a row;
   tap the result or **+1** to count another copy.
 - Recognition matches the artwork, so reprints that share art cannot be told
   apart by the camera. The default printing is a locked set if any, then the
