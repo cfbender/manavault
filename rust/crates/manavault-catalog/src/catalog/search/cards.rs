@@ -9,7 +9,7 @@ use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use crate::catalog::card::{Card, CardRecord, NON_TOKEN_SQL, TOKEN_SQL};
 use crate::catalog::printing::{self, Printing};
 use crate::catalog::scryfall_query::{self, Expr, Field, Predicate};
-use crate::catalog::search::predicates;
+use crate::catalog::search::{name_match, predicates};
 use crate::catalog::sql::json_list;
 use crate::{card_query, printing_query};
 
@@ -168,6 +168,28 @@ fn base_query(
     builder
 }
 
+/// The normalized name a query of only plain words spells, if it is one.
+fn plain_name(term: &str) -> Option<String> {
+    let expr = scryfall_query::parse(term).ok()?;
+    let terms = match &expr {
+        Expr::And(terms) => terms.as_slice(),
+        single => std::slice::from_ref(single),
+    };
+    let words = terms
+        .iter()
+        .map(|term| match term {
+            Expr::Predicate(Predicate {
+                field: Field::Text,
+                regex: false,
+                value,
+                ..
+            }) => Some(value.as_str()),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (!words.is_empty()).then(|| name_match::sql_normalize(&words.join(" ")))
+}
+
 /// Cards matching `term`, each with its printings; printings that satisfy the
 /// term come first, then the rest, each group earliest-released first.
 ///
@@ -192,7 +214,17 @@ pub async fn search_cards(
         filter.push_to(&mut builder);
     }
     builder.push(" GROUP BY c.oracle_id ORDER BY ");
-    builder.push(Sort::from_query(term, options.sort).order_by());
+    let sort = Sort::from_query(term, options.sort);
+    // A name search puts the card with exactly that name first, so "Swamp"
+    // is not buried under "Foggy Bottom Swamp" and the like.
+    if sort.field == SortField::Name
+        && let Some(name) = plain_name(term)
+    {
+        builder.push("c.normalized_name = ");
+        builder.push_bind(name);
+        builder.push(" DESC, ");
+    }
+    builder.push(sort.order_by());
     builder.push(" LIMIT ");
     builder.push_bind(options.limit);
     builder.push(" OFFSET ");

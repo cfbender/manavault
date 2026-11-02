@@ -120,6 +120,31 @@ async fn sorts_by_name_and_offsets_the_window() {
 }
 
 #[tokio::test]
+async fn name_searches_put_the_exact_name_first() {
+    let app = TestApp::new().await;
+    let named = |id: &str, name: &str| {
+        merge(
+            time_walk(),
+            json!({"id": format!("scryfall-{id}"), "oracle_id": format!("oracle-{id}"), "name": name}),
+        )
+    };
+    app.import_cards(&[
+        named("foggy", "Foggy Bottom Swamp"),
+        named("leech", "Leechridden Swamp"),
+        named("swamp", "Swamp"),
+    ])
+    .await;
+    let first_two = SearchOptions {
+        limit: 2,
+        ..SearchOptions::default()
+    };
+    assert_eq!(
+        names(&app, "SWAMP", first_two).await,
+        ["Swamp", "Foggy Bottom Swamp"]
+    );
+}
+
+#[tokio::test]
 async fn sorts_by_mana_value_color_and_type() {
     let app = TestApp::new().await;
     app.import_cards(&[time_walk(), black_lotus(), plains()])
