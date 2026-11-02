@@ -85,7 +85,8 @@ Card detail pages show:
 
 - oracle text and mana symbols, including back faces
 - Scryfall oracle tags, deck category, and deck themes
-- format legalities and Game Changer status
+- format legalities (legal, not legal, banned, or restricted, per Scryfall)
+  and Game Changer status
 - rulings
 - EDHREC synergies such as top commanders and related cards
 - your collection copies and the decks they are allocated to

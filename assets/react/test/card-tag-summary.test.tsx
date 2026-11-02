@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react"
 import { afterEach, expect, test } from "vitest"
 
-import { CardTagSummary } from "../src/pages/cards/detail-sections"
+import { CardLegalityPanel, CardTagSummary } from "../src/pages/cards/detail-sections"
 import type { CardDetail } from "../src/pages/cards/data"
 
 afterEach(cleanup)
@@ -58,4 +58,28 @@ test("legendary creatures link commander and card ranks to their respective page
     "https://edhrec.com/commanders/esika-god-of-the-tree",
   )
   expect(cardRank.getAttribute("href")).toBe("https://edhrec.com/cards/esika-god-of-the-tree")
+})
+
+test("legalities show banned and restricted statuses per format", () => {
+  render(
+    <CardLegalityPanel
+      legalities={[
+        { format: "vintage", status: "restricted" },
+        { format: "legacy", status: "banned" },
+        { format: "commander", status: "banned" },
+        { format: "competitivebrawl", status: "legal" },
+        { format: "modern", status: "not_legal" },
+      ]}
+    />,
+  )
+
+  const statusOf = (format: string) =>
+    screen.getByText(format, { selector: "dt" }).nextElementSibling?.textContent
+
+  expect(statusOf("Vintage")).toBe("RESTRICTED")
+  expect(statusOf("Legacy")).toBe("BANNED")
+  expect(statusOf("Commander")).toBe("BANNED")
+  expect(statusOf("Comp. Brawl")).toBe("LEGAL")
+  expect(statusOf("Modern")).toBe("NOT LEGAL")
+  expect(statusOf("Pauper")).toBe("NOT LEGAL")
 })

@@ -115,6 +115,17 @@ function EdhrecRankLink({ children, href }: { children: ReactNode; href: string 
   )
 }
 
+type LegalityBadge = { label: string; tone: "neutral" | "success" | "warning" | "error" }
+
+const NOT_LEGAL_BADGE: LegalityBadge = { label: "NOT LEGAL", tone: "neutral" }
+
+// Scryfall's legality statuses: legal, not_legal, restricted, banned.
+const LEGALITY_STATUS_BADGES: Record<string, LegalityBadge> = {
+  legal: { label: "LEGAL", tone: "success" },
+  restricted: { label: "RESTRICTED", tone: "warning" },
+  banned: { label: "BANNED", tone: "error" },
+}
+
 export function CardLegalityPanel({
   gameChanger = false,
   legalities,
@@ -139,14 +150,12 @@ export function CardLegalityPanel({
 
       <dl className="grid gap-2 border-t border-base-300/70 px-4 py-3 sm:grid-cols-2">
         {CARD_LEGALITY_FORMATS.map((format) => {
-          const isLegal = statusesByFormat[format.key] === "legal"
+          const status = statusesByFormat[format.key]?.toLowerCase()
           const isCommanderGameChanger =
-            isLegal && gameChanger === true && format.key === "commander"
-          const legalityLabel = isLegal
-            ? isCommanderGameChanger
-              ? "LEGAL/GC"
-              : "LEGAL"
-            : "NOT LEGAL"
+            status === "legal" && gameChanger === true && format.key === "commander"
+          const { label: legalityLabel, tone } = isCommanderGameChanger
+            ? { label: "LEGAL/GC", tone: "warning" as const }
+            : (LEGALITY_STATUS_BADGES[status ?? ""] ?? NOT_LEGAL_BADGE)
 
           return (
             <div
@@ -156,10 +165,10 @@ export function CardLegalityPanel({
               <dt className="text-sm font-semibold text-base-content/75">{format.label}</dt>
               <dd>
                 <Badge
-                  tone={isCommanderGameChanger ? "warning" : isLegal ? "success" : "neutral"}
+                  tone={tone}
                   className={cn(
-                    "min-w-20 justify-center text-[0.65rem] font-black uppercase tracking-wide",
-                    !isLegal && "border-base-content/20 text-base-content/50",
+                    "min-w-24 justify-center text-[0.65rem] font-black uppercase tracking-wide",
+                    tone === "neutral" && "border-base-content/20 text-base-content/50",
                   )}
                 >
                   {legalityLabel}
