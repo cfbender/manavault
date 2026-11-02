@@ -13,7 +13,7 @@ use crate::decks::model::{
     DeckCardId, DeckCardRow, DeckFormat, DeckId, counted_quantity, counts_toward_deck, id_list,
 };
 use manavault_catalog::catalog::card::CardRecord;
-use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::catalog::printing::{Printing, printed_at_uncommon};
 use manavault_catalog::catalog::sql::json_list;
 
 /// A deck card with its card, preferred printing, and fallback printing
@@ -24,6 +24,9 @@ pub struct LoadedDeckCard {
     pub card: Arc<CardRecord>,
     pub preferred_printing: Option<Printing>,
     pub fallback_printing: Option<Printing>,
+    /// Whether the card has an uncommon printing; loaded for commanders only,
+    /// which Pauper Commander requires to be uncommon.
+    pub printed_at_uncommon: bool,
 }
 
 /// Every card of a deck, ordered by zone, card name, and id
@@ -62,6 +65,7 @@ impl DeckContents {
                 zone: card.row.zone,
                 quantity: card.row.quantity.get(),
                 card: Some(&card.card),
+                printed_at_uncommon: card.printed_at_uncommon,
             })
             .collect();
         legality::evaluate(format, &cards)
@@ -361,8 +365,14 @@ pub async fn load_cards(
             .into_iter()
             .map(|card| (card.oracle_id.clone(), Arc::new(card)))
             .collect();
+    let commander_ids = unique(
+        rows.iter()
+            .filter(|row| row.zone == Zone::Commander)
+            .map(|row| row.oracle_id.clone()),
+    );
     let preferred = Printing::load_many(pool, &printing_ids).await?;
     let fallbacks = fallback_printings(pool, &oracle_ids).await?;
+    let uncommon = printed_at_uncommon(pool, &commander_ids).await?;
     Ok(rows
         .into_iter()
         .filter_map(|row| {
@@ -377,6 +387,7 @@ pub async fn load_cards(
                 .cloned()
                 .map(|printing| printing.with_card(card.clone()));
             Some(LoadedDeckCard {
+                printed_at_uncommon: uncommon.contains(&row.oracle_id),
                 row,
                 card,
                 preferred_printing,

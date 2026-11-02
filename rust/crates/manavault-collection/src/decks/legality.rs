@@ -17,6 +17,9 @@ pub struct LegalityCard<'a> {
     pub zone: Zone,
     pub quantity: u32,
     pub card: Option<&'a CardRecord>,
+    /// Whether the card has an uncommon printing (Pauper Commander's
+    /// commander rule); only read for commanders.
+    pub printed_at_uncommon: bool,
 }
 
 /// One rule violation.
@@ -108,12 +111,32 @@ fn card_legality_issues(format: DeckFormat, cards: &[&LegalityCard<'_>]) -> Vec<
                 .map(|record| json::object(&record.legalities))
                 .unwrap_or_default();
             let status = match legalities.get(format.legality_key()) {
-                Some(Value::String(status)) if status == "legal" => return None,
-                Some(Value::String(status)) => status.clone(),
-                Some(Value::Null) | None => "missing".to_owned(),
-                Some(other) => other.to_string(),
+                Some(Value::String(status)) if status == "legal" => None,
+                Some(Value::String(status)) => Some(status.clone()),
+                Some(Value::Null) | None => Some("missing".to_owned()),
+                Some(other) => Some(other.to_string()),
             };
             let name = card_name(card);
+            // Scryfall's Pauper Commander legality covers the 99 (commons), so
+            // an uncommon commander is judged by the commander rule instead.
+            if format == DeckFormat::PauperCommander
+                && card.zone == Zone::Commander
+                && status.as_deref() != Some("banned")
+            {
+                let eligible = card.card.is_some_and(|record| {
+                    commander::can_be_pauper_commander(record, card.printed_at_uncommon)
+                });
+                return (!eligible).then(|| {
+                    issue(
+                        "commander_eligibility",
+                        format!(
+                            "{name} can't lead a Pauper Commander deck; its commander must be a creature, Vehicle, or Spacecraft printed at uncommon."
+                        ),
+                        Some(name),
+                    )
+                });
+            }
+            let status = status?;
             Some(issue(
                 "card_legality",
                 format!("{name} is not legal in {format} (status: {status})."),

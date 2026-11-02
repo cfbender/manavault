@@ -216,6 +216,7 @@ pub async fn preview(
                 zone: card.row.zone,
                 quantity: remaining,
                 card: Some(card.card.as_ref()),
+                printed_at_uncommon: card.printed_at_uncommon,
             })
         })
         .collect();
@@ -255,6 +256,7 @@ fn added<'a>(oracle_id: &'a OracleId, quantity: u32, card: &'a CardRecord) -> Le
         zone: Zone::Mainboard,
         quantity,
         card: Some(card),
+        printed_at_uncommon: false,
     }
 }
 

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT p.oracle_id AS \"oracle_id!: OracleId\"\n           FROM scryfall_printings AS p\n           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n             AND p.rarity = 'uncommon' AND p.lang = 'en'",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6d09293a1cbbda740a58f0818c96700e8a5c41fb1e555e529e7b5d30cae364d7"
+}

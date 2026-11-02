@@ -8,15 +8,15 @@ use lotus::{Finish, OracleId, Quantity, ScryfallId, Zone};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::decks::model::{
-    DeckCardId, DeckCardRow, DeckCardTag, DeckId, DeckRow, load_deck_card_on, load_deck_cards,
-    load_deck_on, parse_zone,
+    DeckCardId, DeckCardRow, DeckCardTag, DeckFormat, DeckId, DeckRow, load_deck_card_on,
+    load_deck_cards, load_deck_on, parse_zone,
 };
 use crate::decks::validation::{
     self, BLANK, Change, INVALID, TAKEN, ValidationError, apply, at_least, greater_than, less_than,
 };
 use crate::decks::{DeckError, commander, ensure_deck_editable, ensure_decklist_editable};
 use manavault_catalog::catalog::card::{CardRecord, load_record};
-use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::catalog::printing::{Printing, printed_at_uncommon};
 use manavault_core::db;
 use manavault_core::timestamp::Timestamp;
 
@@ -760,9 +760,14 @@ pub async fn set_commander(pool: &SqlitePool, id: DeckCardId) -> Result<DeckCard
         .ok_or(DeckError::NotFound)?;
     let deck = deck_of(&mut tx, &row).await?;
     ensure_decklist_editable(&deck)?;
-    let eligible = card_record(pool, &row.oracle_id)
-        .await?
-        .is_some_and(|card| commander::can_be_commander(&card));
+    let eligible = match card_record(pool, &row.oracle_id).await? {
+        Some(card) if deck.format == DeckFormat::PauperCommander => {
+            let uncommon = printed_at_uncommon(pool, std::slice::from_ref(&row.oracle_id)).await?;
+            commander::can_be_pauper_commander(&card, uncommon.contains(&row.oracle_id))
+        }
+        Some(card) => commander::can_be_commander(&card),
+        None => false,
+    };
     if !eligible {
         return Err(DeckError::Code("not_commander_eligible"));
     }

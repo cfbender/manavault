@@ -60,6 +60,7 @@ text_enum!(
     DeckFormat {
         Commander => "commander",
         DuelCommander => "duel_commander",
+        PauperCommander => "pauper_commander",
         Standard => "standard",
         Pioneer => "pioneer",
         Modern => "modern",
@@ -76,15 +77,20 @@ impl DeckFormat {
     /// Whether the format's decks are led by a commander (and follow the Commander deck rules).
     #[must_use]
     pub fn has_commander(self) -> bool {
-        matches!(self, Self::Commander | Self::DuelCommander)
+        matches!(
+            self,
+            Self::Commander | Self::DuelCommander | Self::PauperCommander
+        )
     }
 
     /// The Scryfall `legalities` key for the format's card pool. Canadian Highlander has no
-    /// key of its own; its pool is Vintage's (its points list is not modeled).
+    /// key of its own; its pool is Vintage's (its points list is not modeled). Scryfall's
+    /// Pauper Commander key marks only commons legal, so it judges the 99, not the commander.
     #[must_use]
     pub fn legality_key(self) -> &'static str {
         match self {
             Self::DuelCommander => "duel",
+            Self::PauperCommander => "paupercommander",
             Self::CanadianHighlander => "vintage",
             other => other.as_str(),
         }
@@ -376,6 +382,7 @@ mod tests {
             vec![
                 "commander",
                 "duel_commander",
+                "pauper_commander",
                 "standard",
                 "pioneer",
                 "modern",

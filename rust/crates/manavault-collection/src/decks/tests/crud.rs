@@ -673,6 +673,59 @@ async fn duel_commander_uses_duel_legality_with_commander_rules_and_highlander_u
 }
 
 #[tokio::test]
+async fn pauper_commander_is_led_by_an_uncommon_creature_over_common_cards() {
+    let app = TestApp::new().await;
+    let pdh = |status: &str| json!({"commander": "legal", "paupercommander": status});
+    app.import_cards(&[
+        legality_card(
+            "Uncommon Spirit",
+            &["W"],
+            pdh("not_legal"),
+            json!({"type_line": "Creature — Spirit", "rarity": "uncommon"}),
+        ),
+        legality_card(
+            "Common Cat",
+            &["W"],
+            pdh("legal"),
+            json!({"type_line": "Creature — Cat", "rarity": "common"}),
+        ),
+        merge(legal_plains(), json!({"legalities": pdh("legal")})),
+        legal_commander_card(),
+    ])
+    .await;
+    let deck = create_deck(app.db(), "PDH", Some("pauper_commander"), None)
+        .await
+        .id;
+    let spirit = add_card(app.db(), deck, "Uncommon Spirit", 1, "mainboard").await;
+    let cat = add_card(app.db(), deck, "Common Cat", 1, "mainboard").await;
+    let legend = add_card(app.db(), deck, "Test Commander", 1, "mainboard").await;
+    add_card(app.db(), deck, "Plains", 97, "mainboard").await;
+    for row in [&cat, &legend] {
+        assert!(matches!(
+            cards::set_commander(app.db(), row.id).await,
+            Err(DeckError::Code("not_commander_eligible"))
+        ));
+    }
+    cards::set_commander(app.db(), spirit.id).await.unwrap();
+    let spirit_led = legality(app.db(), deck).await;
+    let codes: Vec<&str> = spirit_led.issues.iter().map(|issue| issue.code).collect();
+    assert_eq!(codes, ["card_legality"]);
+    assert_eq!(
+        issue(&spirit_led, "card_legality").card_name.as_deref(),
+        Some("Test Commander")
+    );
+
+    let common_led = create_deck(app.db(), "Common Led", Some("pauper_commander"), None)
+        .await
+        .id;
+    add_card(app.db(), common_led, "Common Cat", 1, "commander").await;
+    add_card(app.db(), common_led, "Plains", 99, "mainboard").await;
+    let common_led = legality(app.db(), common_led).await;
+    let codes: Vec<&str> = common_led.issues.iter().map(|issue| issue.code).collect();
+    assert_eq!(codes, ["commander_eligibility"]);
+}
+
+#[tokio::test]
 async fn duplicate_banned_and_off_color_cards_are_illegal() {
     let app = TestApp::new().await;
     app.import_cards(&[

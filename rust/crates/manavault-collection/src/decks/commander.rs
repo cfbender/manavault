@@ -28,6 +28,24 @@ pub fn can_be_commander(card: &CardRecord) -> bool {
     lotus::can_be_commander(card.type_line, card.oracle_text)
 }
 
+/// Whether the card can lead a Pauper Commander deck (PDH Home Base): a
+/// creature, Vehicle, or Spacecraft by its front face, legendary or not,
+/// that has been printed at uncommon.
+#[must_use]
+pub fn can_be_pauper_commander(card: &CardRecord, printed_at_uncommon: bool) -> bool {
+    let front = card
+        .type_line
+        .as_deref()
+        .unwrap_or("")
+        .split("//")
+        .next()
+        .unwrap_or("");
+    printed_at_uncommon
+        && front
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|word| matches!(word, "Creature" | "Vehicle" | "Spacecraft"))
+}
+
 /// Whether two cards form a legal two-commander pairing
 /// (`CommanderRules.valid_pair?/2`): matching Partner keywords (restricted
 /// variants need the same label), "Partner with" each other, Friends forever,

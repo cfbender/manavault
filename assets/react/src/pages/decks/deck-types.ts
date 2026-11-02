@@ -203,6 +203,7 @@ export type DeckCustomTag = {
 export const DECK_FORMATS = [
   "commander",
   "duel_commander",
+  "pauper_commander",
   "standard",
   "pioneer",
   "modern",
@@ -215,7 +216,7 @@ export const DECK_FORMATS = [
 ] as const
 /** Formats whose decks are led by a commander and follow the Commander deck rules. */
 export function hasCommander(format: string | null | undefined) {
-  return format === "commander" || format === "duel_commander"
+  return format === "commander" || format === "duel_commander" || format === "pauper_commander"
 }
 export const DECK_STATUSES = ["brewing", "active", "archived"] as const
 export function deckZoneDisplayLabel(zone: string | null | undefined): string {

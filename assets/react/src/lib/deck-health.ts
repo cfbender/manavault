@@ -155,7 +155,9 @@ export function buildDeckHealth(
   options: { format: string | null | undefined; stats: DeckStats },
 ): DeckHealth {
   const template: DeckHealthTemplate =
-    options.format === "commander" || options.format === "duel_commander"
+    options.format === "commander" ||
+    options.format === "duel_commander" ||
+    options.format === "pauper_commander"
       ? "commander"
       : "constructed"
   const counted = countedCards(deckCards)

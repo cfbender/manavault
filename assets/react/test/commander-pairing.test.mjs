@@ -140,3 +140,28 @@ test("canBeCommander rejects non-legendary cards, Backgrounds, and back-face-onl
   )
   assert.equal(canBeCommander({}), false)
 })
+
+test("canBeCommander drops the legendary requirement for Pauper Commander", () => {
+  assert.equal(
+    canBeCommander({ typeLine: "Creature — Spirit", oracleText: "" }, "pauper_commander"),
+    true,
+  )
+  assert.equal(
+    canBeCommander({ typeLine: "Artifact — Vehicle", oracleText: "Crew 1" }, "pauper_commander"),
+    true,
+  )
+  assert.equal(
+    canBeCommander(
+      {
+        typeLine: "Legendary Planeswalker — Jace",
+        oracleText: "Jace, Multiverse Architect can be your commander.",
+      },
+      "pauper_commander",
+    ),
+    false,
+  )
+  assert.equal(
+    canBeCommander({ typeLine: "Creature — Spirit", oracleText: "" }, "duel_commander"),
+    false,
+  )
+})

@@ -1,7 +1,7 @@
 //! Card printings (`Manavault.Catalog.Printing`, `scryfall_printings`) and
 //! the GraphQL `Printing` type.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_graphql::{Context, ID, Object};
@@ -268,6 +268,29 @@ pub async fn with_cards(
             }
         })
         .collect())
+}
+
+/// The given cards with an English uncommon printing: Pauper Commander's
+/// commander rarity. The catalog holds paper printings only, so an uncommon
+/// printing on MTGO alone does not count here.
+pub async fn printed_at_uncommon(
+    pool: &SqlitePool,
+    oracle_ids: &[OracleId],
+) -> Result<HashSet<OracleId>, sqlx::Error> {
+    if oracle_ids.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let ids = crate::catalog::sql::json_list(oracle_ids);
+    sqlx::query_scalar!(
+        r#"SELECT DISTINCT p.oracle_id AS "oracle_id!: OracleId"
+           FROM scryfall_printings AS p
+           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))
+             AND p.rarity = 'uncommon' AND p.lang = 'en'"#,
+        ids
+    )
+    .fetch_all(pool)
+    .await
+    .map(|ids| ids.into_iter().collect())
 }
 
 /// Owned collection copies per printing of the given cards, ignoring list

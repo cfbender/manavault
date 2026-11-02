@@ -71,7 +71,7 @@ export function DeckDetailCardCollections({
       {groupedCards.length ? (
         <DeckGroupGrid
           canEditDecklist={canEditDecklist}
-          canSetCommander={canEditDecklist && hasCommander(deckFormat)}
+          commanderFormat={canEditDecklist && hasCommander(deckFormat) ? deckFormat : null}
           deckId={deckId}
           deckTags={deckTags}
           groups={groupedCards}

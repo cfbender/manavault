@@ -161,7 +161,7 @@ test("a touch that scrolls across a deck stack does not raise the card it starte
   const noop = vi.fn()
   const { container } = render(
     <DeckStackGroup
-      canSetCommander={false}
+      commanderFormat={null}
       deckId="deck-1"
       deckTags={[]}
       group={{ cards, icon: "none", key: "main", label: "Main", order: 0, quantity: 2 }}

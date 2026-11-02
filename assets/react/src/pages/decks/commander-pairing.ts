@@ -11,13 +11,18 @@ export type CommanderPairingCard = {
 
 // CR 903.3: a legendary creature, Vehicle, or Spacecraft (front face), or any
 // card whose text says it "can be your commander" (903.3a), e.g. planeswalker
-// commanders such as Jace, Multiverse Architect.
-export function canBeCommander(card: CommanderPairingCard): boolean {
+// commanders such as Jace, Multiverse Architect. Pauper Commander drops the
+// legendary requirement but needs an uncommon printing, which only the backend
+// can check.
+export function canBeCommander(card: CommanderPairingCard, format?: string): boolean {
   const front = (card.typeLine || "").split("//", 1)[0]
-  const legendaryCommanderType =
-    front.includes("Legendary") && /\b(?:Creature|Vehicle|Spacecraft)\b/.test(front)
+  const commanderType = /\b(?:Creature|Vehicle|Spacecraft)\b/.test(front)
+  if (format === "pauper_commander") return commanderType
 
-  return legendaryCommanderType || /can be your commander/iu.test(card.oracleText || "")
+  return (
+    (front.includes("Legendary") && commanderType) ||
+    /can be your commander/iu.test(card.oracleText || "")
+  )
 }
 
 export function isValidCommanderPair(
