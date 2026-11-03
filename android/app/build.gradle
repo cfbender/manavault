@@ -97,8 +97,9 @@ android {
 }
 
 gradle.taskGraph.whenReady { taskGraph ->
-    if (taskGraph.hasTask(":app:assembleRelease") && !manavaultReleaseSigningConfigured) {
-        throw new GradleException("Release APKs must be signed. Set MANAVAULT_ANDROID_KEYSTORE, MANAVAULT_ANDROID_KEYSTORE_PASSWORD, and MANAVAULT_ANDROID_KEY_ALIAS. MANAVAULT_ANDROID_KEY_PASSWORD is optional and defaults to the keystore password.")
+    def releasePackaging = taskGraph.hasTask(":app:assembleRelease") || taskGraph.hasTask(":app:bundleRelease")
+    if (releasePackaging && !manavaultReleaseSigningConfigured) {
+        throw new GradleException("Release APKs and app bundles must be signed. Set MANAVAULT_ANDROID_KEYSTORE, MANAVAULT_ANDROID_KEYSTORE_PASSWORD, and MANAVAULT_ANDROID_KEY_ALIAS. MANAVAULT_ANDROID_KEY_PASSWORD is optional and defaults to the keystore password.")
     }
 }
 

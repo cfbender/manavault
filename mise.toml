@@ -206,6 +206,10 @@ run = "aube run android:build:debug"
 description = "Build a signed release Capacitor Android APK."
 run = "aube run android:build:release"
 
+[tasks."android:bundle:release"]
+description = "Build a signed release Capacitor Android App Bundle (AAB) for Google Play."
+run = "aube run android:bundle:release"
+
 [tasks."android:signing:setup"]
 description = "Create a local Android release keystore and print the GitHub secrets to save."
 run = "aube run android:signing:setup"
