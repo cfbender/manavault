@@ -14,8 +14,10 @@ const NO_STORE: [(axum::http::HeaderName, &str); 3] = [
     (EXPIRES, "0"),
 ];
 const ANDROID_PACKAGE_NAME: &str = "dev.cfb.manavault";
-const OFFICIAL_ANDROID_CERT_FINGERPRINTS: [&str; 1] = [
+// GitHub release APK signing key, then the Google Play app signing key.
+const OFFICIAL_ANDROID_CERT_FINGERPRINTS: [&str; 2] = [
     "6B:3F:13:D6:6A:11:BB:49:FE:D8:64:5C:7D:26:B8:2E:BD:FC:8C:14:19:53:1C:A3:35:E6:68:DF:F7:4E:13:89",
+    "74:0E:2B:CD:0D:C1:4E:E1:0A:10:AD:A7:1D:9A:6D:A7:A8:88:FB:93:96:D3:2E:A0:72:57:CE:06:77:12:08:05",
 ];
 
 fn versioned(path: &str, version: &str) -> String {

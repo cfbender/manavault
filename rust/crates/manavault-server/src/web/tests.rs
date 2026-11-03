@@ -512,11 +512,22 @@ mod pwa {
             .get("/.well-known/assetlinks.json")
             .await
             .json();
+        let fingerprints: Vec<_> = links
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|link| link["target"]["sha256_cert_fingerprints"].clone())
+            .collect();
         assert_eq!(
-            links[0]["target"]["sha256_cert_fingerprints"],
-            json!([
-                "6B:3F:13:D6:6A:11:BB:49:FE:D8:64:5C:7D:26:B8:2E:BD:FC:8C:14:19:53:1C:A3:35:E6:68:DF:F7:4E:13:89"
-            ])
+            fingerprints,
+            [
+                json!([
+                    "6B:3F:13:D6:6A:11:BB:49:FE:D8:64:5C:7D:26:B8:2E:BD:FC:8C:14:19:53:1C:A3:35:E6:68:DF:F7:4E:13:89"
+                ]),
+                json!([
+                    "74:0E:2B:CD:0D:C1:4E:E1:0A:10:AD:A7:1D:9A:6D:A7:A8:88:FB:93:96:D3:2E:A0:72:57:CE:06:77:12:08:05"
+                ]),
+            ]
         );
         let app = TestApp::with_config(|config| {
             config.android_cert_fingerprints = vec!["AA:BB:CC:DD".into()];

@@ -83,7 +83,7 @@ pub struct Config {
     /// Cache-busting version for the shell assets (`ManavaultWeb.AssetVersion`).
     pub asset_version: String,
     /// Android app signing fingerprints for `/.well-known/assetlinks.json`
-    /// (`MANAVAULT_ANDROID_CERT_FINGERPRINTS`); empty uses the official one.
+    /// (`MANAVAULT_ANDROID_CERT_FINGERPRINTS`); empty uses the official ones.
     pub android_cert_fingerprints: Vec<String>,
     /// Third-party endpoints used by the platform services (overridden in tests).
     pub platform_urls: PlatformUrls,
