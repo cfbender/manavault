@@ -120,6 +120,15 @@ export function NativeAppSection({
               }
             />
           </div>
+
+          <a
+            href="https://github.com/cfbender/manavault/blob/main/docs/privacy.md"
+            target="_blank"
+            rel="noreferrer"
+            className="link link-primary text-sm"
+          >
+            Privacy policy
+          </a>
         </div>
       </div>
     </PageSection>
