@@ -9,8 +9,9 @@ ManaVault is developed by Cody Bender ("we").
 ## Summary
 
 ManaVault is self-hosted. The app is a client for a ManaVault server that you
-(or someone you trust) run. We do not operate a service for app users, and we do
-not collect, receive, sell, or share your personal data. The app contains no
+(or someone you trust) run. Apart from a public demo server (see below), we do
+not operate a service for app users, and we do not collect, receive, sell, or
+share your personal data. The app contains no
 advertising, analytics, or tracking SDKs.
 
 ## Data the app handles
@@ -27,6 +28,14 @@ advertising, analytics, or tracking SDKs.
   labels are uploaded to your own ManaVault server.
 - **Shared and opened files.** When you share or open a text or CSV file with
   ManaVault, the app reads it and sends its contents to your server to import.
+
+## Public demo server
+
+We run a demo server at `https://manavault-demo.cfb.dev` so app reviewers and
+testers can try ManaVault without hosting their own. Everyone using the demo
+shares one account, so anything entered there is visible to other demo users.
+The demo is reset to sample data every night, which erases all changes. Do not
+enter personal information on the demo server.
 
 ## Third-party services
 
