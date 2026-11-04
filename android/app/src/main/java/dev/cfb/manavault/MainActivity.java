@@ -11,7 +11,15 @@ import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.WebView;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.stream.Collectors;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -39,8 +47,12 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         String serverUrl = savedServerUrl();
         if (serverUrl != null) {
+            // CapConfig.Builder starts from defaults rather than capacitor.config.json, so pass the
+            // plugin settings on; without them SystemBars falls back to its "css" insets handling
+            // and pads the window for the keyboard on top of passSafeAreaToPage().
             config = new CapConfig.Builder(this)
                     .setServerUrl(serverUrl)
+                    .setPluginsConfiguration(bundledPluginsConfig())
                     .create();
         }
         registerPlugin(InAppHttpNavigationPlugin.class);
@@ -80,8 +92,8 @@ public class MainActivity extends BridgeActivity {
             view.setPadding(0, 0, 0, bottomPadding);
             safeArea = Insets.of(bars.left, bars.top, bars.right, keyboard ? 0 : bars.bottom);
             injectSafeArea(webView);
-            // WebView M139+ also shrinks its viewport by the IME inset it receives; hand it the
-            // insets minus the padding above so the keyboard is not subtracted twice.
+            // WebView M139+ sizes its visual viewport from the IME inset it receives; hand it the
+            // insets minus the padding above, as the WebView insets guide recommends.
             return insets.inset(0, 0, 0, bottomPadding);
         });
         getBridge().addWebViewListener(new WebViewListener() {
@@ -128,6 +140,17 @@ public class MainActivity extends BridgeActivity {
 
     private void flushWebViewCookies() {
         CookieManager.getInstance().flush();
+    }
+
+    private JSONObject bundledPluginsConfig() {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(getAssets().open("capacitor.config.json"), StandardCharsets.UTF_8))) {
+            String json = reader.lines().collect(Collectors.joining("\n"));
+            return new JSONObject(json).optJSONObject("plugins");
+        } catch (IOException | JSONException exception) {
+            Log.e(TAG, "Could not read plugin settings from capacitor.config.json", exception);
+            return null;
+        }
     }
 
     private String savedServerUrl() {
