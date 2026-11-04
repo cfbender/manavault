@@ -190,3 +190,28 @@ export const DeckBoxFieldsFragment = graphql(`
     commanderColorIdentity
   }
 `)
+
+export const CommanderPreconsDocument = graphql(`
+  query CommanderPrecons {
+    commanderPrecons {
+      id
+      name
+      product
+      colorIdentity
+      url
+    }
+  }
+`)
+
+export const ImportCommanderPreconDocument = graphql(`
+  mutation ImportCommanderPrecon($input: ImportCommanderPreconInput!) {
+    importCommanderPrecon(input: $input) {
+      deck {
+        id
+        name
+      }
+      unresolved
+      addedToCollection
+    }
+  }
+`)

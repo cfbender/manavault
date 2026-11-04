@@ -134,7 +134,7 @@ pub fn parse_url(url: &str) -> Result<ExternalLink, DeckError> {
     })
 }
 
-fn client(state: &AppState) -> Result<DecklistClient, FetchError> {
+pub(crate) fn client(state: &AppState) -> Result<DecklistClient, FetchError> {
     let urls = &state.config.platform_urls;
     DecklistClient::builder(manavault_core::state::USER_AGENT)
         .moxfield_api_base(urls.moxfield_api.clone())
@@ -384,7 +384,28 @@ async fn printing_changes(
     Ok(changes)
 }
 
+/// Reconciles the deck with the entries and records the sync time.
 async fn apply_entries(
+    conn: &mut SqliteConnection,
+    pool: &SqlitePool,
+    deck_id: DeckId,
+    entries: &[Entry],
+) -> Result<Vec<String>, DeckError> {
+    let unresolved = write_entries(conn, pool, deck_id, entries).await?;
+    let now = Timestamp::now();
+    sqlx::query!(
+        "UPDATE decks SET external_synced_at = ?2, external_sync_error = NULL, updated_at = ?2 WHERE id = ?1",
+        deck_id,
+        now
+    )
+    .execute(&mut *conn)
+    .await?;
+    Ok(unresolved)
+}
+
+/// Makes the deck's cards match the entries (see the module docs for how
+/// allocations follow) and returns the names that matched no card.
+pub(crate) async fn write_entries(
     conn: &mut SqliteConnection,
     pool: &SqlitePool,
     deck_id: DeckId,
@@ -475,15 +496,6 @@ async fn apply_entries(
     for row in removed.values().filter(|row| !moved_ids.contains(&row.id)) {
         cards::delete_unchecked_in(conn, row).await?;
     }
-
-    let now = Timestamp::now();
-    sqlx::query!(
-        "UPDATE decks SET external_synced_at = ?2, external_sync_error = NULL, updated_at = ?2 WHERE id = ?1",
-        deck_id,
-        now
-    )
-    .execute(&mut *conn)
-    .await?;
     Ok(unresolved)
 }
 

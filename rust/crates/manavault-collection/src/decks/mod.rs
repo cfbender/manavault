@@ -16,6 +16,7 @@ pub mod external;
 pub mod legality;
 pub mod model;
 pub mod picker;
+pub mod precons;
 pub mod records;
 pub mod schema;
 pub mod share_token;

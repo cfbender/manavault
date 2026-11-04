@@ -8,6 +8,7 @@ pub mod types;
 use async_graphql::{Context, Enum, ID, InputObject, MaybeUndefined, Object, SimpleObject};
 use lotus::ScryfallId;
 
+use crate::decks::DeckError;
 use crate::decks::cards::{self, CardRef, DeckCardChanges, NewDeckCard};
 use crate::decks::contents::load_contents;
 use crate::decks::model::{DeckCardId, DeckId};
@@ -15,15 +16,18 @@ use crate::decks::records::{self, DeckChanges, PlayOutcome};
 use crate::decks::swap::{self, CutDestination, Swap, SwapAdd, SwapCut};
 use crate::decks::tags::{self, DeckTagChanges, DefaultTagEntry};
 use crate::decks::validation::Change;
-use crate::decks::{decklist, external, picker};
+use crate::decks::{decklist, external, picker, precons};
 use errors::{
     add_card_error, card_tag_error, commander_error, deck_edit_error, deck_error,
     deck_import_error, deck_swap_error, tag_error,
 };
-use manavault_core::graphql::relay::{self, PageArgs, node_int, node_str, optional_node_int};
+use manavault_core::graphql::relay::{
+    self, LocationRef, PageArgs, location_ref, node_int, node_str, optional_node_int,
+};
 use manavault_core::graphql::{NodeKind, Result, internal_error, state, user_error};
 use types::{
-    Deck, DeckCard, DeckConnection, DeckImportResult, DeckSwapPreview, DeckTag, DefaultDeckTag,
+    CommanderPrecon, Deck, DeckCard, DeckConnection, DeckImportResult, DeckSwapPreview, DeckTag,
+    DefaultDeckTag,
 };
 
 fn deck_id(id: &ID) -> Result<DeckId> {
@@ -107,6 +111,20 @@ pub struct DeckInput {
     pub format: MaybeUndefined<String>,
     pub status: MaybeUndefined<String>,
     pub included_for_play: MaybeUndefined<bool>,
+}
+
+/// A Commander precon to import as a new deck.
+#[derive(InputObject)]
+pub struct ImportCommanderPreconInput {
+    /// The precon's id from `commanderPrecons`.
+    pub precon_id: String,
+    /// The new deck's name; defaults to the precon's name.
+    pub name: Option<String>,
+    /// Also add the precon's cards to the collection and allocate them to
+    /// the new deck. Basic lands are skipped.
+    pub add_to_collection: Option<bool>,
+    /// Where added cards are stored; unfiled when absent.
+    pub location_id: Option<ID>,
 }
 
 /// `DeckUpdateInput`.
@@ -306,6 +324,15 @@ impl DeckQueries {
         Ok(relay::from_slice(decks, offset, offset > 0, offset + limit < total).into())
     }
 
+    /// The Commander decks Wizards of the Coast publishes on Moxfield,
+    /// newest first.
+    async fn commander_precons(&self, ctx: &Context<'_>) -> Result<Vec<CommanderPrecon>> {
+        let precons = precons::list(state(ctx))
+            .await
+            .map_err(|error| external_error(&external::SyncError::Fetch(error)))?;
+        Ok(precons.into_iter().map(CommanderPrecon).collect())
+    }
+
     async fn random_deck(&self, ctx: &Context<'_>, exclude_id: Option<ID>) -> Result<Option<Deck>> {
         let exclude = optional_node_int(exclude_id.as_ref(), NodeKind::Deck)?.map(DeckId);
         let random: f64 = rand::random();
@@ -394,6 +421,15 @@ pub struct RotateDeckShareTokenPayload {
 pub struct LinkDeckExternalSourcePayload {
     pub deck: Option<Deck>,
     pub unresolved: Vec<String>,
+}
+
+#[derive(SimpleObject)]
+pub struct ImportCommanderPreconPayload {
+    pub deck: Option<Deck>,
+    /// Card names that matched no card in the catalog.
+    pub unresolved: Vec<String>,
+    /// Copies added to the collection and allocated to the deck.
+    pub added_to_collection: i64,
 }
 
 #[derive(SimpleObject)]
@@ -508,6 +544,19 @@ fn external_error(error: &external::SyncError) -> async_graphql::Error {
     match error.graphql_message() {
         Some(message) => user_error(message),
         None => internal_error(error),
+    }
+}
+
+fn precon_import_error(error: &external::SyncError) -> async_graphql::Error {
+    match error {
+        external::SyncError::Fetch(_) => external_error(error),
+        external::SyncError::Deck(deck) => match deck {
+            DeckError::Db(_) => internal_error(error),
+            DeckError::Message(message) => user_error(message.clone()),
+            DeckError::Invalid(errors) => user_error(errors.to_string()),
+            DeckError::Code("invalid_external_url") => user_error("Choose a precon from the list."),
+            _ => user_error("Could not import the precon."),
+        },
     }
 }
 
@@ -674,6 +723,37 @@ impl DeckMutations {
         Ok(Some(SyncDeckExternalSourcePayload {
             deck: Some(Deck::new(synced.deck)),
             unresolved: synced.unresolved,
+        }))
+    }
+
+    /// Imports a Commander precon as a new, unlinked deck.
+    async fn import_commander_precon(
+        &self,
+        ctx: &Context<'_>,
+        input: ImportCommanderPreconInput,
+    ) -> Result<Option<ImportCommanderPreconPayload>> {
+        let location_id = match input.location_id.as_ref().filter(|id| !id.is_empty()) {
+            None => None,
+            Some(id) => match location_ref(id)? {
+                LocationRef::Unfiled => None,
+                LocationRef::Id(id) => Some(id),
+            },
+        };
+        let imported = precons::import(
+            state(ctx),
+            &precons::PreconImport {
+                precon_id: input.precon_id,
+                name: input.name,
+                add_to_collection: input.add_to_collection.unwrap_or(false),
+                location_id,
+            },
+        )
+        .await
+        .map_err(|error| precon_import_error(&error))?;
+        Ok(Some(ImportCommanderPreconPayload {
+            deck: Some(Deck::new(imported.deck)),
+            unresolved: imported.unresolved,
+            added_to_collection: i64::from(imported.added_to_collection),
         }))
     }
 

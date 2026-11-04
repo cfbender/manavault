@@ -327,6 +327,16 @@ Deck workflows include:
   Printing and finish follow the remote only for cards without allocated
   copies, since an allocation pins the deck card to the owned printing.
   **Unlink** keeps the imported cards and makes the deck editable again.
+- **Import precon** - the deck gallery's button lists the Commander decks
+  Wizards of the Coast publishes on Moxfield
+  ([WizardsOfTheCoast](https://moxfield.com/users/WizardsOfTheCoast)), newest
+  first, searchable by deck name or product. The list is cached for twelve
+  hours. Importing creates a new, unlinked Commander deck with the precon's
+  printings and finishes. Optionally the cards are also added to the
+  collection in a chosen storage location (list locations can't hold
+  allocated cards) and allocated to the new deck in the same transaction;
+  basic lands are skipped because decks count them as allocated. As with
+  linked decks, Moxfield may refuse requests from unapproved clients.
 
 ## Allocation, Pull Lists, and Missing Cards
 

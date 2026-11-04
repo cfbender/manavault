@@ -4,5 +4,6 @@
 mod crud;
 mod external;
 mod lists;
+mod precons;
 mod schema;
 mod swaps;

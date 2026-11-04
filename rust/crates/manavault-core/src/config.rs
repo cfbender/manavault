@@ -107,6 +107,9 @@ pub struct PlatformUrls {
     pub moxfield_api: String,
     /// Archidekt deck API base (linked decks); `<id>/` is appended.
     pub archidekt_api: String,
+    /// Moxfield deck search (the Commander precon list); query parameters
+    /// are appended.
+    pub moxfield_deck_search: String,
 }
 
 impl PlatformUrls {
@@ -125,6 +128,7 @@ impl PlatformUrls {
             star_city_games_affiliate: format!("{base}/scg/affiliate"),
             moxfield_api: format!("{base}/moxfield/"),
             archidekt_api: format!("{base}/archidekt/"),
+            moxfield_deck_search: format!("{base}/moxfield/search"),
         }
     }
 }
@@ -142,6 +146,7 @@ impl Default for PlatformUrls {
             star_city_games_affiliate: "https://ajax.starcitygames.com/affiliate".to_owned(),
             moxfield_api: lotus::decklist::moxfield::API_BASE.to_owned(),
             archidekt_api: lotus::decklist::archidekt::API_BASE.to_owned(),
+            moxfield_deck_search: "https://api2.moxfield.com/v2/decks/search-sfw".to_owned(),
         }
     }
 }

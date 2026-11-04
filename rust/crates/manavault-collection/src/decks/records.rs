@@ -1,7 +1,7 @@
 //! Creating, updating, sharing, and deleting decks (`Decks.Records`,
 //! `Decks.Queries`, `Decks.DeckPicker.record_outcome/2`).
 
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::decks::model::{
     DeckCardId, DeckFormat, DeckId, DeckRow, DeckStatus, load_deck, load_deck_on,
@@ -162,8 +162,18 @@ pub async fn get_deck(pool: &SqlitePool, id: DeckId) -> Result<DeckRow, DeckErro
 
 /// `Decks.create_deck/1`: inserts the deck and copies the default tags.
 pub async fn create_deck(pool: &SqlitePool, changes: &DeckChanges) -> Result<DeckRow, DeckError> {
-    let values = validate(None, changes)?;
     let mut tx = db::begin_write(pool).await?;
+    let deck = create_deck_in(&mut tx, changes).await?;
+    tx.commit().await?;
+    Ok(deck)
+}
+
+/// [`create_deck`] inside the caller's transaction.
+pub async fn create_deck_in(
+    tx: &mut SqliteConnection,
+    changes: &DeckChanges,
+) -> Result<DeckRow, DeckError> {
+    let values = validate(None, changes)?;
     let now = Timestamp::now();
     let id = sqlx::query_scalar!(
         r#"INSERT INTO decks (name, format, status, included_for_play, play_count, skip_count,
@@ -183,12 +193,8 @@ pub async fn create_deck(pool: &SqlitePool, changes: &DeckChanges) -> Result<Dec
     )
     .fetch_one(&mut *tx)
     .await?;
-    tags::seed_deck_default_tags(&mut tx, id).await?;
-    let deck = load_deck_on(&mut tx, id)
-        .await?
-        .ok_or(DeckError::DeckNotFound)?;
-    tx.commit().await?;
-    Ok(deck)
+    tags::seed_deck_default_tags(tx, id).await?;
+    load_deck_on(tx, id).await?.ok_or(DeckError::DeckNotFound)
 }
 
 /// `Decks.update_deck/2`. A cover card must belong to the deck.

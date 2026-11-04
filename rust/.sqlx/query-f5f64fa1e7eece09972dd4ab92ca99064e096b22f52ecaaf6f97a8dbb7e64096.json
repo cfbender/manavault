@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ci.scryfall_id AS \"printing!\", ci.quantity AS \"quantity!\", ci.finish AS \"finish!\",\n                  ci.location_id, da.source_location_id\n           FROM collection_items ci JOIN deck_allocations da ON da.collection_item_id = ci.id\n           ORDER BY ci.scryfall_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "printing!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "finish!",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "location_id",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_id"
+          }
+        }
+      },
+      {
+        "name": "source_location_id",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "source_location_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f5f64fa1e7eece09972dd4ab92ca99064e096b22f52ecaaf6f97a8dbb7e64096"
+}

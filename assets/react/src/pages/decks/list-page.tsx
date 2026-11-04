@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Archive, ChevronDown, Dices, Plus, Sparkles } from "lucide-react"
+import { Archive, ChevronDown, Dices, PackageOpen, Plus, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Badge } from "../../components/ui/badge"
@@ -23,17 +23,20 @@ import {
 import { groupDecksByFormat } from "./deck-list-model"
 import { DeckPlayHistory, RandomDeckDialog } from "./deck-picker"
 import { ShareDeckDialog } from "./deck-share-dialogs"
+import { PreconImportDialog } from "./precon-import-dialog"
 import { flattenDecks, partitionDecksByArchive, type DeckSummary } from "./deck-types"
 import { DecksDocument, DeleteDeckDocument } from "./deck-list-documents"
 
 function DeckGalleryHeader({
   canPickDeck,
   onAnalyzeDeck,
+  onImportPrecon,
   onNewDeck,
   onPickDeck,
 }: {
   canPickDeck: boolean
   onAnalyzeDeck: () => void
+  onImportPrecon: () => void
   onNewDeck: () => void
   onPickDeck: () => void
 }) {
@@ -64,6 +67,15 @@ function DeckGalleryHeader({
         >
           <Dices className="h-4 w-4" />
           Pick a deck
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-w-36 flex-1 sm:flex-none"
+          onClick={onImportPrecon}
+        >
+          <PackageOpen className="h-4 w-4" />
+          Import precon
         </Button>
         <Button type="button" className="min-w-36 flex-1 sm:flex-none" onClick={onNewDeck}>
           <Plus className="h-4 w-4" />
@@ -309,6 +321,7 @@ function ArchivedDecksAccordion({
 export function DecksPage() {
   const [isDeckAnalysisOpen, setIsDeckAnalysisOpen] = useState(false)
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
+  const [isPreconImportOpen, setIsPreconImportOpen] = useState(false)
   const [isRandomDeckOpen, setIsRandomDeckOpen] = useState(false)
   const [comboDeck, setComboDeck] = useState<DeckSummary | null>(null)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
@@ -382,6 +395,7 @@ export function DecksPage() {
       <DeckGalleryHeader
         canPickDeck={activeDecks.length > 0}
         onAnalyzeDeck={() => setIsDeckAnalysisOpen(true)}
+        onImportPrecon={() => setIsPreconImportOpen(true)}
         onNewDeck={() => setIsNewDeckOpen(true)}
         onPickDeck={() => setIsRandomDeckOpen(true)}
       />
@@ -419,6 +433,7 @@ export function DecksPage() {
       )}
       <DeckAnalysisDialog open={isDeckAnalysisOpen} onOpenChange={setIsDeckAnalysisOpen} />
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
+      <PreconImportDialog open={isPreconImportOpen} onOpenChange={setIsPreconImportOpen} />
       <RandomDeckDialog
         open={isRandomDeckOpen}
         onOpenChange={setIsRandomDeckOpen}
