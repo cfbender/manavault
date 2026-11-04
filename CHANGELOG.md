@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.3.1] - 2026-11-04
+
+### Bug Fixes
+
+- **android:** Stop subtracting the keyboard twice from the WebView ([`e80092e5`](../../commit/e80092e5a4ee79a4b94462fd9248194b0ded8ab5))
+
 ## [2.3.0] - 2026-11-04
 
 ### Bug Fixes
