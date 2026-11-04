@@ -134,7 +134,7 @@ pub fn parse_url(url: &str) -> Result<ExternalLink, DeckError> {
     })
 }
 
-pub(crate) fn client(state: &AppState) -> Result<DecklistClient, FetchError> {
+fn client(state: &AppState) -> Result<DecklistClient, FetchError> {
     let urls = &state.config.platform_urls;
     DecklistClient::builder(manavault_core::state::USER_AGENT)
         .moxfield_api_base(urls.moxfield_api.clone())

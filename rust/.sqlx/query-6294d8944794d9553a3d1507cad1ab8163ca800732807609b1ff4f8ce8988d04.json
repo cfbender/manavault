@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT code AS \"code!\", name AS \"name!\" FROM scryfall_sets WHERE name IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "code!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_sets",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_sets",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "6294d8944794d9553a3d1507cad1ab8163ca800732807609b1ff4f8ce8988d04"
+}

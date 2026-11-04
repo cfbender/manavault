@@ -689,33 +689,33 @@ impl DeckSwapPreview {
     }
 }
 
-/// A Commander precon Wizards of the Coast publishes on Moxfield.
+/// A Commander precon decklist.
 pub struct CommanderPrecon(pub crate::decks::precons::Precon);
 
 #[Object]
 impl CommanderPrecon {
-    /// Moxfield's public deck id; pass it to `importCommanderPrecon`.
+    /// The precon's id; pass it to `importCommanderPrecon`.
     async fn id(&self) -> &str {
         &self.0.id
     }
 
-    /// The deck's own name, such as "Subjective Reality".
+    /// The deck's name, such as "Subjective Reality".
     async fn name(&self) -> &str {
         &self.0.name
     }
 
-    /// The product it came in, such as "Commander 2018".
+    /// The product's set name, such as "Commander 2018".
     async fn product(&self) -> Option<&str> {
         self.0.product.as_deref()
     }
 
-    /// Single-letter color codes in WUBRG order.
-    async fn color_identity(&self) -> &[String] {
-        &self.0.color_identity
+    /// `YYYY-MM-DD`.
+    async fn release_date(&self) -> Option<&str> {
+        self.0.release_date.as_deref()
     }
 
-    /// The deck on Moxfield.
-    async fn url(&self) -> &str {
-        &self.0.url
+    /// Wizards of the Coast's decklist article.
+    async fn url(&self) -> Option<&str> {
+        self.0.url.as_deref()
     }
 }

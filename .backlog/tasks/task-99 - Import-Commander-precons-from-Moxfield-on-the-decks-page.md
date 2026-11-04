@@ -5,7 +5,7 @@ status: Review
 assignee:
   - '@amp'
 created_date: '2026-11-04T00:26:00Z'
-updated_date: '2026-11-04T00:50:00Z'
+updated_date: '2026-11-04T06:58:00Z'
 labels: []
 dependencies: []
 ordinal: 121000
@@ -35,6 +35,8 @@ Add an Import precon button to the decks gallery. It lists the Commander-format 
 
 <!-- SECTION:NOTES:BEGIN -->
 Verified: rust:check (fmt, clippy -D warnings, workspace tests) and frontend lint/format/typecheck/test:react pass. 4 new Rust tests (wiremock list paging/cache, import with collection add + allocation, GraphQL import + list-location refusal) and 2 React dialog tests. End-to-end in the orb against a local mock of Moxfield's API (orb IPs get Cloudflare 403 from moxfield.com) with a full Scryfall catalog: imported Subjective Reality with collection add into a deck box; 30 non-basic items created and all allocated with the deck box as source location. Live Moxfield responses were not reachable from the orb.
+
+Switched the precon source from Moxfield to MTGJSON (DeckList.json filtered to type 'Commander Deck', decks/<fileName>.json). Moxfield's list came back empty in prod: the WotC account files precons under a separate format and the source can't be checked from orbs. MTGJSON was verified live from the orb: 198 Commander decks, real Scryfall ids and isFoil/isEtched flags; an end-to-end import of Subjective Reality (no mocks) produced 100 cards, 3 foil commanders, 84 collection copies all allocated. Imports only accept ids from the list; empty lists are not cached.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

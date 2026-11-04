@@ -36,25 +36,25 @@ vi.mock("@apollo/client/react", async () => {
           data: {
             commanderPrecons: [
               {
-                id: "precon-1",
+                id: "SubjectiveReality_C18",
                 name: "Subjective Reality",
                 product: "Commander 2018",
-                colorIdentity: ["W", "U"],
-                url: "https://moxfield.com/decks/precon-1",
+                releaseDate: "2018-08-10",
+                url: "https://magic.wizards.com/c18",
               },
               {
-                id: "precon-2",
+                id: "EowynsRiders_LTC",
                 name: "Éowyn's Riders",
                 product: "The Lord of the Rings Commander",
-                colorIdentity: ["G", "W"],
-                url: "https://moxfield.com/decks/precon-2",
+                releaseDate: "2023-06-23",
+                url: null,
               },
               {
-                id: "precon-3",
+                id: "NatureOfTheBeast_C13",
                 name: "Nature of the Beast",
                 product: "Commander 2013",
-                colorIdentity: ["R", "G", "W"],
-                url: "https://moxfield.com/decks/precon-3",
+                releaseDate: "2013-11-01",
+                url: "https://magic.wizards.com/c13",
               },
             ],
           },
@@ -127,7 +127,7 @@ test("imports the chosen precon into a storage location and opens the new deck",
 
   expect(mocks.mutationVariables).toEqual({
     input: {
-      preconId: "precon-1",
+      preconId: "SubjectiveReality_C18",
       name: "Kitties",
       addToCollection: true,
       locationId: "loc-box",

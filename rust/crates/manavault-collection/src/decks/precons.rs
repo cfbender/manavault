@@ -1,114 +1,135 @@
-//! Commander precons: the Commander decks Wizards of the Coast publishes on
-//! Moxfield (<https://moxfield.com/users/WizardsOfTheCoast>), and importing
-//! one as a new deck.
+//! Commander precons: the Commander decks in MTGJSON's deck list
+//! (<https://mtgjson.com/api/v5/DeckList.json>, built from Wizards of the
+//! Coast's published decklists), and importing one as a new deck.
 //!
-//! The list comes from Moxfield's deck search, one request per hundred
-//! decks, and is cached for twelve hours. An import fetches the deck like a
-//! linked deck does but leaves the new deck unlinked, so it can be edited.
+//! The list is cached for twelve hours. A deck file names each card's
+//! Scryfall printing and whether the precon's copy is foil or etched. The
+//! new deck is a plain Commander deck that can be edited.
 //! With `add_to_collection`, each card in the command zone and main deck
 //! becomes a collection item of the precon's printing and finish (stored in
 //! the chosen location) and is allocated to the deck, all in the deck's
 //! creation transaction. Basic lands are skipped: decks count them as
 //! allocated without copies.
 
-use std::sync::LazyLock;
 use std::time::Duration;
 
 use async_graphql::MaybeUndefined;
-use lotus::decklist::FetchError;
+use lotus::decklist::{Entry, FetchError};
 use lotus::{Finish, Quantity, Zone};
-use regex::Regex;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
+use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::collection::changes::{self, ItemChanges, ItemError};
 use crate::decks::DeckError;
 use crate::decks::external::{self, SyncError};
-use crate::decks::model::{
-    CollectionItemId, DeckCardId, DeckId, DeckRow, ExternalSource, load_deck_on,
-};
+use crate::decks::model::{CollectionItemId, DeckCardId, DeckId, DeckRow, load_deck_on};
 use crate::decks::records::{self, DeckChanges};
 use manavault_catalog::pricing::PriceStore;
 use manavault_core::db;
 use manavault_core::state::AppState;
 
-/// The Moxfield user whose Commander decks are the precons.
-pub const AUTHOR: &str = "WizardsOfTheCoast";
-const CACHE_KEY: &str = "moxfield:commander_precons";
+/// The MTGJSON deck type of Commander precons.
+const COMMANDER_DECK: &str = "Commander Deck";
+const CACHE_KEY: &str = "mtgjson:commander_precons";
 const CACHE_TTL: Duration = Duration::from_secs(12 * 60 * 60);
-const PAGE_SIZE: u32 = 100;
-/// Stops a search whose page count never ends.
-const MAX_PAGES: u32 = 20;
 
 /// One precon in the list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Precon {
-    /// Moxfield's public deck id.
+    /// MTGJSON's deck file name, such as `SubjectiveReality_C18`.
     pub id: String,
-    /// The deck's own name, such as `Subjective Reality`.
+    /// The deck's name, such as `Subjective Reality`.
     pub name: String,
-    /// The product it came in, such as `Commander 2018`, when the Moxfield
-    /// name says.
+    /// The product's set name, such as `Commander 2018`, when the catalog
+    /// knows the set.
     pub product: Option<String>,
-    /// Single-letter color codes in WUBRG order.
-    pub color_identity: Vec<String>,
-    pub url: String,
-    /// When Moxfield created the deck, used for newest-first order.
-    pub created_at: Option<String>,
+    /// `YYYY-MM-DD`.
+    pub release_date: Option<String>,
+    /// Wizards of the Coast's decklist article.
+    pub url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Wrapped<T> {
+    data: T,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SearchPage {
-    #[serde(default)]
-    total_pages: u32,
-    #[serde(default)]
-    data: Vec<SearchDeck>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SearchDeck {
-    public_id: String,
+struct ListedDeck {
+    code: String,
+    file_name: String,
     name: String,
     #[serde(default)]
-    color_identity: Vec<String>,
+    release_date: Option<String>,
     #[serde(default)]
-    created_at_utc: Option<String>,
+    source: Option<String>,
+    #[serde(rename = "type")]
+    kind: String,
 }
 
-/// `Deck Name (Product Precon Decklist)`, Moxfield's naming for the
-/// account's decks.
-static PRECON_NAME: LazyLock<Option<Regex>> =
-    LazyLock::new(|| Regex::new(r"(?i)^(.+?)\s*\((.+?)\s+precon\s+decklist\)\s*$").ok());
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeckFile {
+    name: String,
+    #[serde(default)]
+    commander: Vec<DeckFileCard>,
+    #[serde(default)]
+    main_board: Vec<DeckFileCard>,
+    #[serde(default)]
+    side_board: Vec<DeckFileCard>,
+}
 
-/// Splits a Moxfield deck name into the deck's own name and its product.
-#[must_use]
-pub fn split_name(full: &str) -> (String, Option<String>) {
-    let full = full.trim();
-    match PRECON_NAME.as_ref().and_then(|re| re.captures(full)) {
-        Some(captures) => (
-            captures[1].trim().to_owned(),
-            Some(captures[2].trim().to_owned()),
-        ),
-        None => (full.to_owned(), None),
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeckFileCard {
+    name: String,
+    count: i64,
+    #[serde(default)]
+    is_foil: bool,
+    #[serde(default)]
+    is_etched: bool,
+    #[serde(default)]
+    identifiers: Identifiers,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Identifiers {
+    #[serde(default)]
+    scryfall_id: Option<String>,
+}
+
+impl DeckFileCard {
+    fn entry(&self, zone: Zone) -> Option<Entry> {
+        let mut entry = Entry::from_source(
+            Some(self.name.clone()),
+            Some(self.count),
+            zone,
+            self.identifiers.scryfall_id.clone(),
+        )?;
+        entry.finish = if self.is_etched {
+            Finish::Etched
+        } else if self.is_foil {
+            Finish::Foil
+        } else {
+            Finish::Nonfoil
+        };
+        Some(entry)
     }
 }
 
-fn precon(deck: SearchDeck) -> Precon {
-    let (name, product) = split_name(&deck.name);
-    let color_identity = ["W", "U", "B", "R", "G"]
+impl DeckFile {
+    fn entries(&self) -> Vec<Entry> {
+        [
+            (&self.commander, Zone::Commander),
+            (&self.main_board, Zone::Mainboard),
+            (&self.side_board, Zone::Considering),
+        ]
         .into_iter()
-        .filter(|color| deck.color_identity.iter().any(|code| code == color))
-        .map(str::to_owned)
-        .collect();
-    Precon {
-        url: format!("https://moxfield.com/decks/{}", deck.public_id),
-        id: deck.public_id,
-        name,
-        product,
-        color_identity,
-        created_at: deck.created_at_utc,
+        .flat_map(|(cards, zone)| cards.iter().filter_map(move |card| card.entry(zone)))
+        .collect()
     }
 }
 
@@ -120,22 +141,18 @@ fn request_error(error: &reqwest::Error) -> FetchError {
     }
 }
 
-async fn search_page(state: &AppState, page: u32) -> Result<SearchPage, FetchError> {
-    let page = page.to_string();
-    let size = PAGE_SIZE.to_string();
+/// GETs `path` under the MTGJSON API base and decodes its `data`.
+async fn get_data<T: DeserializeOwned>(state: &AppState, path: &[&str]) -> Result<T, FetchError> {
+    let mut url = reqwest::Url::parse(&state.config.platform_urls.mtgjson_api)
+        .map_err(|_| FetchError::RequestFailed)?;
+    url.path_segments_mut()
+        .map_err(|()| FetchError::RequestFailed)?
+        .pop_if_empty()
+        .extend(path);
     let response = state
         .http
-        .get(&state.config.platform_urls.moxfield_deck_search)
+        .get(url)
         .header(reqwest::header::ACCEPT, "application/json")
-        .query(&[
-            ("authorUserNames", AUTHOR),
-            ("fmt", "commander"),
-            ("pageNumber", page.as_str()),
-            ("pageSize", size.as_str()),
-            ("sortType", "created"),
-            ("sortDirection", "descending"),
-            ("showIllegal", "true"),
-        ])
         .send()
         .await
         .map_err(|error| request_error(&error))?;
@@ -149,31 +166,56 @@ async fn search_page(state: &AppState, page: u32) -> Result<SearchPage, FetchErr
         .bytes()
         .await
         .map_err(|error| request_error(&error))?;
-    serde_json::from_slice(&body).map_err(|_| FetchError::InvalidJson)
+    serde_json::from_slice::<Wrapped<T>>(&body)
+        .map(|wrapped| wrapped.data)
+        .map_err(|_| FetchError::InvalidJson)
 }
 
-/// Every precon, newest first; cached for twelve hours.
-pub async fn list(state: &AppState) -> Result<Vec<Precon>, FetchError> {
+/// Set names by lowercase code, from the catalog's Scryfall set list.
+async fn set_names(
+    pool: &SqlitePool,
+) -> Result<std::collections::HashMap<String, String>, sqlx::Error> {
+    Ok(sqlx::query!(
+        r#"SELECT code AS "code!", name AS "name!" FROM scryfall_sets WHERE name IS NOT NULL"#
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| (row.code, row.name))
+    .collect())
+}
+
+/// Every precon, newest first, then by name; cached for twelve hours.
+pub async fn list(state: &AppState) -> Result<Vec<Precon>, SyncError> {
     if let Some(cached) = state.cache_get::<Vec<Precon>>(CACHE_KEY).await {
         return Ok(cached);
     }
-    let mut precons: Vec<Precon> = Vec::new();
-    let mut page = 1;
-    loop {
-        let result = search_page(state, page).await?;
-        for deck in result.data {
-            if !precons.iter().any(|known| known.id == deck.public_id) {
-                precons.push(precon(deck));
-            }
-        }
-        if page >= result.total_pages.min(MAX_PAGES) {
-            break;
-        }
-        page += 1;
+    let decks: Vec<ListedDeck> = get_data(state, &["DeckList.json"])
+        .await
+        .map_err(SyncError::Fetch)?;
+    let sets = set_names(&state.db).await?;
+    let mut precons: Vec<Precon> = decks
+        .into_iter()
+        .filter(|deck| deck.kind == COMMANDER_DECK)
+        .map(|deck| Precon {
+            product: sets.get(&deck.code.to_lowercase()).cloned(),
+            id: deck.file_name,
+            name: deck.name,
+            release_date: deck.release_date,
+            url: deck.source,
+        })
+        .collect();
+    // ISO dates order as text; undated decks go last.
+    precons.sort_by(|a, b| {
+        b.release_date
+            .cmp(&a.release_date)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    // An empty list means a broken response; ask again next time instead of
+    // serving it for hours.
+    if !precons.is_empty() {
+        state.cache_put(CACHE_KEY, &precons, CACHE_TTL).await;
     }
-    // ISO timestamps order as text; undated decks go last.
-    precons.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-    state.cache_put(CACHE_KEY, &precons, CACHE_TTL).await;
     Ok(precons)
 }
 
@@ -202,12 +244,14 @@ pub struct Imported {
 /// Imports a precon as a new deck, optionally adding its cards to the
 /// collection and allocating them. Nothing is written when any step fails.
 pub async fn import(state: &AppState, input: &PreconImport) -> Result<Imported, SyncError> {
-    let link = external::parse_url(&format!(
-        "https://moxfield.com/decks/{}",
-        input.precon_id.trim()
-    ))?;
-    if link.source != ExternalSource::Moxfield {
-        return Err(DeckError::Code("invalid_external_url").into());
+    // Only listed precons: the id becomes part of the request path.
+    let precon_id = input.precon_id.trim();
+    if !list(state)
+        .await?
+        .iter()
+        .any(|precon| precon.id == precon_id)
+    {
+        return Err(DeckError::Message("Choose a precon from the list.".to_owned()).into());
     }
     let location_id = if input.add_to_collection {
         input.location_id
@@ -217,9 +261,8 @@ pub async fn import(state: &AppState, input: &PreconImport) -> Result<Imported, 
     if let Some(location_id) = location_id {
         ensure_storage_location(&state.db, location_id).await?;
     }
-    let decklist = external::client(state)
-        .map_err(SyncError::Fetch)?
-        .fetch_moxfield(&link.id)
+    let file_name = format!("{precon_id}.json");
+    let deck: DeckFile = get_data(state, &["decks", &file_name])
         .await
         .map_err(SyncError::Fetch)?;
     let name = input
@@ -227,9 +270,9 @@ pub async fn import(state: &AppState, input: &PreconImport) -> Result<Imported, 
         .as_deref()
         .map(str::trim)
         .filter(|name| !name.is_empty())
-        .map(str::to_owned)
-        .or_else(|| decklist.name.as_deref().map(|name| split_name(name).0))
-        .unwrap_or_else(|| "Commander precon".to_owned());
+        .map_or_else(|| deck.name.clone(), str::to_owned);
+
+    let entries = deck.entries();
 
     let mut tx = db::begin_write(&state.db).await?;
     let deck = records::create_deck_in(
@@ -241,8 +284,7 @@ pub async fn import(state: &AppState, input: &PreconImport) -> Result<Imported, 
         },
     )
     .await?;
-    let unresolved =
-        external::write_entries(&mut tx, &state.db, deck.id, &decklist.entries).await?;
+    let unresolved = external::write_entries(&mut tx, &state.db, deck.id, &entries).await?;
     let added_to_collection = if input.add_to_collection {
         add_to_collection(&mut tx, &state.prices, deck.id, location_id).await?
     } else {
@@ -261,7 +303,7 @@ pub async fn import(state: &AppState, input: &PreconImport) -> Result<Imported, 
 
 /// Allocated copies leave their location, so a list location (wanted
 /// cards) cannot hold them.
-async fn ensure_storage_location(pool: &sqlx::SqlitePool, id: i64) -> Result<(), DeckError> {
+async fn ensure_storage_location(pool: &SqlitePool, id: i64) -> Result<(), DeckError> {
     let kind: Option<String> =
         sqlx::query_scalar!(r#"SELECT kind AS "kind!" FROM locations WHERE id = ?1"#, id)
             .fetch_optional(pool)

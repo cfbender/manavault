@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
-import { ColorIdentitySymbols } from "../../components/ui/mana-symbols"
 import { Switch } from "../../components/ui/switch"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
@@ -24,8 +23,8 @@ type CommanderPrecon = {
   id: string
   name: string
   product?: string | null
-  colorIdentity: string[]
-  url: string
+  releaseDate?: string | null
+  url?: string | null
 }
 
 function searchText(value: string) {
@@ -47,8 +46,8 @@ function filterPrecons(precons: readonly CommanderPrecon[], query: string) {
 }
 
 /**
- * Imports a Commander precon from the decks Wizards of the Coast publishes on
- * Moxfield: pick one from a searchable list, then name the new deck and
+ * Imports a Commander precon from MTGJSON's decklists: pick one from a
+ * searchable list, then name the new deck and
  * optionally add its cards to the collection, allocated to the deck.
  */
 export function PreconImportDialog({
@@ -153,7 +152,7 @@ export function PreconImportDialog({
           <div>
             <DialogTitle id="precon-import-title">Import a precon</DialogTitle>
             <p className="mt-1 text-sm text-base-content/75">
-              Commander decks as Wizards of the Coast lists them on Moxfield.
+              Commander precon decklists from MTGJSON.
             </p>
           </div>
           <DialogClose className="h-11 w-11" onClose={close} />
@@ -163,23 +162,22 @@ export function PreconImportDialog({
           <form className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5" onSubmit={submit}>
             <div className="flex items-start justify-between gap-4 rounded-box border border-base-300 bg-base-200/40 p-4">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-black leading-tight">{selected.name}</span>
-                  <ColorIdentitySymbols colors={selected.colorIdentity} />
+                <div className="text-lg font-black leading-tight">{selected.name}</div>
+                <div className="mt-1 text-sm text-base-content/70">
+                  {[selected.product, selected.releaseDate].filter(Boolean).join(" · ")}
                 </div>
-                {selected.product ? (
-                  <div className="mt-1 text-sm text-base-content/70">{selected.product}</div>
-                ) : null}
               </div>
-              <a
-                href={selected.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-bold text-base-content/75 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-              >
-                Moxfield
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              </a>
+              {selected.url ? (
+                <a
+                  href={selected.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-bold text-base-content/75 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  Decklist
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </a>
+              ) : null}
             </div>
 
             <label className="block space-y-2">
@@ -323,7 +321,11 @@ export function PreconImportDialog({
                             </span>
                           ) : null}
                         </span>
-                        <ColorIdentitySymbols colors={precon.colorIdentity} />
+                        {precon.releaseDate ? (
+                          <span className="shrink-0 font-mono text-sm text-base-content/70">
+                            {precon.releaseDate.slice(0, 4)}
+                          </span>
+                        ) : null}
                       </button>
                     </li>
                   ))}

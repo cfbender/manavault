@@ -7,6 +7,7 @@ pub mod types;
 
 use async_graphql::{Context, Enum, ID, InputObject, MaybeUndefined, Object, SimpleObject};
 use lotus::ScryfallId;
+use lotus::decklist::FetchError;
 
 use crate::decks::DeckError;
 use crate::decks::cards::{self, CardRef, DeckCardChanges, NewDeckCard};
@@ -324,12 +325,11 @@ impl DeckQueries {
         Ok(relay::from_slice(decks, offset, offset > 0, offset + limit < total).into())
     }
 
-    /// The Commander decks Wizards of the Coast publishes on Moxfield,
-    /// newest first.
+    /// Commander precon decklists (from MTGJSON), newest first.
     async fn commander_precons(&self, ctx: &Context<'_>) -> Result<Vec<CommanderPrecon>> {
         let precons = precons::list(state(ctx))
             .await
-            .map_err(|error| external_error(&external::SyncError::Fetch(error)))?;
+            .map_err(|error| precon_error(&error))?;
         Ok(precons.into_iter().map(CommanderPrecon).collect())
     }
 
@@ -547,14 +547,20 @@ fn external_error(error: &external::SyncError) -> async_graphql::Error {
     }
 }
 
-fn precon_import_error(error: &external::SyncError) -> async_graphql::Error {
+fn precon_error(error: &external::SyncError) -> async_graphql::Error {
     match error {
-        external::SyncError::Fetch(_) => external_error(error),
+        external::SyncError::Fetch(fetch) => user_error(match fetch {
+            FetchError::Timeout => "Timed out reaching MTGJSON.".to_owned(),
+            FetchError::Forbidden => "MTGJSON refused the request.".to_owned(),
+            FetchError::NotFound => "MTGJSON no longer has that precon.".to_owned(),
+            FetchError::HttpStatus(status) => format!("MTGJSON returned HTTP {status}."),
+            FetchError::InvalidJson => "MTGJSON returned an unreadable response.".to_owned(),
+            _ => "Could not reach MTGJSON.".to_owned(),
+        }),
         external::SyncError::Deck(deck) => match deck {
             DeckError::Db(_) => internal_error(error),
             DeckError::Message(message) => user_error(message.clone()),
             DeckError::Invalid(errors) => user_error(errors.to_string()),
-            DeckError::Code("invalid_external_url") => user_error("Choose a precon from the list."),
             _ => user_error("Could not import the precon."),
         },
     }
@@ -749,7 +755,7 @@ impl DeckMutations {
             },
         )
         .await
-        .map_err(|error| precon_import_error(&error))?;
+        .map_err(|error| precon_error(&error))?;
         Ok(Some(ImportCommanderPreconPayload {
             deck: Some(Deck::new(imported.deck)),
             unresolved: imported.unresolved,

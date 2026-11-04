@@ -1,9 +1,10 @@
-//! Commander precons from Moxfield: the list and importing one, against a
-//! wiremock Moxfield API.
+//! Commander precons from MTGJSON: the list and importing one, against a
+//! wiremock MTGJSON API serving files shaped like its `DeckList.json` and
+//! `decks/<file>.json`.
 
 use lotus::{Finish, Zone};
 use serde_json::{Value, json};
-use wiremock::matchers::{method, path, query_param};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::decks::precons::{self, PreconImport};
@@ -13,18 +14,17 @@ use manavault_catalog::testing::fixtures::{
     black_lotus, black_lotus_beta, legal_commander_card, plains, time_walk,
 };
 
-const PRECON: &str = "Precon_Deck-1";
+const PRECON: &str = "KittyCommittee_TST";
 
 /// A collection item: printing, quantity, finish, location, and its
 /// allocation's source location.
 type Item = (String, i64, String, Option<i64>, Option<i64>);
 
-async fn app_with_moxfield() -> (TestApp, MockServer) {
+async fn app_with_mtgjson() -> (TestApp, MockServer) {
     let server = MockServer::start().await;
     let uri = server.uri();
     let app = TestApp::with_config(|config| {
-        config.platform_urls.moxfield_api = format!("{uri}/v3/decks/all/");
-        config.platform_urls.moxfield_deck_search = format!("{uri}/v2/decks/search-sfw");
+        config.platform_urls.mtgjson_api = format!("{uri}/api/v5/");
     })
     .await;
     app.import_cards(&[
@@ -35,47 +35,80 @@ async fn app_with_moxfield() -> (TestApp, MockServer) {
         legal_commander_card(),
     ])
     .await;
+    sqlx::query("INSERT INTO scryfall_sets (code, name) VALUES ('tst', 'Test Commander')")
+        .execute(app.db())
+        .await
+        .unwrap();
     (app, server)
 }
 
-fn summary(id: &str, name: &str, colors: &[&str], created: &str) -> Value {
+fn listed(file_name: &str, name: &str, code: &str, kind: &str, released: &str) -> Value {
     json!({
-        "publicId": id,
+        "code": code,
+        "fileName": file_name,
         "name": name,
-        "format": "commander",
-        "colorIdentity": colors,
-        "createdAtUtc": created
+        "releaseDate": released,
+        "source": format!("https://magic.wizards.com/{file_name}"),
+        "type": kind
     })
 }
 
-fn moxfield_card(name: &str, printing: &str, quantity: i64, finish: &str) -> Value {
+async fn stub_list(server: &MockServer, decks: Vec<Value>, expected_requests: u64) {
+    Mock::given(method("GET"))
+        .and(path("/api/v5/DeckList.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "meta": {"date": "2026-11-03", "version": "5.3.0"},
+            "data": decks
+        })))
+        .expect(expected_requests)
+        .mount(server)
+        .await;
+}
+
+fn deck_card(name: &str, printing: &str, count: i64, foil: bool) -> Value {
     json!({
-        "quantity": quantity,
-        "finish": finish,
-        "card": {"name": name, "scryfall_id": printing}
+        "name": name,
+        "count": count,
+        "isFoil": foil,
+        "isEtched": false,
+        "identifiers": {"scryfallId": printing}
     })
 }
 
 /// A precon with a commander, a main deck (basic lands included), a
 /// sideboard card, and a card the catalog lacks.
 async fn stub_precon(server: &MockServer) {
+    stub_list(
+        server,
+        vec![listed(
+            PRECON,
+            "Kitty Committee",
+            "TST",
+            "Commander Deck",
+            "2026-01-01",
+        )],
+        1,
+    )
+    .await;
     Mock::given(method("GET"))
-        .and(path(format!("/v3/decks/all/{PRECON}")))
+        .and(path(format!("/api/v5/decks/{PRECON}.json")))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "name": "Kitty Committee (Test Commander Precon Decklist)",
-            "boards": {
-                "commanders": {"count": 1, "cards": {
-                    "a": moxfield_card("Test Commander", "scryfall-printing-test-commander", 1, "nonFoil")
-                }},
-                "mainboard": {"count": 9, "cards": {
-                    "b": moxfield_card("Black Lotus", "scryfall-printing-3", 1, "nonFoil"),
-                    "c": moxfield_card("Time Walk", "scryfall-printing-2", 2, "foil"),
-                    "d": moxfield_card("Plains", "scryfall-printing-basic-plains", 5, "nonFoil"),
-                    "e": moxfield_card("Missing Card", "missing-printing", 1, "nonFoil")
-                }},
-                "sideboard": {"count": 1, "cards": {
-                    "f": moxfield_card("Black Lotus", "scryfall-printing-1", 1, "nonFoil")
-                }}
+            "meta": {"date": "2026-11-03", "version": "5.3.0"},
+            "data": {
+                "name": "Kitty Committee",
+                "code": "TST",
+                "type": "Commander Deck",
+                "commander": [
+                    deck_card("Test Commander", "scryfall-printing-test-commander", 1, false)
+                ],
+                "mainBoard": [
+                    deck_card("Black Lotus", "scryfall-printing-3", 1, false),
+                    deck_card("Time Walk", "scryfall-printing-2", 2, true),
+                    deck_card("Plains", "scryfall-printing-basic-plains", 5, false),
+                    deck_card("Missing Card", "missing-printing", 1, false)
+                ],
+                "sideBoard": [deck_card("Black Lotus", "scryfall-printing-1", 1, false)],
+                "tokens": []
             }
         })))
         .mount(server)
@@ -86,103 +119,99 @@ async fn count(app: &TestApp, sql: &'static str) -> i64 {
     sqlx::query_scalar(sql).fetch_one(app.db()).await.unwrap()
 }
 
-#[test]
-fn split_name_reads_the_product_from_moxfield_names() {
-    assert_eq!(
-        precons::split_name("Subjective Reality (Commander 2018 Precon Decklist)"),
-        ("Subjective Reality".into(), Some("Commander 2018".into()))
-    );
-    assert_eq!(
-        precons::split_name(
-            "Tyranid Swarm (Warhammer 40,000 Commander Collector's Edition Precon Decklist)"
-        ),
-        (
-            "Tyranid Swarm".into(),
-            Some("Warhammer 40,000 Commander Collector's Edition".into())
-        )
-    );
-    assert_eq!(
-        precons::split_name(" Just a deck (v2) "),
-        ("Just a deck (v2)".into(), None)
-    );
-}
-
 #[tokio::test]
-async fn list_reads_every_page_newest_first_and_caches_it() {
-    let (app, server) = app_with_moxfield().await;
-    for (page, total, decks) in [
-        (
-            "1",
-            2,
-            vec![summary(
-                "older-deck",
-                "Nature of the Beast (Commander 2013 Precon Decklist)",
-                &["G", "R", "W"],
-                "2024-01-01T00:00:00Z",
-            )],
-        ),
-        (
-            "2",
-            2,
-            vec![summary(
-                "newer-deck",
-                "Legends' Legacy (Dominaria United Commander Precon Decklist)",
-                &["B", "R", "W"],
-                "2025-06-01T00:00:00Z",
-            )],
-        ),
-    ] {
-        Mock::given(method("GET"))
-            .and(path("/v2/decks/search-sfw"))
-            .and(query_param("authorUserNames", "WizardsOfTheCoast"))
-            .and(query_param("fmt", "commander"))
-            .and(query_param("pageNumber", page))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(json!({"totalPages": total, "data": decks})),
-            )
-            .expect(1)
-            .mount(&server)
-            .await;
-    }
+async fn list_keeps_commander_decks_newest_first_and_caches_them() {
+    let (app, server) = app_with_mtgjson().await;
+    stub_list(
+        &server,
+        vec![
+            listed(
+                "Older_TST",
+                "Older Deck",
+                "TST",
+                "Commander Deck",
+                "2018-08-10",
+            ),
+            listed("Dragons_JMP", "Dragons", "JMP", "Jumpstart", "2026-07-17"),
+            listed(
+                "Newer_ZZZ",
+                "Newer Deck",
+                "ZZZ",
+                "Commander Deck",
+                "2026-10-02",
+            ),
+        ],
+        1,
+    )
+    .await;
 
     let listed = precons::list(&app.state).await.unwrap();
-    let summary: Vec<(&str, &str, Option<&str>, Vec<&str>)> = listed
+    let summary: Vec<(&str, &str, Option<&str>, Option<&str>)> = listed
         .iter()
         .map(|precon| {
             (
                 precon.id.as_str(),
                 precon.name.as_str(),
                 precon.product.as_deref(),
-                precon.color_identity.iter().map(String::as_str).collect(),
+                precon.release_date.as_deref(),
             )
         })
         .collect();
+    // ZZZ is not in the catalog's set list, so it has no product name.
     assert_eq!(
         summary,
         vec![
+            ("Newer_ZZZ", "Newer Deck", None, Some("2026-10-02")),
             (
-                "newer-deck",
-                "Legends' Legacy",
-                Some("Dominaria United Commander"),
-                vec!["W", "B", "R"]
-            ),
-            (
-                "older-deck",
-                "Nature of the Beast",
-                Some("Commander 2013"),
-                vec!["W", "R", "G"]
+                "Older_TST",
+                "Older Deck",
+                Some("Test Commander"),
+                Some("2018-08-10")
             ),
         ]
     );
-    assert_eq!(listed[0].url, "https://moxfield.com/decks/newer-deck");
-    // Served from the cache: each page was requested once (`expect(1)`).
+    assert_eq!(
+        listed[1].url.as_deref(),
+        Some("https://magic.wizards.com/Older_TST")
+    );
+    // Served from the cache: the list was requested once (`expect(1)`).
     assert_eq!(precons::list(&app.state).await.unwrap(), listed);
 }
 
 #[tokio::test]
+async fn list_does_not_cache_an_empty_result() {
+    let (app, server) = app_with_mtgjson().await;
+    stub_list(&server, Vec::new(), 2).await;
+    assert_eq!(precons::list(&app.state).await.unwrap(), Vec::new());
+    assert_eq!(precons::list(&app.state).await.unwrap(), Vec::new());
+}
+
+#[tokio::test]
+async fn import_refuses_decks_missing_from_the_list() {
+    let (app, server) = app_with_mtgjson().await;
+    stub_precon(&server).await;
+    for id in ["Dragons_JMP", "../DeckList"] {
+        let error = precons::import(
+            &app.state,
+            &PreconImport {
+                precon_id: id.into(),
+                ..PreconImport::default()
+            },
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(
+            error.failure_message(),
+            "Choose a precon from the list.",
+            "{id}"
+        );
+    }
+    assert_eq!(count(&app, "SELECT count(*) FROM decks").await, 0);
+}
+
+#[tokio::test]
 async fn import_adds_the_cards_to_the_collection_and_allocates_them() {
-    let (app, server) = app_with_moxfield().await;
+    let (app, server) = app_with_mtgjson().await;
     stub_precon(&server).await;
     let shelf = location(app.db(), "Precon shelf", "box").await;
 
@@ -296,7 +325,7 @@ async fn import_adds_the_cards_to_the_collection_and_allocates_them() {
 
 #[tokio::test]
 async fn graphql_imports_a_precon_and_refuses_list_locations_without_writing() {
-    let (app, server) = app_with_moxfield().await;
+    let (app, server) = app_with_mtgjson().await;
     stub_precon(&server).await;
     let wants = location(app.db(), "Wants", "list").await;
     let mutation = "mutation($input: ImportCommanderPreconInput!) {
