@@ -76,10 +76,13 @@ public class MainActivity extends BridgeActivity {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
             boolean keyboard = insets.isVisible(WindowInsetsCompat.Type.ime());
             int keyboardHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
-            view.setPadding(0, 0, 0, keyboard ? keyboardHeight : 0);
+            int bottomPadding = keyboard ? keyboardHeight : 0;
+            view.setPadding(0, 0, 0, bottomPadding);
             safeArea = Insets.of(bars.left, bars.top, bars.right, keyboard ? 0 : bars.bottom);
             injectSafeArea(webView);
-            return insets;
+            // WebView M139+ also shrinks its viewport by the IME inset it receives; hand it the
+            // insets minus the padding above so the keyboard is not subtracted twice.
+            return insets.inset(0, 0, 0, bottomPadding);
         });
         getBridge().addWebViewListener(new WebViewListener() {
             @Override
