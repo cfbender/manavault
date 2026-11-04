@@ -35,7 +35,10 @@ export function initNativeSafeAreaFallback() {
   const apply = async () => {
     try {
       const { height } = await StatusBar.getInfo()
-      if (height > 0 && reported("top") === 0) {
+      // A top inset means the shell's values arrived, so a 0 bottom is real: the keyboard is
+      // open and covers the gesture bar.
+      if (reported("top") > 0) return
+      if (height > 0) {
         root.style.setProperty("--safe-area-inset-top", `${height}px`)
       }
       if (reported("bottom") === 0) {
