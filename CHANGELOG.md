@@ -8,6 +8,17 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.3.2] - 2026-11-04
+
+### Bug Fixes
+
+- **android:** Keep plugin settings when a server is saved ([`ad5cb6bc`](../../commit/ad5cb6bca4989a7b0985123c4ee75d0439f421f9))
+- **native:** Keep the shell's zero bottom inset while the keyboard is open ([`1f021dc0`](../../commit/1f021dc0677b30602f27ae6bf961f6396188686d))
+
+### Features
+
+- **decks:** Show color identity in the precon import list ([`4263302b`](../../commit/4263302be98d54d7ea83aa91278206b78eb5a493))
+
 ## [2.3.1] - 2026-11-04
 
 ### Bug Fixes
