@@ -8,6 +8,39 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.3.0] - 2026-11-04
+
+### Bug Fixes
+
+- **deps:** Bump docker/login-action from 4.6.0 to 4.7.0 (#174) ([`4442bac4`](../../commit/4442bac41a94508ae3e85f549d5896e5f2446336))
+- **deps:** Bump Swatinem/rust-cache from 2.9.2 to 2.9.3 (#175) ([`20c394b4`](../../commit/20c394b41c2ecbc62da0a2e05852103fab724e65))
+- **deps:** Bump jdx/mise-action from 5.2.0 to 5.2.3 (#176) ([`72bd0a79`](../../commit/72bd0a7939b0230712b4cc61e67798ae96903f88))
+- **ai:** Keep tools and response_format out of the same OpenRouter request ([`74e9a18d`](../../commit/74e9a18df6504d7b27bbecd41dfc038462a8a2d2))
+- **deps:** Patch zip, utoipa-swagger-ui, glob, minimatch and seroval ([`75651797`](../../commit/75651797c12893e641c13096cee2eb3778620d90))
+- **scanner:** Log only still cards and ignore the blank Whiteout art ([`b8e8515f`](../../commit/b8e8515f2045daee15a901d3412c72f04e6daf04))
+- **search:** Rank the exact card name first in name searches ([`c445b121`](../../commit/c445b121aad9776ef4b0801efed343b256df897c))
+- **decks:** List Commander precons from MTGJSON ([`1a7e5748`](../../commit/1a7e5748d1dfb9ec9a59cd19f68a80a5f80c8dee))
+
+### CI
+
+- **android:** Build release AABs and upload them to Google Play ([`270b3b6f`](../../commit/270b3b6f69f28f8551419abf4a04f44b142c7966))
+
+### Documentation
+
+- Add privacy policy for the Android app ([`66463385`](../../commit/664633854b34d807ec4c997056a2d6dc3a7adfbd))
+- Describe the public demo server in the privacy policy ([`6c1be2a8`](../../commit/6c1be2a8a32fbf15bf252c583a7a926abad9dead))
+
+### Features
+
+- **decks:** Show full tag group name on hover ([`42a792df`](../../commit/42a792df2342346cac9c2ddbb493e14df958ec88))
+- **layout:** Widen the page shell on ultrawide screens ([`b0cf18fd`](../../commit/b0cf18fd9aa9aa09e4c15b8661c31c364d5f88ca))
+- **search:** Support the full Scryfall search syntax ([`7141c44d`](../../commit/7141c44d6e29ce10fe83649171d874351bf60b7b))
+- **decks:** Add Pauper Commander deck format ([`6e7e9585`](../../commit/6e7e958571f4e551357dcbe05057754ceff2e128))
+- **cards:** Show banned and restricted legalities like Scryfall ([`a4a41be9`](../../commit/a4a41be9fc7fd14d358a67f1b49a8012dbee5c6a))
+- **server:** List the Google Play app signing key in default asset links ([`53b5f8f5`](../../commit/53b5f8f5963b4b85a03d42bee760739e0f162b25))
+- **android:** Link the privacy policy from the native shell ([`9da82078`](../../commit/9da82078d1f28d1c13197cb1e811d018ec8e27bc))
+- **decks:** Import Commander precons from Moxfield ([`3c1ed409`](../../commit/3c1ed40997c464bb7131e477d907f44cd5978e69))
+
 ## [2.2.0] - 2026-10-25
 
 ### Bug Fixes
