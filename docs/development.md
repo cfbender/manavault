@@ -216,6 +216,21 @@ the full set of combinations; bundles and decks pair the same face differently.
 That is why the UI always keeps the rest of the set visible under **Other
 tokens**.
 
+## Precon Color Identities
+
+The precon import list shows each Commander precon's color identity from
+`priv/data/precon_colors.json`. MTGJSON's `DeckList.json` has no colors and
+each deck file is a few hundred kilobytes, so the server ships this snapshot
+and only fetches the deck files of precons released after it, each time the
+list is rebuilt. Regenerate it when new precons come out:
+
+```sh
+mise exec -- node scripts/precon-colors.mjs
+```
+
+Then run `mise exec -- cargo test --manifest-path rust/Cargo.toml precons` and
+commit the data file.
+
 ## Release Helper
 
 Release commands are documented in [releasing.md](releasing.md). The short form

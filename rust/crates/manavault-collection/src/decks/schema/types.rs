@@ -718,4 +718,10 @@ impl CommanderPrecon {
     async fn url(&self) -> Option<&str> {
         self.0.url.as_deref()
     }
+
+    /// The commanders' color identity as WUBRG letters, `C` when colorless;
+    /// null when unknown.
+    async fn color_identity(&self) -> Option<&[String]> {
+        self.0.color_identity.as_deref()
+    }
 }

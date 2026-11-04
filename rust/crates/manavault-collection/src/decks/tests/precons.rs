@@ -119,6 +119,27 @@ async fn count(app: &TestApp, sql: &'static str) -> i64 {
     sqlx::query_scalar(sql).fetch_one(app.db()).await.unwrap()
 }
 
+/// Serves a deck file whose commanders have these color identities.
+async fn stub_commanders(
+    server: &MockServer,
+    file_name: &str,
+    identities: &[&[&str]],
+    expected: u64,
+) {
+    let commanders: Vec<Value> = identities
+        .iter()
+        .map(|colors| json!({"name": "Commander", "count": 1, "colorIdentity": colors}))
+        .collect();
+    Mock::given(method("GET"))
+        .and(path(format!("/api/v5/decks/{file_name}.json")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "data": {"name": file_name, "commander": commanders, "mainBoard": []}
+        })))
+        .expect(expected)
+        .mount(server)
+        .await;
+}
+
 #[tokio::test]
 async fn list_keeps_commander_decks_newest_first_and_caches_them() {
     let (app, server) = app_with_mtgjson().await;
@@ -140,10 +161,30 @@ async fn list_keeps_commander_decks_newest_first_and_caches_them() {
                 "Commander Deck",
                 "2026-10-02",
             ),
+            listed(
+                "Colorless_ZZZ",
+                "Colorless Deck",
+                "ZZZ",
+                "Commander Deck",
+                "2026-10-01",
+            ),
+            // In the snapshot (Atraxa): its deck file is never read.
+            listed(
+                "BreedLethality_C16",
+                "Breed Lethality",
+                "C16",
+                "Commander Deck",
+                "2016-11-11",
+            ),
         ],
         1,
     )
     .await;
+    // Partners: the union, in WUBRG order.
+    stub_commanders(&server, "Newer_ZZZ", &[&["G", "U"], &["W", "U"]], 1).await;
+    stub_commanders(&server, "Colorless_ZZZ", &[&[]], 1).await;
+    stub_commanders(&server, "BreedLethality_C16", &[&["R"]], 0).await;
+    // Older_TST's deck file is missing (404).
 
     let listed = precons::list(&app.state).await.unwrap();
     let summary: Vec<(&str, &str, Option<&str>, Option<&str>)> = listed
@@ -162,19 +203,40 @@ async fn list_keeps_commander_decks_newest_first_and_caches_them() {
         summary,
         vec![
             ("Newer_ZZZ", "Newer Deck", None, Some("2026-10-02")),
+            ("Colorless_ZZZ", "Colorless Deck", None, Some("2026-10-01")),
             (
                 "Older_TST",
                 "Older Deck",
                 Some("Test Commander"),
                 Some("2018-08-10")
             ),
+            (
+                "BreedLethality_C16",
+                "Breed Lethality",
+                None,
+                Some("2016-11-11")
+            ),
+        ]
+    );
+    let colors: Vec<Option<Vec<String>>> = listed
+        .iter()
+        .map(|precon| precon.color_identity.clone())
+        .collect();
+    let owned = |colors: &[&str]| Some(colors.iter().map(|&color| color.to_owned()).collect());
+    assert_eq!(
+        colors,
+        vec![
+            owned(&["W", "U", "G"]),
+            owned(&["C"]),
+            None,
+            owned(&["W", "U", "B", "G"]),
         ]
     );
     assert_eq!(
-        listed[1].url.as_deref(),
+        listed[2].url.as_deref(),
         Some("https://magic.wizards.com/Older_TST")
     );
-    // Served from the cache: the list was requested once (`expect(1)`).
+    // Served from the cache: the list and deck files were requested once.
     assert_eq!(precons::list(&app.state).await.unwrap(), listed);
 }
 

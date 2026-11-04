@@ -1825,6 +1825,7 @@ dependencies = [
  "async-graphql",
  "base64 0.22.1",
  "flate2",
+ "futures-util",
  "lotus",
  "manavault-allocation",
  "manavault-catalog",

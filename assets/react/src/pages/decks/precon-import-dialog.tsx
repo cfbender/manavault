@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, ExternalLink, PackageOpen, Search } from "lucide-react"
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
+import { ColorIdentitySymbols } from "../../components/ui/mana-symbols"
 import {
   Dialog,
   DialogClose,
@@ -25,6 +26,7 @@ type CommanderPrecon = {
   product?: string | null
   releaseDate?: string | null
   url?: string | null
+  colorIdentity?: string[] | null
 }
 
 function searchText(value: string) {
@@ -314,7 +316,10 @@ export function PreconImportDialog({
                         onClick={() => choose(precon)}
                       >
                         <span className="min-w-0">
-                          <span className="block truncate font-bold">{precon.name}</span>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate font-bold">{precon.name}</span>
+                            <ColorIdentitySymbols colors={precon.colorIdentity ?? []} />
+                          </span>
                           {precon.product ? (
                             <span className="block truncate text-sm text-base-content/70">
                               {precon.product}

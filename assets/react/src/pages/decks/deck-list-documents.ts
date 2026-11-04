@@ -199,6 +199,7 @@ export const CommanderPreconsDocument = graphql(`
       product
       releaseDate
       url
+      colorIdentity
     }
   }
 `)

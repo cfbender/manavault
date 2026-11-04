@@ -330,7 +330,8 @@ Deck workflows include:
 - **Import precon** - the deck gallery's button lists the Commander precons
   in MTGJSON's deck list (`DeckList.json`, compiled from Wizards of the
   Coast's published decklists), newest first, searchable by deck name or
-  product. The list is cached for twelve hours. Importing creates a new
+  product, with each precon's commander color identity. The list is cached
+  for twelve hours. Importing creates a new
   Commander deck with each card's printing and the precon's foil and etched
   copies. Optionally the cards are also added to the collection in a chosen
   storage location (list locations can't hold allocated cards) and allocated
