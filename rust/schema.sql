@@ -157,6 +157,7 @@ CREATE TABLE "scryfall_sets" (
   "parent_set_code" TEXT,
   "released_at" TEXT
 );
+CREATE INDEX "scryfall_printings_set_name_set_code_index" ON "scryfall_printings" ("set_name", "set_code");
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -242,3 +243,4 @@ INSERT INTO schema_migrations VALUES(20261018041420,NULL);
 INSERT INTO schema_migrations VALUES(20261021201543,NULL);
 INSERT INTO schema_migrations VALUES(20261023210150,NULL);
 INSERT INTO schema_migrations VALUES(20261029213201,NULL);
+INSERT INTO schema_migrations VALUES(20261106193503,NULL);

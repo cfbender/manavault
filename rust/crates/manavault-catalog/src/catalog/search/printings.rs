@@ -149,7 +149,7 @@ pub async fn search_sets(
         r#"SELECT p.set_code AS "set_code!", p.set_name AS "set_name?"
            FROM scryfall_printings AS p
            WHERE lower(p.set_code) LIKE ?1 OR lower(coalesce(p.set_name, '')) LIKE ?1
-           GROUP BY p.set_code, p.set_name
+           GROUP BY p.set_name, p.set_code
            ORDER BY p.set_name ASC, p.set_code ASC
            LIMIT ?2"#,
         pattern,

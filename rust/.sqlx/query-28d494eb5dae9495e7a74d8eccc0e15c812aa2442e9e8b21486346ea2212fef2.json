@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT p.set_code AS \"set_code!\", p.set_name AS \"set_name?\"\n           FROM scryfall_printings AS p\n           WHERE lower(p.set_code) LIKE ?1 OR lower(coalesce(p.set_name, '')) LIKE ?1\n           GROUP BY p.set_code, p.set_name\n           ORDER BY p.set_name ASC, p.set_code ASC\n           LIMIT ?2",
+  "query": "SELECT p.set_code AS \"set_code!\", p.set_name AS \"set_name?\"\n           FROM scryfall_printings AS p\n           WHERE lower(p.set_code) LIKE ?1 OR lower(coalesce(p.set_name, '')) LIKE ?1\n           GROUP BY p.set_name, p.set_code\n           ORDER BY p.set_name ASC, p.set_code ASC\n           LIMIT ?2",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       true
     ]
   },
-  "hash": "05a6bf6e31ebcc92b1587439ae28a7f1d1b50ce1a68bb704a13c34616a1a2268"
+  "hash": "28d494eb5dae9495e7a74d8eccc0e15c812aa2442e9e8b21486346ea2212fef2"
 }
