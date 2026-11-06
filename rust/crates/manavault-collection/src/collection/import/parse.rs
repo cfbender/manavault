@@ -8,6 +8,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use manavault_catalog::catalog::price::parse_cents;
+use manavault_catalog::catalog::search::predicates::language_code;
 
 /// An import file format (`normalize_format/1`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -203,7 +204,9 @@ fn normalize_header(header: &str) -> String {
         "foil" | "foiling" | "finish" => "finish",
         "condition" | "cond" => "condition",
         "language" | "lang" => "language",
-        "purchase_price" | "purchase_price_usd" | "price_paid" | "paid" => "purchase_price_cents",
+        "purchase_price" | "purchase_price_usd" | "price_paid" | "paid" | "unit_price" => {
+            "purchase_price_cents"
+        }
         "scryfall" | "scryfall_id" | "printing_id" => "scryfall_id",
         "back_scryfall" | "back_scryfall_id" | "back_printing_id" => "back_scryfall_id",
         _ => return key,
@@ -216,7 +219,20 @@ fn parse_csv_entries(text: &str) -> Result<Vec<(RawRow, i64)>, ParseError> {
     let Some(headers) = records.next() else {
         return Ok(Vec::new());
     };
-    let headers: Vec<String> = headers.iter().map(|h| normalize_header(h)).collect();
+    // An alias defers to a column that already has the canonical name, so a
+    // Mana Pool order's `Set` (the set name) yields to its `Set Code`.
+    let keys: Vec<String> = headers.iter().map(|h| snake(h)).collect();
+    let headers: Vec<String> = keys
+        .iter()
+        .map(|key| {
+            let canonical = normalize_header(key);
+            if canonical != *key && keys.contains(&canonical) {
+                key.clone()
+            } else {
+                canonical
+            }
+        })
+        .collect();
     Ok(records
         .zip(2..)
         .map(|(cells, row_number)| {
@@ -335,7 +351,7 @@ fn parse_quantity(value: &str) -> i64 {
 fn normalize_finish(value: &str) -> String {
     match value.trim().to_lowercase().replace(' ', "_").as_str() {
         "foil" | "true" | "yes" | "y" => "foil",
-        "etched" | "foil_etched" => "etched",
+        "etched" | "foil_etched" | "etched_foil" => "etched",
         _ => "nonfoil",
     }
     .to_owned()
@@ -370,7 +386,10 @@ pub fn attrs(row: &RawRow) -> RowAttrs {
         condition: normalize_condition(row.get("condition").map_or("", String::as_str)),
         language: get("language")
             .filter(|language| !language.is_empty())
-            .unwrap_or_else(|| "en".to_owned()),
+            .map_or_else(
+                || "en".to_owned(),
+                |language| language_code(&language).map_or(language, str::to_owned),
+            ),
         scryfall_id: get("scryfall_id").unwrap_or_default(),
         back_scryfall_id: get("back_scryfall_id").unwrap_or_default(),
         purchase_price_cents: row.get("purchase_price_cents").and_then(|p| parse_cents(p)),
@@ -423,6 +442,50 @@ mod tests {
             .map(|row| attrs(row).purchase_price_cents)
             .collect();
         assert_eq!(prices, [Some(150), None]);
+    }
+
+    #[test]
+    fn reads_mana_pool_order_exports() {
+        let csv = "Seller,Package #,Item Type,Card Name,Set,Set Code,Collector #,Condition,Language,Finish,Rarity,Quantity,Unit Price,Total Price\n\
+            Trade Binder MTG,2617771,Single,Reaver Titan,\"Warhammer 40,000 Commander\",40K,163,Near Mint,English,Non-Foil,rare,2,$15.83,$31.66\n\
+            Trade Binder MTG,2617771,Single,\"Sram, Senior Edificer\",Multiverse Legends,MUL,71,Lightly Played,Japanese,Etched Foil,rare,1,$5.72,$5.72\n";
+        let entries = parse(csv, Format::Auto, None).unwrap();
+        let parsed: Vec<RowAttrs> = entries.iter().map(|(row, _)| attrs(row)).collect();
+        let expected = [
+            (
+                "Reaver Titan",
+                "40K",
+                "163",
+                2,
+                "nonfoil",
+                "near_mint",
+                "en",
+                1583,
+            ),
+            (
+                "Sram, Senior Edificer",
+                "MUL",
+                "71",
+                1,
+                "etched",
+                "lightly_played",
+                "ja",
+                572,
+            ),
+        ];
+        assert_eq!(parsed.len(), expected.len());
+        for (row, (name, set, number, quantity, finish, condition, language, price)) in
+            parsed.iter().zip(expected)
+        {
+            assert_eq!(row.name, name);
+            assert_eq!(row.set_code, set);
+            assert_eq!(row.collector_number, number);
+            assert_eq!(row.quantity, quantity);
+            assert_eq!(row.finish, finish);
+            assert_eq!(row.condition, condition);
+            assert_eq!(row.language, language);
+            assert_eq!(row.purchase_price_cents, Some(price));
+        }
     }
 
     #[test]
