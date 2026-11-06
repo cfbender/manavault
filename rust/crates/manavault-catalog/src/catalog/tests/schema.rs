@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 
 use super::{edge_names, insert_collection_item, insert_location};
 use crate::test_app::TestApp;
-use crate::testing::fixtures::{black_lotus, black_lotus_beta, merge, plains, time_walk};
+use crate::testing::fixtures::{black_lotus, black_lotus_beta, card, merge, plains, time_walk};
 use manavault_core::graphql::{NodeKind, global_id};
 
 async fn three_cards() -> TestApp {
@@ -194,6 +194,55 @@ async fn card_by_name_resolves_exact_names() {
     for name in ["Not A Real Card", "Black"] {
         let data = app.gql_data(query, json!({"name": name})).await;
         assert_eq!(data["cardByName"], Value::Null, "{name}");
+    }
+}
+
+#[tokio::test]
+async fn printing_by_reference_prefers_the_most_exact_part_that_resolves() {
+    let app = TestApp::new().await;
+    let foil_only_reprint = card(json!({
+        "id": "scryfall-printing-foil-reprint",
+        "set": "sld",
+        "collector_number": "1",
+        "finishes": ["foil"],
+        "released_at": "2024-01-01"
+    }));
+    app.import_cards(&[
+        black_lotus(),
+        black_lotus_beta(),
+        foil_only_reprint,
+        time_walk(),
+    ])
+    .await;
+    let query = "query PrintingByReference($scryfallId: ID, $setCode: String, $collectorNumber: String, $name: String) {
+      printingByReference(scryfallId: $scryfallId, setCode: $setCode, collectorNumber: $collectorNumber, name: $name) {
+        scryfallId card { name }
+      }
+    }";
+    let resolve = |variables: Value| async {
+        app.gql_data(query, variables).await["printingByReference"]["scryfallId"].clone()
+    };
+    // Every part names a different printing: the Scryfall ID wins.
+    assert_eq!(
+        resolve(json!({"scryfallId": "scryfall-printing-3", "setCode": "LEA", "collectorNumber": "84", "name": "Black Lotus"})).await,
+        "scryfall-printing-3"
+    );
+    // A Scryfall ID the catalog lacks falls back to the set and number.
+    assert_eq!(
+        resolve(json!({"scryfallId": "missing", "setCode": "LEA", "collectorNumber": "84", "name": "Black Lotus"})).await,
+        "scryfall-printing-2"
+    );
+    // A name alone resolves to the newest printing with a nonfoil finish.
+    assert_eq!(
+        resolve(json!({"setCode": "lea", "collectorNumber": "999", "name": "black lotus"})).await,
+        "scryfall-printing-3"
+    );
+    for variables in [
+        json!({}),
+        json!({"name": "Not A Real Card"}),
+        json!({"setCode": "lea"}),
+    ] {
+        assert_eq!(resolve(variables.clone()).await, Value::Null, "{variables}");
     }
 }
 

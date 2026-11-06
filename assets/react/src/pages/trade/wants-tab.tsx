@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from "@apollo/client/react"
-import { Share2, X } from "lucide-react"
+import { ListPlus, Share2, X } from "lucide-react"
 import { type FormEvent, useState } from "react"
 import { EmptyState } from "../../components/card-image"
+import { CardDropOverlay, type DroppedPrinting } from "../../components/card-drop-overlay"
 import { CardNameSearchField } from "../../components/card-name-search-field"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
@@ -78,6 +79,18 @@ export function WantsTab() {
         closePrintingPicker()
       })
       .catch(() => {})
+  }
+
+  // Like a picked name: any printing, unless "Choose printing" asks for the
+  // dropped one. A failed add is already reported by the mutation's onError.
+  async function addDroppedWant(_zone: "wants", printing: DroppedPrinting) {
+    const name = printing.card?.name ?? ""
+    const result = await createTradeWant({
+      variables: printingPickerEnabled
+        ? { scryfallId: printing.scryfallId, quantity: 1 }
+        : { name, quantity: 1 },
+    }).catch(() => null)
+    if (result?.data?.createTradeWant?.tradeWant) showToast(`${name || "Card"} added to wants`)
   }
 
   function pickName(name: string) {
@@ -162,6 +175,21 @@ export function WantsTab() {
           Share wants
         </Button>
       </div>
+
+      <CardDropOverlay
+        enabled
+        onDropCard={addDroppedWant}
+        zones={[
+          {
+            id: "wants",
+            title: "Wants",
+            hint: printingPickerEnabled
+              ? "Drop to want this exact printing."
+              : "Drop to want any printing of it.",
+            icon: ListPlus,
+          },
+        ]}
+      />
 
       {printingPickerCardName ? (
         <PrintingPicker

@@ -23,6 +23,7 @@ import { cn, pluralize, present } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { AutoSortCollectionDocument } from "./auto-sort/documents"
+import { CollectionCardDrop } from "./collection-card-drop"
 import { invalidateCollectionViews } from "./collection-navigation"
 import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "./constants"
 import { ExportCollectionDialog } from "./export/collection-export-dialog"
@@ -398,6 +399,7 @@ export function LocationPage({ id }: { id: string }) {
           </PageSection>
         </div>
       )}
+      <CollectionCardDrop location={location} />
       <AutoSortSetupDialog open={isAutoSortSetupOpen} onOpenChange={setIsAutoSortSetupOpen} />
       <AutoSortSummaryDialog
         open={Boolean(autoSortResult)}

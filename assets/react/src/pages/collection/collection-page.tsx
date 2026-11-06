@@ -1,7 +1,9 @@
+import { CollectionCardDrop } from "./collection-card-drop"
 import { CollectionLocationsSection } from "./collection-locations-section"
 import { CollectionPageHeader } from "./collection-page-header"
 import { CollectionQuickCheck } from "./collection-quick-check"
 import { CollectionDialogs } from "./overview/collection-dialogs"
+import { isUnfiledLocation } from "./location-summary"
 import { CollectionItemsView } from "./overview/collection-items-view"
 import { useCollectionFilters } from "./overview/use-collection-filters"
 import { useCollectionMutations } from "./overview/use-collection-mutations"
@@ -103,6 +105,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
           />
         )}
       </div>
+
+      <CollectionCardDrop
+        enabled={filters.activeTab !== "tokens"}
+        location={query.locations.find(isUnfiledLocation)}
+      />
 
       <CollectionDialogs
         applyAutoSort={mutations.applyAutoSort}

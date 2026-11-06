@@ -14,6 +14,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  query CardDropPrinting(\n    $scryfallId: ID\n    $setCode: String\n    $collectorNumber: String\n    $name: String\n  ) {\n    printingByReference(\n      scryfallId: $scryfallId\n      setCode: $setCode\n      collectorNumber: $collectorNumber\n      name: $name\n    ) {\n      id\n      scryfallId\n      finishes\n      card {\n        id\n        name\n      }\n    }\n  }\n": typeof types.CardDropPrintingDocument,
     "\n  query CardNameSuggestions($q: String!, $limit: Int!) {\n    cardNameSuggestions(q: $q, limit: $limit)\n  }\n": typeof types.CardNameSuggestionsDocument,
     "\n  query TokenBackOptions($scryfallId: ID!) {\n    tokenBackOptions(scryfallId: $scryfallId) {\n      known {\n        ...TokenBackOptionFields\n      }\n      sameSet {\n        ...TokenBackOptionFields\n      }\n    }\n  }\n\n  fragment TokenBackOptionFields on Printing {\n    id\n    scryfallId\n    setCode\n    collectorNumber\n    imageUrl\n    card {\n      id\n      name\n      typeLine\n    }\n  }\n": typeof types.TokenBackOptionsDocument,
     "\n  mutation UpdateAppearanceSettings($palette: String, $themeStyle: String) {\n    updateAppearanceSettings(palette: $palette, themeStyle: $themeStyle) {\n      appearanceSettings {\n        palette\n        themeStyle\n      }\n    }\n  }\n": typeof types.UpdateAppearanceSettingsDocument,
@@ -179,6 +180,7 @@ type Documents = {
     "\n  mutation TradeMatches($url: String, $text: String) {\n    tradeMatches(url: $url, text: $text) {\n      sourceName\n      entryCount\n      unrecognized\n      binderMatches {\n        cardName\n        oracleId\n        theirQuantity\n        items {\n          id\n          quantity\n          condition\n          finish\n          forTrade\n          printing {\n            id\n            setCode\n            collectorNumber\n            imageUrl\n            card {\n              id\n              name\n            }\n          }\n        }\n      }\n      wantMatches {\n        cardName\n        oracleId\n        theirQuantity\n        want {\n          id\n          quantity\n          imageUrl\n          card {\n            id\n            name\n          }\n        }\n      }\n    }\n  }\n": typeof types.TradeMatchesDocument,
 };
 const documents: Documents = {
+    "\n  query CardDropPrinting(\n    $scryfallId: ID\n    $setCode: String\n    $collectorNumber: String\n    $name: String\n  ) {\n    printingByReference(\n      scryfallId: $scryfallId\n      setCode: $setCode\n      collectorNumber: $collectorNumber\n      name: $name\n    ) {\n      id\n      scryfallId\n      finishes\n      card {\n        id\n        name\n      }\n    }\n  }\n": types.CardDropPrintingDocument,
     "\n  query CardNameSuggestions($q: String!, $limit: Int!) {\n    cardNameSuggestions(q: $q, limit: $limit)\n  }\n": types.CardNameSuggestionsDocument,
     "\n  query TokenBackOptions($scryfallId: ID!) {\n    tokenBackOptions(scryfallId: $scryfallId) {\n      known {\n        ...TokenBackOptionFields\n      }\n      sameSet {\n        ...TokenBackOptionFields\n      }\n    }\n  }\n\n  fragment TokenBackOptionFields on Printing {\n    id\n    scryfallId\n    setCode\n    collectorNumber\n    imageUrl\n    card {\n      id\n      name\n      typeLine\n    }\n  }\n": types.TokenBackOptionsDocument,
     "\n  mutation UpdateAppearanceSettings($palette: String, $themeStyle: String) {\n    updateAppearanceSettings(palette: $palette, themeStyle: $themeStyle) {\n      appearanceSettings {\n        palette\n        themeStyle\n      }\n    }\n  }\n": types.UpdateAppearanceSettingsDocument,
@@ -358,6 +360,10 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CardDropPrinting(\n    $scryfallId: ID\n    $setCode: String\n    $collectorNumber: String\n    $name: String\n  ) {\n    printingByReference(\n      scryfallId: $scryfallId\n      setCode: $setCode\n      collectorNumber: $collectorNumber\n      name: $name\n    ) {\n      id\n      scryfallId\n      finishes\n      card {\n        id\n        name\n      }\n    }\n  }\n"): (typeof documents)["\n  query CardDropPrinting(\n    $scryfallId: ID\n    $setCode: String\n    $collectorNumber: String\n    $name: String\n  ) {\n    printingByReference(\n      scryfallId: $scryfallId\n      setCode: $setCode\n      collectorNumber: $collectorNumber\n      name: $name\n    ) {\n      id\n      scryfallId\n      finishes\n      card {\n        id\n        name\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

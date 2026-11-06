@@ -1,8 +1,15 @@
 import { useApolloClient } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
+import { Layers, Lightbulb } from "lucide-react"
 import { useMemo } from "react"
 
 import { EmptyState } from "../../components/card-image"
+import {
+  CardDropOverlay,
+  droppedPrintingFinish,
+  type CardDropZone,
+  type DroppedPrinting,
+} from "../../components/card-drop-overlay"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
@@ -37,11 +44,22 @@ import { useDeckDetail } from "./use-deck-detail"
 import { useDeckDialogs } from "./use-deck-dialogs"
 import { useDeckMutations } from "./use-deck-mutations"
 import {
+  deckZoneDisplayLabel,
   type EDHRecAddZone,
   type EDHRecTab,
   type EDHRecThemeSelection,
   type RecommendedCardLike,
 } from "./deck-types"
+
+const DECK_DROP_ZONES: readonly CardDropZone<EDHRecAddZone>[] = [
+  { id: "mainboard", title: "Mainboard", hint: "Drop to add it to the deck.", icon: Layers },
+  {
+    id: "considering",
+    title: "Considering",
+    hint: "Drop to set it aside while you decide.",
+    icon: Lightbulb,
+  },
+]
 
 export type DeckDetailPageProps = {
   edhrecExcludeLands?: boolean
@@ -214,13 +232,29 @@ export function DeckDetailScreen({
   }
 
   function addEdhrecCard(card: RecommendedCardLike, zone: EDHRecAddZone) {
-    cardActions.addDeckCard({
-      finish: "nonfoil",
-      name: card.name,
-      preferredPrintingId: edhrecCardPrintingId(card),
-      quantity: 1,
-      zone,
-    })
+    void cardActions
+      .addDeckCard({
+        finish: "nonfoil",
+        name: card.name,
+        preferredPrintingId: edhrecCardPrintingId(card),
+        quantity: 1,
+        zone,
+      })
+      .catch(() => undefined)
+  }
+
+  function addDroppedCard(zone: EDHRecAddZone, printing: DroppedPrinting) {
+    const name = printing.card?.name ?? "Card"
+    return cardActions.addDeckCard(
+      {
+        finish: droppedPrintingFinish(printing),
+        name,
+        preferredPrintingId: printing.id,
+        quantity: 1,
+        zone,
+      },
+      `${name} added to ${deckZoneDisplayLabel(zone)}`,
+    )
   }
 
   useDeckDetailShortcuts(
@@ -449,6 +483,12 @@ export function DeckDetailScreen({
           />
         </DeckDetailHeader>
       </div>
+
+      <CardDropOverlay
+        enabled={!shareMode && canEditDecklist}
+        onDropCard={addDroppedCard}
+        zones={DECK_DROP_ZONES}
+      />
 
       <DeckDetailDialogLauncher
         canAllocate={canAllocate}

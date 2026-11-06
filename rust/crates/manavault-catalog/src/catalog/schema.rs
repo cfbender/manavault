@@ -9,7 +9,8 @@ use crate::catalog::edhrec::{self, CardEdhrec};
 use crate::catalog::printing::Printing;
 use crate::catalog::search::cards::{SearchOptions, Sort, TokenScope, search_cards};
 use crate::catalog::search::printings::{
-    SetSuggestion, scanner_printings, search_sets, set_illustration_ids,
+    PrintingReference, SetSuggestion, printing_by_reference, scanner_printings, search_sets,
+    set_illustration_ids,
 };
 use crate::catalog::search::{cards_by_name, suggestions};
 use crate::catalog::sets::{self, CardSet};
@@ -129,6 +130,33 @@ impl CardQueries {
             &state(ctx).db,
             scryfall_id.as_str(),
             illustration_id.as_ref().map(|id| id.as_str()),
+        )
+        .await
+        .map_err(db_error)
+    }
+
+    /// The printing a card dragged in from another site names, trying the
+    /// Scryfall ID (from its image URL), then the set code and collector
+    /// number (from a Scryfall card link), then the card name (from alt or
+    /// link text, resolving to the card's newest nonfoil, non-promo printing).
+    ///
+    /// Like `scannerPrintings`, this takes raw Scryfall IDs.
+    async fn printing_by_reference(
+        &self,
+        ctx: &Context<'_>,
+        scryfall_id: Option<ID>,
+        set_code: Option<String>,
+        collector_number: Option<String>,
+        name: Option<String>,
+    ) -> Result<Option<Printing>> {
+        printing_by_reference(
+            &state(ctx).db,
+            PrintingReference {
+                scryfall_id: scryfall_id.as_ref().map(|id| id.as_str()),
+                set_code: set_code.as_deref(),
+                collector_number: collector_number.as_deref(),
+                name: name.as_deref(),
+            },
         )
         .await
         .map_err(db_error)

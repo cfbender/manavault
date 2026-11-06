@@ -1320,6 +1320,35 @@ body[data-scroll-locked] .app-shell-main {
   }
 }
 
+/* A card dragged in from another page: the drop zones fade in over the page,
+   and the zone that takes the card holds for a beat before they fade out. */
+.card-drop-overlay {
+  animation: card-drop-in 140ms ease-out;
+}
+
+.card-drop-overlay--landing {
+  animation: card-drop-out 200ms ease-in 280ms forwards;
+}
+
+@keyframes card-drop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes card-drop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-drop-overlay,
+  .card-drop-overlay--landing {
+    animation: none;
+  }
+}
+
 /* Compact stages for picking a location inside a dialog. */
 .lo-stage--mini {
   padding: 0.5rem 0.5rem 0.65rem;

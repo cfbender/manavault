@@ -28,10 +28,11 @@ Each area links to the [feature reference](docs/features.md) for details.
   camera entirely in the browser, log them hands-free, and import the scanned
   list into the collection.
 - **[Decks](docs/features.md#decks)** - commander/mainboard/considering zones,
-  decklist import/export, preferred printings, custom tags, flexible grouping,
-  primers, keyboard shortcuts, a Swap cards workbench with a legality
-  preview, and read-only decks linked to a Moxfield or Archidekt list that
-  re-sync hourly.
+  decklist import/export, drag and drop from Scryfall, EDHREC, and Moxfield
+  (also into the collection and want list), preferred printings, custom tags,
+  flexible grouping, primers, keyboard shortcuts, a Swap cards workbench with
+  a legality preview, and read-only decks linked to a Moxfield or Archidekt
+  list that re-sync hourly.
 - **[Allocation](docs/features.md#allocation-pull-lists-and-missing-cards)** -
   reserve physical copies for deck cards so a card is never promised to two
   decks, then turn gaps into pull lists, proxies, and buylists for Mana Pool,

@@ -306,15 +306,11 @@ export function useDeckCardActions({
     })
   }
 
-  function addDeckCard(input: DeckCardInput) {
-    void addDeckCardMutation({
-      variables: { deckId, input },
-      onCompleted: () => {
-        onRefetch()
-        onToast("Card added to deck")
-      },
-      onError: () => undefined,
-    })
+  // Rejects when the add fails; `addCardError` also carries the message.
+  async function addDeckCard(input: DeckCardInput, message = "Card added to deck") {
+    await addDeckCardMutation({ variables: { deckId, input } })
+    onRefetch()
+    onToast(message)
   }
 
   return {

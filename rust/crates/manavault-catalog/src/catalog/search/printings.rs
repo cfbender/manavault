@@ -6,7 +6,7 @@ use sqlx::SqlitePool;
 
 use crate::catalog::card::NON_TOKEN_SQL;
 use crate::catalog::printing::{self, Printing, PrintingRecord, with_cards};
-use crate::catalog::search::name_match;
+use crate::catalog::search::{cards_by_name, name_match};
 use crate::catalog::sql::json_list;
 use crate::printing_query;
 
@@ -173,6 +173,58 @@ pub async fn get_printing(
     )
     .fetch_optional(pool)
     .await
+}
+
+/// What a card dragged in from another site names: a Scryfall printing id
+/// (from its image URL), a set and collector number (from a Scryfall card
+/// link), or a card name (from image alt text or link text). Any may be
+/// missing or stale.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PrintingReference<'a> {
+    pub scryfall_id: Option<&'a str>,
+    pub set_code: Option<&'a str>,
+    pub collector_number: Option<&'a str>,
+    pub name: Option<&'a str>,
+}
+
+/// The printing a reference names, trying the most exact part first: the
+/// Scryfall printing, then the set and collector number, then the named
+/// card's primary printing.
+pub async fn printing_by_reference(
+    pool: &SqlitePool,
+    reference: PrintingReference<'_>,
+) -> Result<Option<Printing>, sqlx::Error> {
+    if let Some(scryfall_id) = reference.scryfall_id.filter(|id| !id.is_empty())
+        && let Some(found) = Printing::load(pool, &ScryfallId::new(scryfall_id)).await?
+    {
+        return Ok(Some(found));
+    }
+    if let (Some(set_code), Some(collector_number)) =
+        (reference.set_code, reference.collector_number)
+        && let Some(record) = get_printing(pool, set_code, collector_number).await?
+    {
+        return Ok(with_cards(pool, vec![record]).await?.pop());
+    }
+    let Some(name) = reference.name else {
+        return Ok(None);
+    };
+    let Some(card) = cards_by_name::find(pool, name).await? else {
+        return Ok(None);
+    };
+    // A name says nothing about the printing, so prefer the newest regular
+    // one over promos and foil-only treatments.
+    let printings = list_printings_for_oracle_id(pool, &card.oracle_id).await?;
+    let regular = printings.iter().find(|printing| {
+        printing.has_image()
+            && !printing.promo
+            && printing
+                .finish_list()
+                .iter()
+                .any(|finish| finish == "nonfoil")
+    });
+    Ok(regular
+        .or_else(|| printing::primary_printing(&printings))
+        .cloned())
 }
 
 /// Every printing of a card with its card, newest first
