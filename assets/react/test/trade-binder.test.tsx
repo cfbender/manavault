@@ -158,6 +158,12 @@ test("trade binder applies collection sorting and structured filters", async () 
     q: '(name:"Black Lotus")',
     unallocatedOnly: true,
   })
+
+  await user.click(screen.getByRole("button", { name: /^Filter/ }))
+  await user.clear(screen.getByPlaceholderText("Card name"))
+  await user.click(screen.getByRole("button", { name: "Apply filters" }))
+
+  expect(latestBinderQueryOptions().variables?.filters).toEqual({ unallocatedOnly: true })
 })
 
 test("sort dropdown supports keyboard navigation", async () => {
