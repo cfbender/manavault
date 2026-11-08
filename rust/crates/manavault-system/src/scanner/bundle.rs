@@ -176,13 +176,29 @@ fn publish_directory(root: &Path, version: &str, incoming: &Path) -> Result<Path
     }
 }
 
+/// Points `root/name` at `target` by renaming a fresh symlink over it, so readers
+/// never see the link missing.
+///
+/// Known Windows limitations:
+/// - Creating the link needs Developer Mode or admin rights; without either it
+///   fails with `os error 1314`.
+/// - A directory symlink counts as a directory there, so renaming over an
+///   existing `current` (any install after the first) may fail even with the
+///   privilege. Unconfirmed: a junction renamed over a junction succeeds on
+///   Rust 1.99; `swaps_current_keeps_previous_and_prunes_older_versions` with
+///   Developer Mode on settles it.
+/// - The cleanup's `remove_file` gets "Access is denied" for a directory link
+///   (that takes `remove_dir`), so a failed swap leaves `.{name}-xxxx` behind.
 fn swap_symlink(root: &Path, name: &str, target: &str) -> Result<(), InstallError> {
     let temporary = root.join(format!(
         ".{name}-{}",
         hex::encode(manavault_core::crypto::random_bytes::<6>())
     ));
-    let result = std::os::unix::fs::symlink(target, &temporary)
-        .and_then(|()| std::fs::rename(&temporary, root.join(name)));
+    #[cfg(unix)]
+    let link = std::os::unix::fs::symlink(target, &temporary);
+    #[cfg(windows)]
+    let link = std::os::windows::fs::symlink_dir(target, &temporary);
+    let result = link.and_then(|()| std::fs::rename(&temporary, root.join(name)));
     result.map_err(|error| {
         let _ = std::fs::remove_file(&temporary);
         InstallError::SymlinkFailed(error.to_string())
