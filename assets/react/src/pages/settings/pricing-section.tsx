@@ -69,7 +69,12 @@ export function PricingSection() {
           data: { pricingSettings },
         })
         showToast("Price source updated.")
-        void client.resetStore().catch((err: unknown) => showToast(errorMessage(err)))
+        void client.resetStore().catch((err: unknown) => {
+          // The reset briefly empties every query, so components that only render with data
+          // unmount and their in-flight refetches reject with AbortError. Nothing failed.
+          if (err instanceof DOMException && err.name === "AbortError") return
+          showToast(errorMessage(err))
+        })
       },
       onError: (err) => {
         setPendingSource(null)

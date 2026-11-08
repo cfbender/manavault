@@ -1,5 +1,5 @@
 import { ApolloClient, gql, InMemoryCache } from "@apollo/client"
-import { ApolloProvider } from "@apollo/client/react"
+import { ApolloProvider, useQuery } from "@apollo/client/react"
 import { MockLink } from "@apollo/client/testing"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -18,9 +18,27 @@ const StaleCollectionPriceDocument = gql`
   }
 `
 
+const DependentDocument = gql`
+  query DependentOnPricingSettings {
+    collectionItemCount
+  }
+`
+
 afterEach(cleanup)
 
+// Like the AI settings form: renders, and runs its own query, only once pricing settings load.
+function DependentSection() {
+  const settingsQuery = useQuery(PricingSettingsDocument, { fetchPolicy: "cache-and-network" })
+  return settingsQuery.data ? <DependentQuery /> : null
+}
+
+function DependentQuery() {
+  useQuery(DependentDocument)
+  return null
+}
+
 test("selecting a price source updates the control and clears stale cached prices", async () => {
+  const dependentResult = { data: { collectionItemCount: 1 } }
   const scryfallSettings = pricingSettings("scryfall")
   const manaPoolSettings = pricingSettings("manapool")
   const link = new MockLink([
@@ -47,6 +65,13 @@ test("selecting a price source updates the control and clears stale cached price
       request: { query: AcquisitionPriceRebuildDocument },
       result: { data: { acquisitionPriceRebuild: null } },
     },
+    { request: { query: DependentDocument }, result: dependentResult, maxUsageCount: 3 },
+    {
+      request: { query: PricingSettingsDocument },
+      delay: 50,
+      result: { data: { pricingSettings: manaPoolSettings } },
+      maxUsageCount: 3,
+    },
   ])
   const client = new ApolloClient({ cache: new InMemoryCache(), link })
 
@@ -59,6 +84,7 @@ test("selecting a price source updates the control and clears stale cached price
     <ApolloProvider client={client}>
       <ToastProvider>
         <PricingSection />
+        <DependentSection />
       </ToastProvider>
     </ApolloProvider>,
   )
@@ -78,6 +104,9 @@ test("selecting a price source updates the control and clears stale cached price
   await waitFor(() => {
     expect(client.readQuery({ query: StaleCollectionPriceDocument })).toBeNull()
   })
+  // The reset unmounts DependentQuery mid-refetch; that abort is not an error to report.
+  await waitFor(() => expect(client.readQuery({ query: PricingSettingsDocument })).toBeTruthy())
+  expect(screen.queryByText(/aborted/)).toBeNull()
 })
 
 function pricingSettings(source: string) {
