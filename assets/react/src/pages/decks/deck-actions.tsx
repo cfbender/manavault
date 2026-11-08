@@ -4,7 +4,6 @@ import {
   Download,
   Edit3,
   Infinity as InfinityIcon,
-  Link2,
   MoreVertical,
   Share2,
   Scissors,
@@ -48,18 +47,15 @@ export function SummaryActionMenu({
   onEdhrec,
   onEdit,
   onExport,
-  onExternalSource,
   onImport,
   onMissing,
   onOptimizePrintings,
   onRecommander,
   onShare,
-  externalSourceLinked = false,
 }: {
   analyzeLabel?: string
   analyzePending?: boolean
   className?: string
-  externalSourceLinked?: boolean
   label: string
   onAnalyze?: () => void
   onCombos?: () => void
@@ -69,7 +65,6 @@ export function SummaryActionMenu({
   onEdhrec?: () => void
   onEdit: () => void
   onExport?: () => void
-  onExternalSource?: () => void
   onImport?: () => void
   onMissing?: () => void
   onOptimizePrintings?: () => void
@@ -115,12 +110,6 @@ export function SummaryActionMenu({
             <DropdownMenuItem onSelect={onImport}>
               <Upload className="h-4 w-4" />
               Import decklist
-            </DropdownMenuItem>
-          ) : null}
-          {onExternalSource ? (
-            <DropdownMenuItem onSelect={onExternalSource}>
-              <Link2 className="h-4 w-4" />
-              {externalSourceLinked ? "External deck" : "Link external deck"}
             </DropdownMenuItem>
           ) : null}
           {onMissing ? (

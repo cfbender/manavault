@@ -348,7 +348,6 @@ export function DeckDetailScreen({
           onDownloadSharedDecklist={downloadSharedDecklist}
           onEditDeck={() => setOverlay({ kind: "edit-deck" })}
           onExportDeck={() => setOverlay({ kind: "export-deck" })}
-          onExternalSource={() => setOverlay({ kind: "external-source" })}
           onGroupByChange={setGroupBy}
           onImportDeck={() => setOverlay({ kind: "import-deck" })}
           onMissingCards={() => setOverlay({ kind: "missing-cards" })}

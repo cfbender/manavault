@@ -80,7 +80,6 @@ type DeckDetailHeaderProps = {
   onDownloadSharedDecklist: () => void
   onEditDeck: () => void
   onExportDeck: () => void
-  onExternalSource: () => void
   onGroupByChange: (groupBy: DeckGroupBy) => void
   onImportDeck: () => void
   onMissingCards: () => void
@@ -275,7 +274,6 @@ export function DeckDetailHeader({
   onDownloadSharedDecklist,
   onEditDeck,
   onExportDeck,
-  onExternalSource,
   onGroupByChange,
   onImportDeck,
   onMissingCards,
@@ -353,13 +351,11 @@ export function DeckDetailHeader({
               onAnalyze={canAnalyze ? analysis.analyze : undefined}
               onCombos={onCombos}
               onCompare={onCompareDeck}
-              externalSourceLinked={Boolean(deck.externalSource)}
               onDisassemble={canAllocate ? onDisassemble : undefined}
               onEdhrec={canEdit && hasCommander(deck.format) ? onOpenEdhrec : undefined}
               onRecommander={canEdit && hasCommander(deck.format) ? onOpenRecommander : undefined}
               onEdit={onEditDeck}
               onExport={onExportDeck}
-              onExternalSource={canAllocate ? onExternalSource : undefined}
               onImport={canEdit ? onImportDeck : undefined}
               onMissing={canAllocate && hasBuylistWork ? onMissingCards : undefined}
               onShare={onShareDeck}
@@ -416,7 +412,7 @@ export function DeckDetailHeader({
             </p>
           </div>
         ) : deck.externalSource && !shareMode ? (
-          <DeckExternalSourceNotice deck={deck} onManage={onExternalSource} />
+          <DeckExternalSourceNotice deck={deck} onManage={onEditDeck} />
         ) : null}
 
         {legalityIssues.length ? (

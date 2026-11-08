@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from "react"
 import { DeckDetailBulkAllocationOverlay } from "./deck-detail-bulk-allocation-overlay"
 import { DeckDetailCardOverlays } from "./deck-detail-card-overlays"
 import { DeckDetailDisassemblyOverlay } from "./deck-detail-disassembly-overlay"
-import { DeckExternalSourceDialog } from "./deck-external-source-dialog"
 import {
   NO_DECK_DETAIL_OVERLAY,
   type DeckDetailOverlay,
@@ -152,9 +151,6 @@ export function DeckDetailDialogLauncher({
         shareToken={shareToken}
       />
       <DeckDetailShortcutsOverlay onClose={close} overlay={overlay} />
-      {!shareMode && overlay.kind === "external-source" ? (
-        <DeckExternalSourceDialog deck={deck} onClose={close} />
-      ) : null}
       {canEdit && !shareMode && overlay.kind === "swap-cards" ? (
         <DeckSwapDialog deck={deck} deckCards={deckCards} onClose={close} />
       ) : null}
