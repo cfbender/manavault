@@ -1,7 +1,7 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import { Edit3, Plus } from "lucide-react"
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -63,9 +63,20 @@ export function EditDeckDialog({
   })
   const history = inlineHistory || historyQuery.data?.deck
   const isHistoryReady = Boolean(history)
+  // Fill the form once per opening. Later deck refetches (linking an external
+  // deck refreshes it) must not overwrite edits the user has not saved yet.
+  const filledDeckId = useRef<string | null>(null)
+  const filledHistoryId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!deck || !isOpen) return
+    if (isOpen) return
+    filledDeckId.current = null
+    filledHistoryId.current = null
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!deck || !isOpen || filledDeckId.current === deck.id) return
+    filledDeckId.current = deck.id
     setName(deck.name)
     setFormat(deckFormatValue(deck.format))
     setStatus(deckStatusValue(deck.status))
@@ -75,12 +86,13 @@ export function EditDeckDialog({
   }, [deck, isOpen])
 
   useEffect(() => {
-    if (!history || !isOpen) return
+    if (!deck || !history || !isOpen || filledHistoryId.current === deck.id) return
+    filledHistoryId.current = deck.id
     setIncludedForPlay(history.includedForPlay)
     setPlayCount(String(history.playCount))
     setSkipCount(String(history.skipCount))
     setLastPlayedDate(dateInputValue(history.lastPlayedAt))
-  }, [history, isOpen])
+  }, [deck, history, isOpen])
 
   useEffect(() => {
     if (historyQuery.error) setError(historyQuery.error.message)
@@ -478,8 +490,12 @@ export function NewDeckDialog({
         showToast(unresolvedToast(`Created and linked deck ${deck?.name ?? ""}`.trim(), unresolved))
         finishCreate(deck?.id)
       },
-      onError: (error) =>
-        setError(error instanceof Error ? error.message : "Could not pull that deck"),
+      // Nothing was created; keep the dialog open and report the failure.
+      onError: (error) => {
+        const message = error instanceof Error ? error.message : "Could not pull that deck"
+        setError(message)
+        showToast(`Deck not created: ${message}`, { tone: "error" })
+      },
     })
   }
 

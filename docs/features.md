@@ -338,9 +338,15 @@ Deck workflows include:
   and catalog checks but stay out of the Ask AI history.
 - **Compare decklist** - diff an external list against the open deck as adds,
   cuts, and quantity changes (see [Trade](#trade) for supported sources)
-- **Link external deck** - attach a public Moxfield or Archidekt deck URL from
-  the deck actions menu. Linking imports that list (replacing the current
-  cards) and keeps it in sync every hour; the header shows the last sync time
+- **Link external deck** - paste a public Moxfield or Archidekt deck URL into
+  the External deck section of the Edit deck dialog and turn on its switch;
+  pasting alone links nothing. After a confirmation, linking imports that list
+  (replacing the current cards) and keeps it in sync every hour. Turning the
+  switch off unlinks the deck and keeps its current cards. Archived decks
+  must be unarchived first. The New deck dialog has the same switch: with it
+  on, the name is skipped and the deck is created only after the external
+  deck is fetched, named after it, so a failed fetch creates nothing. The
+  header shows the last sync time
   and a **Sync now** button, and failed syncs leave the last good list in
   place with the error shown. While linked, every decklist edit (add, swap,
   import, move, tag, printing, commander, delete, EDHREC/Recommander adds) is

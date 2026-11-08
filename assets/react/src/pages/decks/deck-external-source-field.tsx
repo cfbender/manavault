@@ -10,7 +10,7 @@ import { externalSourceLabel, useDeckExternalSource } from "./use-deck-external-
 
 type ExternalDeck = Pick<
   DeckSummary | DeckDetail,
-  "id" | "externalSource" | "externalUrl" | "externalSyncedAt" | "externalSyncError"
+  "id" | "status" | "externalSource" | "externalUrl" | "externalSyncedAt" | "externalSyncError"
 >
 
 /**
@@ -29,6 +29,8 @@ export function DeckExternalSourceField({
   onPendingChange?: (pending: boolean) => void
 }) {
   const linked = Boolean(deck.externalSource)
+  // The server refuses to link archived decks; unlinking still works.
+  const archived = deck.status === "archived"
   const [url, setUrl] = useState(deck.externalUrl ?? "")
   const [confirm, setConfirm] = useState<"link" | "unlink" | null>(null)
   const [localError, setLocalError] = useState<string | null>(null)
@@ -81,7 +83,9 @@ export function DeckExternalSourceField({
           <span id="deck-external-source-help" className="block text-sm text-base-content/75">
             {linked
               ? `Mirrors ${sourceLabel} and syncs hourly. Card edits are disabled here.`
-              : "Replace this decklist with a Moxfield or Archidekt deck and keep it in sync."}
+              : archived
+                ? "Unarchive this deck before linking an external deck."
+                : "Replace this decklist with a Moxfield or Archidekt deck and keep it in sync."}
           </span>
         </span>
         <Switch
@@ -89,7 +93,7 @@ export function DeckExternalSourceField({
           aria-describedby="deck-external-source-help"
           checked={checked}
           onCheckedChange={toggle}
-          disabled={disabled || isPending}
+          disabled={disabled || isPending || (archived && !linked)}
           className="shrink-0"
         />
       </div>
@@ -102,7 +106,7 @@ export function DeckExternalSourceField({
           inputMode="url"
           placeholder="https://moxfield.com/decks/... or https://archidekt.com/decks/..."
           value={url}
-          disabled={linked || disabled || isPending}
+          disabled={linked || archived || disabled || isPending}
           onChange={(event) => {
             setUrl(event.target.value)
             setLocalError(null)

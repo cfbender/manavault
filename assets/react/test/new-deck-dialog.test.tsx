@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   calls: [] as unknown[],
   error: null as Error | null,
   navigate: vi.fn(),
+  showToast: vi.fn(),
 }))
 
 vi.mock("@tanstack/react-router", () => ({
@@ -37,7 +38,7 @@ vi.mock("@apollo/client/react", () => ({
 }))
 
 vi.mock("../src/components/ui/toast", () => ({
-  useToast: () => ({ showToast: vi.fn() }),
+  useToast: () => ({ showToast: mocks.showToast }),
 }))
 
 import { NewDeckDialog } from "../src/pages/decks/deck-editor-dialogs"
@@ -47,6 +48,7 @@ afterEach(() => {
   mocks.calls = []
   mocks.error = null
   mocks.navigate.mockReset()
+  mocks.showToast.mockReset()
 })
 
 test("new deck dialog creates a deck without linking by default", async () => {
@@ -103,7 +105,7 @@ test("new deck dialog skips the name and uses the external deck when linking", a
   expect(mocks.navigate).toHaveBeenCalledWith({ to: "/decks/$id", params: { id: "deck-8" } })
 })
 
-test("new deck dialog stays open when pulling the external deck fails", async () => {
+test("new deck dialog creates nothing and reports an error when the pull fails", async () => {
   const user = userEvent.setup()
   const onOpenChange = vi.fn()
   mocks.error = new Error("That deck was not found; it may be private or deleted.")
@@ -117,6 +119,10 @@ test("new deck dialog stays open when pulling the external deck fails", async ()
   await user.click(screen.getByRole("button", { name: "Create deck" }))
 
   expect(screen.getByText("That deck was not found; it may be private or deleted.")).toBeTruthy()
+  expect(mocks.showToast).toHaveBeenCalledWith(
+    "Deck not created: That deck was not found; it may be private or deleted.",
+    { tone: "error" },
+  )
   expect(onOpenChange).not.toHaveBeenCalled()
   expect(mocks.navigate).not.toHaveBeenCalled()
 })

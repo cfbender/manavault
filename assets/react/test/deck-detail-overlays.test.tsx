@@ -466,3 +466,48 @@ test("deck editor unlinks a linked deck after confirming", async () => {
 
   expect(apolloMocks.mutationVariables).toEqual({ id: "deck-1" })
 })
+
+test("deck editor keeps unsaved edits when the deck refetches", async () => {
+  const user = userEvent.setup()
+  const { rerender } = render(
+    <EditDeckDialog deck={unlinkedDeck as never} open onOpenChange={vi.fn()} />,
+  )
+
+  const nameInput = screen.getByPlaceholderText("Deck name") as HTMLInputElement
+  await user.clear(nameInput)
+  await user.type(nameInput, "Renamed")
+
+  rerender(
+    <EditDeckDialog
+      deck={
+        {
+          ...unlinkedDeck,
+          externalSource: "moxfield",
+          externalUrl: "https://moxfield.com/decks/abc",
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  expect(nameInput.value).toBe("Renamed")
+  expect(
+    screen.getByRole("switch", { name: "Link external deck" }).getAttribute("aria-checked"),
+  ).toBe("true")
+})
+
+test("deck editor disables linking for archived decks", () => {
+  render(
+    <EditDeckDialog
+      deck={{ ...unlinkedDeck, status: "archived" } as never}
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  expect(
+    (screen.getByRole("switch", { name: "Link external deck" }) as HTMLButtonElement).disabled,
+  ).toBe(true)
+  expect(screen.getByText("Unarchive this deck before linking an external deck.")).toBeTruthy()
+})
