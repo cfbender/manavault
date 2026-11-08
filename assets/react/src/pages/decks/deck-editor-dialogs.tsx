@@ -28,7 +28,7 @@ import type { DeckDetail, DeckSummary } from "./deck-types"
 import { DECK_FORMATS, DECK_STATUSES } from "./deck-types"
 import { DeckPlayHistoryDocument } from "./deck-detail-documents"
 import { DeckExternalSourceField } from "./deck-external-source-field"
-import { LinkDeckExternalSourceDocument } from "./deck-share-documents"
+import { CreateLinkedDeckDocument } from "./deck-share-documents"
 import { unresolvedToast } from "./use-deck-external-source"
 import { CreateDeckDocument, UpdateDeckDocument } from "./deck-list-documents"
 
@@ -450,7 +450,9 @@ export function NewDeckDialog({
   const [error, setError] = useState<string | null>(null)
 
   const [createDeckMutation, createDeckResult] = useMutation(CreateDeckDocument)
-  const [linkDeckMutation, linkDeckResult] = useMutation(LinkDeckExternalSourceDocument)
+  const [createLinkedDeckMutation, createLinkedDeckResult] = useMutation(CreateLinkedDeckDocument)
+  const isLinkPending = createLinkedDeckResult.loading
+  const isPending = createDeckResult.loading || isLinkPending
 
   function finishCreate(deckId: string | undefined) {
     void refetchActiveQueries(client)
@@ -465,68 +467,58 @@ export function NewDeckDialog({
     if (deckId) navigate({ to: "/decks/$id", params: { id: deckId } })
   }
 
-  function linkCreatedDeck(deckId: string, deckName: string) {
-    void linkDeckMutation({
-      variables: { id: deckId, url: externalUrl.trim() },
+  function createLinkedDeck() {
+    void createLinkedDeckMutation({
+      variables: {
+        input: { url: externalUrl.trim(), name: name.trim() || null, format, status },
+      },
       onCompleted: (data) => {
-        const unresolved = data.linkDeckExternalSource?.unresolved ?? []
-        showToast(unresolvedToast(`Created deck ${deckName} and linked it`, unresolved))
-        finishCreate(deckId)
+        const deck = data.createLinkedDeck?.deck
+        const unresolved = data.createLinkedDeck?.unresolved ?? []
+        showToast(unresolvedToast(`Created and linked deck ${deck?.name ?? ""}`.trim(), unresolved))
+        finishCreate(deck?.id)
       },
-      onError: (error) => {
-        showToast(
-          `Created deck ${deckName}, but linking failed: ${
-            error instanceof Error ? error.message : "unknown error"
-          }`,
-          { tone: "info" },
-        )
-        finishCreate(deckId)
-      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not pull that deck"),
     })
   }
 
-  const createDeck = {
-    ...createDeckResult,
-    isPending: createDeckResult.loading || linkDeckResult.loading,
-    mutate: () =>
-      void createDeckMutation({
-        variables: { input: { name: name.trim(), format, status } },
-        onCompleted: (data) => {
-          const deckId = data.createDeck?.deck?.id
-          const deckName = name.trim()
-
-          if (linkExternal && deckId) {
-            linkCreatedDeck(deckId, deckName)
-            return
-          }
-
-          showToast(`Created deck ${deckName}`)
-          finishCreate(deckId)
-        },
-        onError: (error) =>
-          setError(error instanceof Error ? error.message : "Could not create deck"),
-      }),
+  function createPlainDeck() {
+    void createDeckMutation({
+      variables: { input: { name: name.trim(), format, status } },
+      onCompleted: (data) => {
+        showToast(`Created deck ${name.trim()}`)
+        finishCreate(data.createDeck?.deck?.id)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not create deck"),
+    })
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
+    if (linkExternal) {
+      if (!externalUrl.trim()) {
+        setError("Paste a Moxfield or Archidekt deck link first")
+        return
+      }
+
+      createLinkedDeck()
+      return
+    }
+
     if (!name.trim()) {
       setError("Deck name is required")
       return
     }
 
-    if (linkExternal && !externalUrl.trim()) {
-      setError("Paste a Moxfield or Archidekt deck link first")
-      return
-    }
-
-    createDeck.mutate()
+    createPlainDeck()
   }
 
   function close() {
-    if (createDeck.isPending) return
+    if (isPending) return
     setError(null)
     onOpenChange(false)
   }
@@ -548,9 +540,10 @@ export function NewDeckDialog({
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
             <Input
-              value={name}
+              value={linkExternal ? "" : name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Deck name"
+              placeholder={linkExternal ? "Uses the external deck's name" : "Deck name"}
+              disabled={linkExternal || isPending}
               autoFocus
             />
           </label>
@@ -608,7 +601,7 @@ export function NewDeckDialog({
                 aria-label="Link external deck"
                 checked={linkExternal}
                 onCheckedChange={setLinkExternal}
-                disabled={createDeck.isPending}
+                disabled={isPending}
                 className="-my-1 shrink-0"
               />
             </label>
@@ -617,7 +610,7 @@ export function NewDeckDialog({
               inputMode="url"
               placeholder="https://moxfield.com/decks/... or https://archidekt.com/decks/..."
               value={externalUrl}
-              disabled={createDeck.isPending}
+              disabled={isPending}
               onChange={(event) => setExternalUrl(event.target.value)}
             />
           </div>
@@ -629,12 +622,12 @@ export function NewDeckDialog({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={createDeck.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createDeck.isPending}>
+            <Button type="submit" disabled={isPending}>
               <Plus className="h-4 w-4" />
-              {linkDeckResult.loading
+              {isLinkPending
                 ? "Importing..."
                 : createDeckResult.loading
                   ? "Creating..."

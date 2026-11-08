@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   calls: [] as unknown[],
+  error: null as Error | null,
   navigate: vi.fn(),
 }))
 
@@ -14,12 +15,20 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@apollo/client/react", () => ({
   useApolloClient: () => ({ refetchQueries: () => Promise.resolve([]) }),
   useMutation: () => [
-    (options: { onCompleted?: (data: unknown) => void; variables?: unknown }) => {
+    (options: {
+      onCompleted?: (data: unknown) => void
+      onError?: (error: Error) => void
+      variables?: unknown
+    }) => {
       mocks.calls.push(options.variables)
-      options.onCompleted?.({
-        createDeck: { deck: { id: "deck-7" } },
-        linkDeckExternalSource: { unresolved: [] },
-      })
+      if (mocks.error) {
+        options.onError?.(mocks.error)
+      } else {
+        options.onCompleted?.({
+          createDeck: { deck: { id: "deck-7" } },
+          createLinkedDeck: { deck: { id: "deck-8", name: "Remote Deck" }, unresolved: [] },
+        })
+      }
       return Promise.resolve({ data: {} })
     },
     { loading: false },
@@ -36,6 +45,7 @@ import { NewDeckDialog } from "../src/pages/decks/deck-editor-dialogs"
 afterEach(() => {
   cleanup()
   mocks.calls = []
+  mocks.error = null
   mocks.navigate.mockReset()
 })
 
@@ -60,12 +70,15 @@ test("new deck dialog creates a deck without linking by default", async () => {
   expect(mocks.navigate).toHaveBeenCalledWith({ to: "/decks/$id", params: { id: "deck-7" } })
 })
 
-test("new deck dialog links the created deck when the toggle is on", async () => {
+test("new deck dialog skips the name and uses the external deck when linking", async () => {
   const user = userEvent.setup()
-  render(<NewDeckDialog open onOpenChange={vi.fn()} />)
+  const onOpenChange = vi.fn()
+  render(<NewDeckDialog open onOpenChange={onOpenChange} />)
 
-  await user.type(screen.getByPlaceholderText("Deck name"), "Linked")
   await user.click(screen.getByRole("switch", { name: "Link external deck" }))
+  const nameInput = screen.getByPlaceholderText("Uses the external deck's name") as HTMLInputElement
+  expect(nameInput.disabled).toBe(true)
+
   await user.click(screen.getByRole("button", { name: "Create deck" }))
   expect(screen.getByText("Paste a Moxfield or Archidekt deck link first")).toBeTruthy()
   expect(mocks.calls).toEqual([])
@@ -77,8 +90,33 @@ test("new deck dialog links the created deck when the toggle is on", async () =>
   await user.click(screen.getByRole("button", { name: "Create deck" }))
 
   expect(mocks.calls).toEqual([
-    { input: { name: "Linked", format: "commander", status: "brewing" } },
-    { id: "deck-7", url: "https://archidekt.com/decks/123" },
+    {
+      input: {
+        url: "https://archidekt.com/decks/123",
+        name: null,
+        format: "commander",
+        status: "brewing",
+      },
+    },
   ])
-  expect(mocks.navigate).toHaveBeenCalledWith({ to: "/decks/$id", params: { id: "deck-7" } })
+  expect(onOpenChange).toHaveBeenCalledWith(false)
+  expect(mocks.navigate).toHaveBeenCalledWith({ to: "/decks/$id", params: { id: "deck-8" } })
+})
+
+test("new deck dialog stays open when pulling the external deck fails", async () => {
+  const user = userEvent.setup()
+  const onOpenChange = vi.fn()
+  mocks.error = new Error("That deck was not found; it may be private or deleted.")
+  render(<NewDeckDialog open onOpenChange={onOpenChange} />)
+
+  await user.click(screen.getByRole("switch", { name: "Link external deck" }))
+  await user.type(
+    screen.getByRole("textbox", { name: "Moxfield or Archidekt URL" }),
+    "https://moxfield.com/decks/missing",
+  )
+  await user.click(screen.getByRole("button", { name: "Create deck" }))
+
+  expect(screen.getByText("That deck was not found; it may be private or deleted.")).toBeTruthy()
+  expect(onOpenChange).not.toHaveBeenCalled()
+  expect(mocks.navigate).not.toHaveBeenCalled()
 })

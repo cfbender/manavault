@@ -95,3 +95,19 @@ export const DeckBuylistDocument = graphql(`
     )
   }
 `)
+
+export const CreateLinkedDeckDocument = graphql(`
+  mutation CreateLinkedDeck($input: CreateLinkedDeckInput!) {
+    createLinkedDeck(input: $input) {
+      deck {
+        id
+        name
+        externalSource
+        externalUrl
+        externalSyncedAt
+        externalSyncError
+      }
+      unresolved
+    }
+  }
+`)
