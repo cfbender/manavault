@@ -19,7 +19,7 @@ export function externalSourceLabel(source: string | null | undefined) {
   return (source && EXTERNAL_SOURCE_LABELS[source]) || "external deck"
 }
 
-function unresolvedToast(prefix: string, unresolved: string[]) {
+export function unresolvedToast(prefix: string, unresolved: string[]) {
   if (!unresolved.length) return prefix
   return `${prefix}; ${pluralize(unresolved.length, "card")} not found: ${unresolved
     .slice(0, 3)

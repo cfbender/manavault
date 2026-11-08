@@ -114,6 +114,17 @@ pub struct DeckInput {
     pub included_for_play: MaybeUndefined<bool>,
 }
 
+/// A new deck linked to a Moxfield or Archidekt deck.
+#[derive(InputObject)]
+pub struct CreateLinkedDeckInput {
+    /// The Moxfield or Archidekt deck link.
+    pub url: String,
+    /// Overrides the external deck's name when not blank.
+    pub name: Option<String>,
+    pub format: MaybeUndefined<String>,
+    pub status: MaybeUndefined<String>,
+}
+
 /// A Commander precon to import as a new deck.
 #[derive(InputObject)]
 pub struct ImportCommanderPreconInput {
@@ -424,6 +435,13 @@ pub struct LinkDeckExternalSourcePayload {
 }
 
 #[derive(SimpleObject)]
+pub struct CreateLinkedDeckPayload {
+    pub deck: Option<Deck>,
+    /// Card names that matched no card in the catalog.
+    pub unresolved: Vec<String>,
+}
+
+#[derive(SimpleObject)]
 pub struct ImportCommanderPreconPayload {
     pub deck: Option<Deck>,
     /// Card names that matched no card in the catalog.
@@ -727,6 +745,29 @@ impl DeckMutations {
             .await
             .map_err(|error| external_error(&error))?;
         Ok(Some(SyncDeckExternalSourcePayload {
+            deck: Some(Deck::new(synced.deck)),
+            unresolved: synced.unresolved,
+        }))
+    }
+
+    /// Fetches a Moxfield or Archidekt deck and creates a new deck linked to
+    /// it, named after the external deck unless `name` is given. Nothing is
+    /// created when the fetch fails.
+    async fn create_linked_deck(
+        &self,
+        ctx: &Context<'_>,
+        input: CreateLinkedDeckInput,
+    ) -> Result<Option<CreateLinkedDeckPayload>> {
+        let changes = DeckChanges {
+            name: input.name.map(Some),
+            format: change(input.format),
+            status: change(input.status),
+            ..DeckChanges::default()
+        };
+        let synced = external::create_linked(state(ctx), &input.url, changes)
+            .await
+            .map_err(|error| external_error(&error))?;
+        Ok(Some(CreateLinkedDeckPayload {
             deck: Some(Deck::new(synced.deck)),
             unresolved: synced.unresolved,
         }))

@@ -1,7 +1,7 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import { Edit3, Plus } from "lucide-react"
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -27,6 +27,9 @@ import { titleize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
 import { DECK_FORMATS, DECK_STATUSES } from "./deck-types"
 import { DeckPlayHistoryDocument } from "./deck-detail-documents"
+import { DeckExternalSourceField } from "./deck-external-source-field"
+import { CreateLinkedDeckDocument } from "./deck-share-documents"
+import { unresolvedToast } from "./use-deck-external-source"
 import { CreateDeckDocument, UpdateDeckDocument } from "./deck-list-documents"
 
 export function EditDeckDialog({
@@ -51,6 +54,7 @@ export function EditDeckDialog({
   const [coverDeckCardId, setCoverDeckCardId] = useState<string | null>(null)
   const [primer, setPrimer] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [isExternalPending, setIsExternalPending] = useState(false)
   const deckCards = deck && "deckCards" in deck ? deck.deckCards : null
   const inlineHistory = hasPlayHistory(deck) ? deck : null
   const historyQuery = useQuery(DeckPlayHistoryDocument, {
@@ -59,9 +63,20 @@ export function EditDeckDialog({
   })
   const history = inlineHistory || historyQuery.data?.deck
   const isHistoryReady = Boolean(history)
+  // Fill the form once per opening. Later deck refetches (linking an external
+  // deck refreshes it) must not overwrite edits the user has not saved yet.
+  const filledDeckId = useRef<string | null>(null)
+  const filledHistoryId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!deck || !isOpen) return
+    if (isOpen) return
+    filledDeckId.current = null
+    filledHistoryId.current = null
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!deck || !isOpen || filledDeckId.current === deck.id) return
+    filledDeckId.current = deck.id
     setName(deck.name)
     setFormat(deckFormatValue(deck.format))
     setStatus(deckStatusValue(deck.status))
@@ -71,12 +86,13 @@ export function EditDeckDialog({
   }, [deck, isOpen])
 
   useEffect(() => {
-    if (!history || !isOpen) return
+    if (!deck || !history || !isOpen || filledHistoryId.current === deck.id) return
+    filledHistoryId.current = deck.id
     setIncludedForPlay(history.includedForPlay)
     setPlayCount(String(history.playCount))
     setSkipCount(String(history.skipCount))
     setLastPlayedDate(dateInputValue(history.lastPlayedAt))
-  }, [history, isOpen])
+  }, [deck, history, isOpen])
 
   useEffect(() => {
     if (historyQuery.error) setError(historyQuery.error.message)
@@ -142,7 +158,7 @@ export function EditDeckDialog({
   }
 
   function close() {
-    if (updateDeck.isPending) return
+    if (updateDeck.isPending || isExternalPending) return
     setError(null)
     onOpenChange(false)
   }
@@ -214,6 +230,14 @@ export function EditDeckDialog({
               </Select>
             </label>
           </div>
+
+          {deck ? (
+            <DeckExternalSourceField
+              deck={deck}
+              disabled={updateDeck.isPending}
+              onPendingChange={setIsExternalPending}
+            />
+          ) : null}
 
           <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
             <span>
@@ -370,7 +394,7 @@ export function EditDeckDialog({
             <Button
               type="submit"
               className="min-h-11"
-              disabled={!isHistoryReady || updateDeck.isPending}
+              disabled={!isHistoryReady || updateDeck.isPending || isExternalPending}
             >
               <Edit3 className="h-4 w-4" />
               {updateDeck.isPending ? "Saving..." : "Save deck"}
@@ -433,47 +457,85 @@ export function NewDeckDialog({
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
+  const [linkExternal, setLinkExternal] = useState(false)
+  const [externalUrl, setExternalUrl] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   const [createDeckMutation, createDeckResult] = useMutation(CreateDeckDocument)
-  const createDeck = {
-    ...createDeckResult,
-    isPending: createDeckResult.loading,
-    mutate: () =>
-      void createDeckMutation({
-        variables: { input: { name: name.trim(), format, status } },
-        onCompleted: (data) => {
-          void refetchActiveQueries(client)
-          showToast(`Created deck ${name.trim()}`)
-          setName("")
-          setFormat("commander")
-          setStatus("brewing")
-          setError(null)
-          onOpenChange(false)
+  const [createLinkedDeckMutation, createLinkedDeckResult] = useMutation(CreateLinkedDeckDocument)
+  const isLinkPending = createLinkedDeckResult.loading
+  const isPending = createDeckResult.loading || isLinkPending
+  const isArchived = status === "archived"
 
-          if (data.createDeck?.deck?.id) {
-            navigate({ to: "/decks/$id", params: { id: data.createDeck.deck.id } })
-          }
-        },
-        onError: (error) =>
-          setError(error instanceof Error ? error.message : "Could not create deck"),
-      }),
+  function finishCreate(deckId: string | undefined) {
+    void refetchActiveQueries(client)
+    setName("")
+    setFormat("commander")
+    setStatus("brewing")
+    setLinkExternal(false)
+    setExternalUrl("")
+    setError(null)
+    onOpenChange(false)
+
+    if (deckId) navigate({ to: "/decks/$id", params: { id: deckId } })
+  }
+
+  function createLinkedDeck() {
+    void createLinkedDeckMutation({
+      variables: {
+        input: { url: externalUrl.trim(), name: name.trim() || null, format, status },
+      },
+      onCompleted: (data) => {
+        const deck = data.createLinkedDeck?.deck
+        const unresolved = data.createLinkedDeck?.unresolved ?? []
+        showToast(unresolvedToast(`Created and linked deck ${deck?.name ?? ""}`.trim(), unresolved))
+        finishCreate(deck?.id)
+      },
+      // Nothing was created; keep the dialog open and report the failure.
+      onError: (error) => {
+        const message = error instanceof Error ? error.message : "Could not pull that deck"
+        setError(message)
+        showToast(`Deck not created: ${message}`, { tone: "error" })
+      },
+    })
+  }
+
+  function createPlainDeck() {
+    void createDeckMutation({
+      variables: { input: { name: name.trim(), format, status } },
+      onCompleted: (data) => {
+        showToast(`Created deck ${name.trim()}`)
+        finishCreate(data.createDeck?.deck?.id)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not create deck"),
+    })
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
+    if (linkExternal) {
+      if (!externalUrl.trim()) {
+        setError("Paste a Moxfield or Archidekt deck link first")
+        return
+      }
+
+      createLinkedDeck()
+      return
+    }
+
     if (!name.trim()) {
       setError("Deck name is required")
       return
     }
 
-    createDeck.mutate()
+    createPlainDeck()
   }
 
   function close() {
-    if (createDeck.isPending) return
+    if (isPending) return
     setError(null)
     onOpenChange(false)
   }
@@ -497,7 +559,10 @@ export function NewDeckDialog({
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Deck name"
+              placeholder={
+                linkExternal ? "Leave blank to use the external deck's name" : "Deck name"
+              }
+              disabled={isPending}
               autoFocus
             />
           </label>
@@ -530,7 +595,12 @@ export function NewDeckDialog({
               </span>
               <Select
                 value={status}
-                onValueChange={(value) => setStatus(value as (typeof DECK_STATUSES)[number])}
+                onValueChange={(value) => {
+                  const nextStatus = deckStatusValue(value)
+                  setStatus(nextStatus)
+                  // The server refuses to link archived decks.
+                  if (nextStatus === "archived") setLinkExternal(false)
+                }}
               >
                 <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                   <SelectValue />
@@ -546,6 +616,36 @@ export function NewDeckDialog({
             </label>
           </div>
 
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center justify-between gap-4">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Link external deck
+              </span>
+              <Switch
+                aria-label="Link external deck"
+                aria-describedby={isArchived ? "new-deck-link-help" : undefined}
+                checked={linkExternal}
+                onCheckedChange={setLinkExternal}
+                disabled={isPending || isArchived}
+                className="-my-1 shrink-0"
+              />
+            </label>
+            {isArchived ? (
+              <p id="new-deck-link-help" className="text-sm text-base-content/75">
+                Archived decks can't be linked to an external deck.
+              </p>
+            ) : null}
+            {/* Disabled until the switch is on, so a pasted link is never dropped silently. */}
+            <Input
+              aria-label="Moxfield or Archidekt URL"
+              inputMode="url"
+              placeholder="https://moxfield.com/decks/... or https://archidekt.com/decks/..."
+              value={externalUrl}
+              disabled={isPending || !linkExternal}
+              onChange={(event) => setExternalUrl(event.target.value)}
+            />
+          </div>
+
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
               {error}
@@ -553,12 +653,16 @@ export function NewDeckDialog({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={createDeck.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createDeck.isPending}>
+            <Button type="submit" disabled={isPending}>
               <Plus className="h-4 w-4" />
-              {createDeck.isPending ? "Creating..." : "Create deck"}
+              {isLinkPending
+                ? "Importing..."
+                : createDeckResult.loading
+                  ? "Creating..."
+                  : "Create deck"}
             </Button>
           </div>
         </form>

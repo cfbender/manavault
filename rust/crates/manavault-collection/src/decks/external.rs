@@ -18,13 +18,13 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use lotus::decklist::{DeckLink, DecklistClient, Entry, FetchError};
+use lotus::decklist::{DeckLink, Decklist, DecklistClient, Entry, FetchError};
 use lotus::{Finish, OracleId, ScryfallId, Zone};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::decks::cards::{self, DeckCardChanges};
 use crate::decks::model::{DeckCardRow, DeckId, DeckRow, DeckStatus, ExternalSource, load_deck_on};
-use crate::decks::records::get_deck;
+use crate::decks::records::{DeckChanges, create_deck_in, get_deck};
 use crate::decks::{DeckError, ensure_deck_editable};
 use manavault_catalog::catalog::search::cards_by_name;
 use manavault_core::db;
@@ -142,17 +142,24 @@ fn client(state: &AppState) -> Result<DecklistClient, FetchError> {
         .build()
 }
 
+async fn fetch_decklist(
+    state: &AppState,
+    source: ExternalSource,
+    id: &str,
+) -> Result<Decklist, FetchError> {
+    let client = client(state)?;
+    match source {
+        ExternalSource::Moxfield => client.fetch_moxfield(id).await,
+        ExternalSource::Archidekt => client.fetch_archidekt(id).await,
+    }
+}
+
 async fn fetch(
     state: &AppState,
     source: ExternalSource,
     id: &str,
 ) -> Result<Vec<Entry>, FetchError> {
-    let client = client(state)?;
-    let decklist = match source {
-        ExternalSource::Moxfield => client.fetch_moxfield(id).await?,
-        ExternalSource::Archidekt => client.fetch_archidekt(id).await?,
-    };
-    Ok(decklist.entries)
+    Ok(fetch_decklist(state, source, id).await?.entries)
 }
 
 /// A finished sync: the deck and the remote names that matched no card.
@@ -174,6 +181,71 @@ pub async fn link(state: &AppState, deck_id: DeckId, url: &str) -> Result<Synced
         .await
         .map_err(SyncError::Fetch)?;
     let mut tx = db::begin_write(&state.db).await?;
+    let unresolved = link_in(&mut tx, &state.db, deck_id, &link, &entries).await?;
+    let deck = load_deck_on(&mut tx, deck_id)
+        .await?
+        .ok_or(DeckError::DeckNotFound)?;
+    tx.commit().await?;
+    Ok(Synced { deck, unresolved })
+}
+
+/// Creates a deck already linked to a Moxfield or Archidekt deck. The remote
+/// deck is fetched first, so a failed fetch creates nothing. A non-blank
+/// `changes.name` names the deck; otherwise it takes the remote deck's name,
+/// then "Imported deck". An archived status is refused and creates nothing.
+pub async fn create_linked(
+    state: &AppState,
+    url: &str,
+    changes: DeckChanges,
+) -> Result<Synced, SyncError> {
+    let link = parse_url(url)?;
+    let decklist = fetch_decklist(state, link.source, &link.id)
+        .await
+        .map_err(SyncError::Fetch)?;
+    let typed = changes
+        .name
+        .clone()
+        .flatten()
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty());
+    let remote = decklist
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned);
+    let name = typed
+        .or(remote)
+        .unwrap_or_else(|| "Imported deck".to_owned());
+
+    let mut tx = db::begin_write(&state.db).await?;
+    let deck = create_deck_in(
+        &mut tx,
+        &DeckChanges {
+            name: Some(Some(name)),
+            ..changes
+        },
+    )
+    .await?;
+    // Archived decks can't be linked (and the hourly sync skips them); dropping
+    // the transaction here rolls the new deck back.
+    ensure_deck_editable(&deck)?;
+    let unresolved = link_in(&mut tx, &state.db, deck.id, &link, &decklist.entries).await?;
+    let deck = load_deck_on(&mut tx, deck.id)
+        .await?
+        .ok_or(DeckError::DeckNotFound)?;
+    tx.commit().await?;
+    Ok(Synced { deck, unresolved })
+}
+
+/// Records the link on the deck and writes the remote entries.
+async fn link_in(
+    tx: &mut SqliteConnection,
+    pool: &SqlitePool,
+    deck_id: DeckId,
+    link: &ExternalLink,
+    entries: &[Entry],
+) -> Result<Vec<String>, SyncError> {
     let now = Timestamp::now();
     sqlx::query!(
         r#"UPDATE decks SET external_source = ?2, external_id = ?3, external_url = ?4,
@@ -187,12 +259,7 @@ pub async fn link(state: &AppState, deck_id: DeckId, url: &str) -> Result<Synced
     )
     .execute(&mut *tx)
     .await?;
-    let unresolved = apply_entries(&mut tx, &state.db, deck_id, &entries).await?;
-    let deck = load_deck_on(&mut tx, deck_id)
-        .await?
-        .ok_or(DeckError::DeckNotFound)?;
-    tx.commit().await?;
-    Ok(Synced { deck, unresolved })
+    Ok(apply_entries(tx, pool, deck_id, entries).await?)
 }
 
 /// `Decks.unlink_deck_external_source/1`: keeps the decklist as it is.

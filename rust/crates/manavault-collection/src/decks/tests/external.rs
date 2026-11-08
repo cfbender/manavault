@@ -560,3 +560,82 @@ async fn graphql_rejects_unsupported_links_and_failed_fetches() {
     assert_eq!(response["data"]["syncDeckExternalSource"], Value::Null);
     assert!(error_message(&response).contains("not linked"));
 }
+
+const CREATE_LINKED: &str = "mutation CreateLinked($input: CreateLinkedDeckInput!) {
+  createLinkedDeck(input: $input) {
+    unresolved
+    deck { name format status cardCount externalSource externalUrl }
+  }
+}";
+const DECK_NAMES: &str = "{ decks(first: 10) { edges { node { name } } } }";
+
+#[tokio::test]
+async fn graphql_create_linked_deck_names_the_deck_and_creates_nothing_on_failure() {
+    let (app, server) = app_with_archidekt().await;
+
+    stub_status(&server, 404).await;
+    let response = app
+        .gql(
+            CREATE_LINKED,
+            json!({"input": {"url": URL, "format": "commander", "status": "brewing"}}),
+        )
+        .await;
+    assert_eq!(response["data"]["createLinkedDeck"], Value::Null);
+    assert_eq!(
+        error_message(&response),
+        "That deck was not found; it may be private or deleted."
+    );
+    let data = app.gql_data(DECK_NAMES, json!({})).await;
+    assert_eq!(data["decks"]["edges"], json!([]));
+
+    stub(
+        &server,
+        vec![entry("Time Walk", "unknown-Time Walk", 2, &[], "Normal")],
+    )
+    .await;
+    // An archived linked deck is refused and rolled back.
+    let response = app
+        .gql(
+            CREATE_LINKED,
+            json!({"input": {"url": URL, "name": "Shelf", "format": "commander", "status": "archived"}}),
+        )
+        .await;
+    assert_eq!(response["data"]["createLinkedDeck"], Value::Null);
+    assert_eq!(
+        error_message(&response),
+        "Unarchive this deck before linking an external deck."
+    );
+    let data = app.gql_data(DECK_NAMES, json!({})).await;
+    assert_eq!(data["decks"]["edges"], json!([]));
+
+    // A blank name takes the remote deck's name.
+    let data = app
+        .gql_data(
+            CREATE_LINKED,
+            json!({"input": {"url": URL, "name": "  ", "format": "commander"}}),
+        )
+        .await;
+    assert_eq!(data["createLinkedDeck"]["deck"]["name"], json!("Remote"));
+
+    // A typed name overrides it.
+    let data = app
+        .gql_data(
+            CREATE_LINKED,
+            json!({"input": {"url": URL, "name": "Typed", "format": "modern", "status": "active"}}),
+        )
+        .await;
+    assert_eq!(
+        data["createLinkedDeck"],
+        json!({
+            "unresolved": [],
+            "deck": {
+                "name": "Typed",
+                "format": "modern",
+                "status": "active",
+                "cardCount": 2,
+                "externalSource": "archidekt",
+                "externalUrl": "https://archidekt.com/decks/123456"
+            }
+        })
+    );
+}

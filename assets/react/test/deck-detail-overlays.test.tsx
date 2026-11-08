@@ -10,9 +10,9 @@ const apolloMocks = vi.hoisted(() => ({
 vi.mock("@apollo/client/react", () => ({
   useApolloClient: () => ({ refetchQueries: () => Promise.resolve([]) }),
   useMutation: () => [
-    (options: { onCompleted?: () => void; variables?: unknown }) => {
+    (options: { onCompleted?: (data: object) => void; variables?: unknown }) => {
       apolloMocks.mutationVariables = options.variables
-      options.onCompleted?.()
+      options.onCompleted?.({})
       return Promise.resolve({ data: {} })
     },
     { loading: false },
@@ -391,3 +391,123 @@ test.each([true, false])(
     expect(onOpenChange).toHaveBeenCalledWith(false)
   },
 )
+
+const unlinkedDeck = {
+  id: "deck-1",
+  name: "Linkable",
+  format: "commander",
+  status: "active",
+  includedForPlay: true,
+  playCount: 0,
+  skipCount: 0,
+  lastPlayedAt: null,
+  primer: null,
+  coverDeckCardId: null,
+  externalSource: null,
+  externalUrl: null,
+  externalSyncedAt: null,
+  externalSyncError: null,
+}
+
+test("deck editor links an external deck only after the toggle is confirmed", async () => {
+  const user = userEvent.setup()
+
+  render(<EditDeckDialog deck={unlinkedDeck as never} open onOpenChange={vi.fn()} />)
+
+  const toggle = screen.getByRole("switch", { name: "Link external deck" })
+  expect(toggle.getAttribute("aria-checked")).toBe("false")
+
+  await user.click(toggle)
+  expect(screen.getByText("Paste a Moxfield or Archidekt deck link first")).toBeTruthy()
+  expect(apolloMocks.mutationVariables).toBeUndefined()
+
+  await user.type(
+    screen.getByRole("textbox", { name: "Moxfield or Archidekt URL" }),
+    "https://moxfield.com/decks/abc",
+  )
+  expect(toggle.getAttribute("aria-checked")).toBe("false")
+  expect(apolloMocks.mutationVariables).toBeUndefined()
+
+  await user.click(toggle)
+  screen.getByRole("alertdialog", { name: "Replace this decklist?" })
+  await user.click(screen.getByRole("button", { name: "Link and replace" }))
+
+  expect(apolloMocks.mutationVariables).toEqual({
+    id: "deck-1",
+    url: "https://moxfield.com/decks/abc",
+  })
+})
+
+test("deck editor unlinks a linked deck after confirming", async () => {
+  const user = userEvent.setup()
+
+  render(
+    <EditDeckDialog
+      deck={
+        {
+          ...unlinkedDeck,
+          externalSource: "moxfield",
+          externalUrl: "https://moxfield.com/decks/abc",
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  const toggle = screen.getByRole("switch", { name: "Link external deck" })
+  expect(toggle.getAttribute("aria-checked")).toBe("true")
+  expect(
+    (screen.getByRole("textbox", { name: "Moxfield or Archidekt URL" }) as HTMLInputElement).value,
+  ).toBe("https://moxfield.com/decks/abc")
+
+  await user.click(toggle)
+  await user.click(screen.getByRole("button", { name: "Unlink" }))
+
+  expect(apolloMocks.mutationVariables).toEqual({ id: "deck-1" })
+})
+
+test("deck editor keeps unsaved edits when the deck refetches", async () => {
+  const user = userEvent.setup()
+  const { rerender } = render(
+    <EditDeckDialog deck={unlinkedDeck as never} open onOpenChange={vi.fn()} />,
+  )
+
+  const nameInput = screen.getByPlaceholderText("Deck name") as HTMLInputElement
+  await user.clear(nameInput)
+  await user.type(nameInput, "Renamed")
+
+  rerender(
+    <EditDeckDialog
+      deck={
+        {
+          ...unlinkedDeck,
+          externalSource: "moxfield",
+          externalUrl: "https://moxfield.com/decks/abc",
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  expect(nameInput.value).toBe("Renamed")
+  expect(
+    screen.getByRole("switch", { name: "Link external deck" }).getAttribute("aria-checked"),
+  ).toBe("true")
+})
+
+test("deck editor disables linking for archived decks", () => {
+  render(
+    <EditDeckDialog
+      deck={{ ...unlinkedDeck, status: "archived" } as never}
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  expect(
+    (screen.getByRole("switch", { name: "Link external deck" }) as HTMLButtonElement).disabled,
+  ).toBe(true)
+  expect(screen.getByText("Unarchive this deck before linking an external deck.")).toBeTruthy()
+})

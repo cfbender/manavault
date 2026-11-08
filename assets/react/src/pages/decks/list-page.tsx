@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Archive, ChevronDown, Dices, PackageOpen, Plus, Sparkles } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
@@ -324,7 +324,9 @@ export function DecksPage() {
   const [isPreconImportOpen, setIsPreconImportOpen] = useState(false)
   const [isRandomDeckOpen, setIsRandomDeckOpen] = useState(false)
   const [comboDeck, setComboDeck] = useState<DeckSummary | null>(null)
-  const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
+  // Keep only the id: the dialog reads the deck from the live Decks query so a
+  // refetch (after linking or unlinking an external deck) reaches it.
+  const [editingDeckId, setEditingDeckId] = useState<string | null>(null)
   const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
   const [deletingDeck, setDeletingDeck] = useState<DeckSummary | null>(null)
   const navigate = useNavigate()
@@ -375,6 +377,11 @@ export function DecksPage() {
   const deckGroups = useMemo(() => groupDecksByFormat(activeDecks), [activeDecks])
   const archivedDeckGroups = useMemo(() => groupDecksByFormat(archivedDecks), [archivedDecks])
   const isInitialLoading = isLoading && !data
+  const editingDeck = useMemo(
+    () => (editingDeckId ? (decks.find((deck) => deck.id === editingDeckId) ?? null) : null),
+    [decks, editingDeckId],
+  )
+  const editDeck = useCallback((deck: DeckSummary) => setEditingDeckId(deck.id), [])
 
   function deleteSelectedDeck() {
     if (!deletingDeck) return
@@ -384,7 +391,7 @@ export function DecksPage() {
       onCompleted: () => showToast(`Deleted deck ${deckName}`),
       onError: () => showToast(`Could not delete deck ${deckName}`, { tone: "error" }),
     }).catch(() => undefined)
-    if (editingDeck?.id === deletingDeck.id) setEditingDeck(null)
+    if (editingDeckId === deletingDeck.id) setEditingDeckId(null)
     if (sharingDeck?.id === deletingDeck.id) setSharingDeck(null)
     navigate({ to: "/decks" })
   }
@@ -410,7 +417,7 @@ export function DecksPage() {
               countSuffix="active"
               deckGroups={deckGroups}
               onCombos={setComboDeck}
-              onEdit={setEditingDeck}
+              onEdit={editDeck}
               onShare={setSharingDeck}
               onDelete={setDeletingDeck}
             />
@@ -425,7 +432,7 @@ export function DecksPage() {
             deckCount={archivedDecks.length}
             deckGroups={archivedDeckGroups}
             onCombos={setComboDeck}
-            onEdit={setEditingDeck}
+            onEdit={editDeck}
             onShare={setSharingDeck}
             onDelete={setDeletingDeck}
           />
@@ -444,7 +451,7 @@ export function DecksPage() {
         open={Boolean(comboDeck)}
         onOpenChange={(open) => !open && setComboDeck(null)}
       />
-      <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
+      <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeckId(null)} />
       <ShareDeckDialog deck={sharingDeck} onOpenChange={(open) => !open && setSharingDeck(null)} />
       <ConfirmDialog
         destructive

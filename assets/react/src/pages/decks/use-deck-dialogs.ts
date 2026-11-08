@@ -43,7 +43,6 @@ function allowedOverlay(overlay: DeckDetailOverlay, context: DialogContext) {
 const READ_ONLY_OVERLAYS = new Set<DeckDetailOverlay["kind"]>([
   "edit-deck",
   "export-deck",
-  "external-source",
   "preview-card",
   "share-deck",
   "shortcuts",
