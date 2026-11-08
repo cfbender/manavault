@@ -344,8 +344,9 @@ Deck workflows include:
   (replacing the current cards) and keeps it in sync every hour. Turning the
   switch off unlinks the deck and keeps its current cards. Archived decks
   must be unarchived first. The New deck dialog has the same switch: with it
-  on, the name is skipped and the deck is created only after the external
-  deck is fetched, named after it, so a failed fetch creates nothing. The
+  on, the deck is created only after the external deck is fetched, so a
+  failed fetch creates nothing. A typed name is used as is; leave the name
+  blank to use the external deck's name. The
   header shows the last sync time
   and a **Sync now** button, and failed syncs leave the last good list in
   place with the error shown. While linked, every decklist edit (add, swap,

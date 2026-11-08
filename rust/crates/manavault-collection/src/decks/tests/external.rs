@@ -570,7 +570,7 @@ const CREATE_LINKED: &str = "mutation CreateLinked($input: CreateLinkedDeckInput
 const DECK_NAMES: &str = "{ decks(first: 10) { edges { node { name } } } }";
 
 #[tokio::test]
-async fn graphql_create_linked_deck_takes_the_remote_name_and_creates_nothing_on_failure() {
+async fn graphql_create_linked_deck_names_the_deck_and_creates_nothing_on_failure() {
     let (app, server) = app_with_archidekt().await;
 
     stub_status(&server, 404).await;
@@ -593,6 +593,16 @@ async fn graphql_create_linked_deck_takes_the_remote_name_and_creates_nothing_on
         vec![entry("Time Walk", "unknown-Time Walk", 2, &[], "Normal")],
     )
     .await;
+    // A blank name takes the remote deck's name.
+    let data = app
+        .gql_data(
+            CREATE_LINKED,
+            json!({"input": {"url": URL, "name": "  ", "format": "commander"}}),
+        )
+        .await;
+    assert_eq!(data["createLinkedDeck"]["deck"]["name"], json!("Remote"));
+
+    // A typed name overrides it.
     let data = app
         .gql_data(
             CREATE_LINKED,
@@ -604,7 +614,7 @@ async fn graphql_create_linked_deck_takes_the_remote_name_and_creates_nothing_on
         json!({
             "unresolved": [],
             "deck": {
-                "name": "Remote",
+                "name": "Typed",
                 "format": "modern",
                 "status": "active",
                 "cardCount": 2,

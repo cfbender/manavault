@@ -72,14 +72,16 @@ test("new deck dialog creates a deck without linking by default", async () => {
   expect(mocks.navigate).toHaveBeenCalledWith({ to: "/decks/$id", params: { id: "deck-7" } })
 })
 
-test("new deck dialog skips the name and uses the external deck when linking", async () => {
+test("new deck dialog uses the external deck's name when the name is blank", async () => {
   const user = userEvent.setup()
   const onOpenChange = vi.fn()
   render(<NewDeckDialog open onOpenChange={onOpenChange} />)
 
   await user.click(screen.getByRole("switch", { name: "Link external deck" }))
-  const nameInput = screen.getByPlaceholderText("Uses the external deck's name") as HTMLInputElement
-  expect(nameInput.disabled).toBe(true)
+  const nameInput = screen.getByPlaceholderText(
+    "Leave blank to use the external deck's name",
+  ) as HTMLInputElement
+  expect(nameInput.disabled).toBe(false)
 
   await user.click(screen.getByRole("button", { name: "Create deck" }))
   expect(screen.getByText("Paste a Moxfield or Archidekt deck link first")).toBeTruthy()
@@ -125,4 +127,31 @@ test("new deck dialog creates nothing and reports an error when the pull fails",
   )
   expect(onOpenChange).not.toHaveBeenCalled()
   expect(mocks.navigate).not.toHaveBeenCalled()
+})
+
+test("new deck dialog lets a typed name override the external deck's name", async () => {
+  const user = userEvent.setup()
+  render(<NewDeckDialog open onOpenChange={vi.fn()} />)
+
+  await user.click(screen.getByRole("switch", { name: "Link external deck" }))
+  await user.type(
+    screen.getByPlaceholderText("Leave blank to use the external deck's name"),
+    "  My Name  ",
+  )
+  await user.type(
+    screen.getByRole("textbox", { name: "Moxfield or Archidekt URL" }),
+    "https://moxfield.com/decks/abc",
+  )
+  await user.click(screen.getByRole("button", { name: "Create deck" }))
+
+  expect(mocks.calls).toEqual([
+    {
+      input: {
+        url: "https://moxfield.com/decks/abc",
+        name: "My Name",
+        format: "commander",
+        status: "brewing",
+      },
+    },
+  ])
 })

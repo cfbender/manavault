@@ -556,10 +556,12 @@ export function NewDeckDialog({
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
             <Input
-              value={linkExternal ? "" : name}
+              value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder={linkExternal ? "Uses the external deck's name" : "Deck name"}
-              disabled={linkExternal || isPending}
+              placeholder={
+                linkExternal ? "Leave blank to use the external deck's name" : "Deck name"
+              }
+              disabled={isPending}
               autoFocus
             />
           </label>

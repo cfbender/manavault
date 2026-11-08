@@ -193,7 +193,7 @@ export type CollectionValueBasis =
 /** A new deck linked to a Moxfield or Archidekt deck. */
 export type CreateLinkedDeckInput = {
   format?: string | null | undefined;
-  /** Used only when the external deck has no name. */
+  /** Overrides the external deck's name when not blank. */
   name?: string | null | undefined;
   status?: string | null | undefined;
   /** The Moxfield or Archidekt deck link. */

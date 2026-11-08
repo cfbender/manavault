@@ -190,9 +190,9 @@ pub async fn link(state: &AppState, deck_id: DeckId, url: &str) -> Result<Synced
 }
 
 /// Creates a deck already linked to a Moxfield or Archidekt deck. The remote
-/// deck is fetched first, so a failed fetch creates nothing. The deck takes
-/// the remote deck's name, falling back to `changes.name`, then "Imported
-/// deck".
+/// deck is fetched first, so a failed fetch creates nothing. A non-blank
+/// `changes.name` names the deck; otherwise it takes the remote deck's name,
+/// then "Imported deck".
 pub async fn create_linked(
     state: &AppState,
     url: &str,
@@ -202,19 +202,20 @@ pub async fn create_linked(
     let decklist = fetch_decklist(state, link.source, &link.id)
         .await
         .map_err(SyncError::Fetch)?;
-    let fallback = changes
+    let typed = changes
         .name
         .clone()
         .flatten()
         .map(|name| name.trim().to_owned())
         .filter(|name| !name.is_empty());
-    let name = decklist
+    let remote = decklist
         .name
         .as_deref()
         .map(str::trim)
         .filter(|name| !name.is_empty())
-        .map(str::to_owned)
-        .or(fallback)
+        .map(str::to_owned);
+    let name = typed
+        .or(remote)
         .unwrap_or_else(|| "Imported deck".to_owned());
 
     let mut tx = db::begin_write(&state.db).await?;

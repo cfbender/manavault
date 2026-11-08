@@ -119,7 +119,7 @@ pub struct DeckInput {
 pub struct CreateLinkedDeckInput {
     /// The Moxfield or Archidekt deck link.
     pub url: String,
-    /// Used only when the external deck has no name.
+    /// Overrides the external deck's name when not blank.
     pub name: Option<String>,
     pub format: MaybeUndefined<String>,
     pub status: MaybeUndefined<String>,
@@ -751,8 +751,8 @@ impl DeckMutations {
     }
 
     /// Fetches a Moxfield or Archidekt deck and creates a new deck linked to
-    /// it, named after the external deck. Nothing is created when the fetch
-    /// fails.
+    /// it, named after the external deck unless `name` is given. Nothing is
+    /// created when the fetch fails.
     async fn create_linked_deck(
         &self,
         ctx: &Context<'_>,
