@@ -465,6 +465,7 @@ export function NewDeckDialog({
   const [createLinkedDeckMutation, createLinkedDeckResult] = useMutation(CreateLinkedDeckDocument)
   const isLinkPending = createLinkedDeckResult.loading
   const isPending = createDeckResult.loading || isLinkPending
+  const isArchived = status === "archived"
 
   function finishCreate(deckId: string | undefined) {
     void refetchActiveQueries(client)
@@ -594,7 +595,12 @@ export function NewDeckDialog({
               </span>
               <Select
                 value={status}
-                onValueChange={(value) => setStatus(value as (typeof DECK_STATUSES)[number])}
+                onValueChange={(value) => {
+                  const nextStatus = deckStatusValue(value)
+                  setStatus(nextStatus)
+                  // The server refuses to link archived decks.
+                  if (nextStatus === "archived") setLinkExternal(false)
+                }}
               >
                 <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                   <SelectValue />
@@ -617,18 +623,25 @@ export function NewDeckDialog({
               </span>
               <Switch
                 aria-label="Link external deck"
+                aria-describedby={isArchived ? "new-deck-link-help" : undefined}
                 checked={linkExternal}
                 onCheckedChange={setLinkExternal}
-                disabled={isPending}
+                disabled={isPending || isArchived}
                 className="-my-1 shrink-0"
               />
             </label>
+            {isArchived ? (
+              <p id="new-deck-link-help" className="text-sm text-base-content/75">
+                Archived decks can't be linked to an external deck.
+              </p>
+            ) : null}
+            {/* Disabled until the switch is on, so a pasted link is never dropped silently. */}
             <Input
               aria-label="Moxfield or Archidekt URL"
               inputMode="url"
               placeholder="https://moxfield.com/decks/... or https://archidekt.com/decks/..."
               value={externalUrl}
-              disabled={isPending}
+              disabled={isPending || !linkExternal}
               onChange={(event) => setExternalUrl(event.target.value)}
             />
           </div>

@@ -58,12 +58,14 @@ test("new deck dialog creates a deck without linking by default", async () => {
   const toggle = screen.getByRole("switch", { name: "Link external deck" })
   expect(toggle.getAttribute("aria-checked")).toBe("false")
 
+  // The URL box stays disabled until the switch is on, so a link can't be
+  // pasted and then dropped when the deck is created unlinked.
+  const urlInput = screen.getByRole("textbox", {
+    name: "Moxfield or Archidekt URL",
+  }) as HTMLInputElement
+  expect(urlInput.disabled).toBe(true)
+
   await user.type(screen.getByPlaceholderText("Deck name"), "Plain")
-  await user.type(
-    screen.getByRole("textbox", { name: "Moxfield or Archidekt URL" }),
-    "https://moxfield.com/decks/abc",
-  )
-  expect(toggle.getAttribute("aria-checked")).toBe("false")
   await user.click(screen.getByRole("button", { name: "Create deck" }))
 
   expect(mocks.calls).toEqual([
@@ -127,6 +129,26 @@ test("new deck dialog creates nothing and reports an error when the pull fails",
   )
   expect(onOpenChange).not.toHaveBeenCalled()
   expect(mocks.navigate).not.toHaveBeenCalled()
+})
+
+test("new deck dialog can't link an archived deck", async () => {
+  const user = userEvent.setup()
+  render(<NewDeckDialog open onOpenChange={vi.fn()} />)
+
+  const toggle = screen.getByRole("switch", { name: "Link external deck" }) as HTMLButtonElement
+  await user.click(toggle)
+  expect(toggle.getAttribute("aria-checked")).toBe("true")
+
+  await user.click(screen.getByRole("combobox", { name: /Status/ }))
+  await user.click(screen.getByRole("option", { name: "Archived" }))
+
+  expect(toggle.getAttribute("aria-checked")).toBe("false")
+  expect(toggle.disabled).toBe(true)
+  expect(screen.getByText("Archived decks can't be linked to an external deck.")).toBeTruthy()
+  expect(
+    (screen.getByRole("textbox", { name: "Moxfield or Archidekt URL" }) as HTMLInputElement)
+      .disabled,
+  ).toBe(true)
 })
 
 test("new deck dialog lets a typed name override the external deck's name", async () => {

@@ -593,6 +593,21 @@ async fn graphql_create_linked_deck_names_the_deck_and_creates_nothing_on_failur
         vec![entry("Time Walk", "unknown-Time Walk", 2, &[], "Normal")],
     )
     .await;
+    // An archived linked deck is refused and rolled back.
+    let response = app
+        .gql(
+            CREATE_LINKED,
+            json!({"input": {"url": URL, "name": "Shelf", "format": "commander", "status": "archived"}}),
+        )
+        .await;
+    assert_eq!(response["data"]["createLinkedDeck"], Value::Null);
+    assert_eq!(
+        error_message(&response),
+        "Unarchive this deck before linking an external deck."
+    );
+    let data = app.gql_data(DECK_NAMES, json!({})).await;
+    assert_eq!(data["decks"]["edges"], json!([]));
+
     // A blank name takes the remote deck's name.
     let data = app
         .gql_data(

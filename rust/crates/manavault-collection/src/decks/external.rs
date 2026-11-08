@@ -192,7 +192,7 @@ pub async fn link(state: &AppState, deck_id: DeckId, url: &str) -> Result<Synced
 /// Creates a deck already linked to a Moxfield or Archidekt deck. The remote
 /// deck is fetched first, so a failed fetch creates nothing. A non-blank
 /// `changes.name` names the deck; otherwise it takes the remote deck's name,
-/// then "Imported deck".
+/// then "Imported deck". An archived status is refused and creates nothing.
 pub async fn create_linked(
     state: &AppState,
     url: &str,
@@ -227,6 +227,9 @@ pub async fn create_linked(
         },
     )
     .await?;
+    // Archived decks can't be linked (and the hourly sync skips them); dropping
+    // the transaction here rolls the new deck back.
+    ensure_deck_editable(&deck)?;
     let unresolved = link_in(&mut tx, &state.db, deck.id, &link, &decklist.entries).await?;
     let deck = load_deck_on(&mut tx, deck.id)
         .await?
