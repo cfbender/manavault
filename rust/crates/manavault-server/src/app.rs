@@ -118,7 +118,11 @@ pub async fn run(config: Config, logs: LogHub) -> Result<(), StartError> {
 }
 
 /// Resolves on Ctrl-C (SIGINT) or SIGTERM, which `docker stop` and systemd send.
+/// Windows has no SIGTERM, so there it waits for Ctrl-C alone.
 async fn shutdown_signal() {
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    #[cfg(unix)]
     let terminate = async {
         match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
             Ok(mut signal) => {

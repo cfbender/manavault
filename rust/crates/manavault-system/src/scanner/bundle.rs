@@ -181,8 +181,11 @@ fn swap_symlink(root: &Path, name: &str, target: &str) -> Result<(), InstallErro
         ".{name}-{}",
         hex::encode(manavault_core::crypto::random_bytes::<6>())
     ));
-    let result = std::os::unix::fs::symlink(target, &temporary)
-        .and_then(|()| std::fs::rename(&temporary, root.join(name)));
+    #[cfg(unix)]
+    let link = std::os::unix::fs::symlink(target, &temporary);
+    #[cfg(windows)]
+    let link = std::os::windows::fs::symlink_dir(target, &temporary);
+    let result = link.and_then(|()| std::fs::rename(&temporary, root.join(name)));
     result.map_err(|error| {
         let _ = std::fs::remove_file(&temporary);
         InstallError::SymlinkFailed(error.to_string())
