@@ -136,11 +136,11 @@ export function CardDetailPage({
             className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6"
             primaryPrinting={primary}
           />
-          <div className="relative z-10 flex min-h-80 flex-col gap-8 p-6 md:flex-row md:items-start">
+          <div className="relative z-10 flex min-h-80 flex-col gap-8 p-6 min-[56rem]:flex-row min-[56rem]:items-start">
             {primary?.imageUrl ? (
               <button
                 type="button"
-                className="mx-auto w-56 shrink-0 rounded-[4.75%/3.4%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 md:mx-0 md:w-64 lg:w-72"
+                className="mx-auto w-56 shrink-0 rounded-[4.75%/3.4%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 min-[56rem]:mx-0 min-[56rem]:w-64 lg:w-72"
                 aria-label={`Open ${card.name} full screen`}
                 onClick={() => setPreviewPrintingId(primary.id)}
               >
@@ -160,13 +160,13 @@ export function CardDetailPage({
             ) : null}
             <div className="min-w-0 max-w-5xl flex-1 space-y-4 pr-12">
               <div className="flex flex-col-reverse gap-1 sm:flex-row sm:items-center sm:gap-4">
-                <h1 className="min-w-0 flex-1 text-3xl font-black tracking-normal sm:text-4xl md:text-5xl">
+                <h1 className="min-w-0 flex-1 text-3xl font-black tracking-normal sm:text-4xl lg:text-5xl">
                   {card.name}
                 </h1>
                 {card.manaCost ? (
                   <ManaText
                     text={card.manaCost}
-                    className="shrink-0 justify-start text-2xl sm:justify-end sm:text-3xl md:text-4xl"
+                    className="shrink-0 justify-start text-2xl sm:justify-end sm:text-3xl lg:text-4xl"
                   />
                 ) : null}
               </div>

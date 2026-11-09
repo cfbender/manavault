@@ -467,7 +467,7 @@ export function CardAddDialog(props: CardAddDialogProps) {
                           disabled={isPending}
                           onValueChange={setSelectedPrintingId}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="max-sm:h-auto max-sm:min-h-11 max-sm:whitespace-normal max-sm:py-2">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

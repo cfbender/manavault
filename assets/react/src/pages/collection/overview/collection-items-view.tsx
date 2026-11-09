@@ -41,16 +41,18 @@ export function CollectionItemsView({
     <div className="space-y-7">
       <form
         onSubmit={submit}
-        className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
+        className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-2 min-[56rem]:grid-cols-[1fr_auto_auto_auto_auto]"
       >
-        <CardNameSearchField
-          name="q"
-          value={filters.searchDraft}
-          onValueChange={filters.updateSearchDraft}
-          onClear={filters.clearSearch}
-          onSuggestionSelect={filters.applySearch}
-          placeholder="Filter collection"
-        />
+        <div className="sm:col-span-2 min-[56rem]:col-span-1">
+          <CardNameSearchField
+            name="q"
+            value={filters.searchDraft}
+            onValueChange={filters.updateSearchDraft}
+            onClear={filters.clearSearch}
+            onSuggestionSelect={filters.applySearch}
+            placeholder="Filter collection"
+          />
+        </div>
         <SortDropdown sort={query.itemSort} onSortChange={filters.changeSort} />
         <Button
           type="button"
@@ -122,6 +124,7 @@ export function CollectionItemsView({
             isSelected={selection.isSelected}
             onLoadMore={query.loadMore}
             onToggleSelected={selection.toggleItem}
+            responsive
             selectionActive={selection.selectionActive}
           />
         )}

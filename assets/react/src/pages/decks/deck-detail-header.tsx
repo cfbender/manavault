@@ -306,7 +306,7 @@ export function DeckDetailHeader({
           </Button>
         </ShareModeHidden>
 
-        <div className="relative items-center gap-6 md:grid md:grid-cols-[minmax(0,30rem)_1fr]">
+        <div className="relative items-center gap-6 sm:grid sm:grid-cols-[minmax(0,20rem)_1fr] xl:grid-cols-[minmax(0,30rem)_1fr]">
           <DeckBox deck={deck} className="w-full" />
           <div className="flex min-w-0 flex-col gap-3 pr-12">
             <div className="flex flex-wrap items-center gap-2">
@@ -317,7 +317,7 @@ export function DeckDetailHeader({
             </div>
             <h1
               data-page-heading
-              className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal sm:text-5xl"
+              className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal lg:text-5xl"
             >
               {deck.name}
             </h1>

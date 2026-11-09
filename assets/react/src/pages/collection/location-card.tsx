@@ -24,7 +24,7 @@ export function LocationCard({
   const object = (
     <LocationObject
       cards={locationObjectCards(location)}
-      className={header ? "h-64 md:h-80" : "location-tile-stage"}
+      className={header ? "h-64 xl:h-80" : "location-tile-stage"}
       coverArtUrl={location.coverPrinting?.artCropUrl}
       kind={location.kind}
       seed={location.id}
@@ -54,7 +54,7 @@ export function LocationCard({
   }
 
   return (
-    <div className="location-card relative items-center gap-6 md:grid md:grid-cols-[minmax(0,28rem)_1fr]">
+    <div className="location-card relative items-center gap-6 sm:grid sm:grid-cols-[minmax(0,20rem)_1fr] xl:grid-cols-[minmax(0,28rem)_1fr]">
       {object}
       <div className="flex min-w-0 flex-col gap-2 pr-12">
         <div className="flex flex-wrap items-center gap-2">

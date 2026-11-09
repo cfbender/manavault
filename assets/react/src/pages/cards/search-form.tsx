@@ -30,16 +30,18 @@ export function CardSearchForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto]"
+      className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-2 min-[56rem]:grid-cols-[1fr_auto_auto_auto]"
     >
-      <CardNameSearchField
-        name="q"
-        value={q}
-        onValueChange={setQ}
-        onClear={() => onSearch("")}
-        onSuggestionSelect={onSearch}
-        placeholder="Card name"
-      />
+      <div className="sm:col-span-2 min-[56rem]:col-span-1">
+        <CardNameSearchField
+          name="q"
+          value={q}
+          onValueChange={setQ}
+          onClear={() => onSearch("")}
+          onSuggestionSelect={onSearch}
+          placeholder="Card name"
+        />
+      </div>
       <SortDropdown options={CATALOG_SORT_OPTIONS} sort={sort} onSortChange={onSortChange} />
       <Button type="button" variant="outline" className="relative" onClick={onFilterClick}>
         <ListFilter className="h-4 w-4" />
@@ -50,7 +52,7 @@ export function CardSearchForm({
           </span>
         ) : null}
       </Button>
-      <Button type="submit">
+      <Button type="submit" className="sm:col-span-2 min-[56rem]:col-span-1">
         <Search className="h-4 w-4" />
         Search
       </Button>

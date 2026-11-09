@@ -104,7 +104,7 @@ function CollectionTabs({
 
   return (
     <>
-      <div className="mb-7 sm:hidden">
+      <div className="mb-7 xl:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -146,7 +146,7 @@ function CollectionTabs({
       <Tabs
         value={activeTab}
         onValueChange={(tab) => onSelectTab(tab as CollectionTab)}
-        className="hidden sm:block"
+        className="hidden xl:block"
       >
         <TabsList aria-label="Collection view">
           {tabs.map(({ tab, label, count }) => (

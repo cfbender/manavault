@@ -229,7 +229,10 @@ export function AddCatalogCardToDeckDialog({
                         disabled={isAddingToDeck}
                         onValueChange={setSelectedPrintingId}
                       >
-                        <SelectTrigger aria-label="Printing">
+                        <SelectTrigger
+                          aria-label="Printing"
+                          className="max-sm:h-auto max-sm:min-h-11 max-sm:whitespace-normal max-sm:py-2"
+                        >
                           <SelectValue placeholder="Choose a printing" />
                         </SelectTrigger>
                         <SelectContent>

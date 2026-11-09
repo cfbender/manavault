@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { addToDeckAction, CardTile } from "../../components/card-tile"
-import { useCardSize } from "../../lib/card-size"
+import { ResponsiveCardGrid } from "./card-responsive-grid"
 import {
   cardPageTransitionName,
   lastOpenedCard,
@@ -44,14 +44,8 @@ export function CardResultsGrid({
   onSelectCard: (id: string) => void
   searchParams: CardSearchParams
 }) {
-  const size = useCardSize()
   return (
-    <div
-      className="grid justify-center gap-x-6 gap-y-8"
-      style={{
-        gridTemplateColumns: `repeat(auto-fill, minmax(min(${size.widthRem}rem, 100%), ${size.widthRem}rem))`,
-      }}
-    >
+    <ResponsiveCardGrid>
       {cards.map((card) => {
         const printing = card.printings?.[0]
         return (
@@ -103,6 +97,6 @@ export function CardResultsGrid({
           </div>
         )
       })}
-    </div>
+    </ResponsiveCardGrid>
   )
 }

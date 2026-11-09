@@ -2,7 +2,7 @@ import { useMutation } from "@apollo/client/react"
 import { Boxes, Heart } from "lucide-react"
 import { addToDeckAction, CardTile } from "../../components/card-tile"
 import { useToast } from "../../components/ui/toast"
-import { useCardSize } from "../../lib/card-size"
+import { ResponsiveCardGrid } from "./card-responsive-grid"
 import { present, titleize } from "../../lib/utils"
 import type { AddCollectionItemInitialPrinting } from "../collection"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
@@ -38,7 +38,6 @@ export function CardPrintingsGrid({
   onPreviewPrinting: (id: string) => void
   showPrivateActions?: boolean
 }) {
-  const size = useCardSize()
   const { showToast } = useToast()
   const [createTradeWant] = useMutation(CreateTradeWantFromCardDocument)
 
@@ -52,12 +51,7 @@ export function CardPrintingsGrid({
       )
   }
   return (
-    <div
-      className="grid justify-center gap-x-6 gap-y-8"
-      style={{
-        gridTemplateColumns: `repeat(auto-fill, minmax(min(${size.widthRem}rem, 100%), ${size.widthRem}rem))`,
-      }}
-    >
+    <ResponsiveCardGrid>
       {printings.map((printing) => (
         <div key={printing.id}>
           <CardTile
@@ -124,6 +118,6 @@ export function CardPrintingsGrid({
           />
         </div>
       ))}
-    </div>
+    </ResponsiveCardGrid>
   )
 }

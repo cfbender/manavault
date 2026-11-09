@@ -1,7 +1,7 @@
 import type { DeckGroup } from "../../lib/deck-grouping"
 import { DeckStackGroup } from "./deck-stack-group"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
-import { useCardSize } from "../../lib/card-size"
+import { CARD_WIDTH_DEFAULT_REM, useCardSize } from "../../lib/card-size"
 
 export { DeckStackCard } from "./deck-stack-card"
 export { DeckStackGroup, deckStackIndexFromPointer } from "./deck-stack-group"
@@ -60,43 +60,49 @@ export function DeckGroupGrid({
 }) {
   const size = useCardSize()
   const columns = Math.min(groups.length, 5)
+  const responsiveScale = size.widthRem / CARD_WIDTH_DEFAULT_REM
+  // Three default-sized groups fit a split-screen desktop. Scale that target
+  // with the user's preference, so choosing larger cards still reduces columns.
+  const columnWidth = `clamp(${16 * responsiveScale}rem, calc((100cqw - 4rem) / 3 * ${responsiveScale}), ${size.widthRem}rem)`
   return (
-    <div
-      className="mx-auto gap-8"
-      style={{
-        columnWidth: `${size.widthRem}rem`,
-        maxWidth: `calc(${columns} * ${size.widthRem}rem + ${Math.max(columns - 1, 0)} * 2rem)`,
-      }}
-    >
-      {groups.map((group) => (
-        <DeckStackGroup
-          key={group.key}
-          canEditDecklist={canEditDecklist}
-          commanderFormat={commanderFormat}
-          deckId={deckId}
-          deckTags={deckTags}
-          group={group}
-          highlightedCardIds={highlightedCardIds}
-          isUpdating={isUpdating}
-          isSelecting={isSelecting}
-          partnerCandidateIds={partnerCandidateIds}
-          selectedCardIds={selectedCardIds}
-          onAddPartner={onAddPartner}
-          onAllocate={onAllocate}
-          onAssignTag={onAssignTag}
-          onDelete={onDelete}
-          onDeallocate={onDeallocate}
-          onEdit={onEdit}
-          onMove={onMove}
-          onPreview={onPreview}
-          onSetCommander={onSetCommander}
-          onTag={onTag}
-          onToggleProxy={onToggleProxy}
-          onUnassignTag={onUnassignTag}
-          shareMode={shareMode}
-          onToggleSelected={onToggleSelected}
-        />
-      ))}
+    <div style={{ containerType: "inline-size" }}>
+      <div
+        className="mx-auto gap-8"
+        style={{
+          columnWidth,
+          maxWidth: `calc(${columns} * ${columnWidth} + ${Math.max(columns - 1, 0)} * 2rem)`,
+        }}
+      >
+        {groups.map((group) => (
+          <DeckStackGroup
+            key={group.key}
+            canEditDecklist={canEditDecklist}
+            commanderFormat={commanderFormat}
+            deckId={deckId}
+            deckTags={deckTags}
+            group={group}
+            highlightedCardIds={highlightedCardIds}
+            isUpdating={isUpdating}
+            isSelecting={isSelecting}
+            partnerCandidateIds={partnerCandidateIds}
+            selectedCardIds={selectedCardIds}
+            onAddPartner={onAddPartner}
+            onAllocate={onAllocate}
+            onAssignTag={onAssignTag}
+            onDelete={onDelete}
+            onDeallocate={onDeallocate}
+            onEdit={onEdit}
+            onMove={onMove}
+            onPreview={onPreview}
+            onSetCommander={onSetCommander}
+            onTag={onTag}
+            onToggleProxy={onToggleProxy}
+            onUnassignTag={onUnassignTag}
+            shareMode={shareMode}
+            onToggleSelected={onToggleSelected}
+          />
+        ))}
+      </div>
     </div>
   )
 }

@@ -41,14 +41,14 @@ function DeckGalleryHeader({
   onPickDeck: () => void
 }) {
   return (
-    <header className="mb-8 flex flex-col gap-5 border-b border-base-300 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-8 flex flex-col gap-5 border-b border-base-300 pb-6 xl:flex-row xl:items-end xl:justify-between">
       <div className="min-w-0">
         <h1 className="text-4xl font-black tracking-normal">Decks</h1>
         <p className="mt-3 max-w-3xl text-base text-base-content/70">
           Browse your deck gallery, then open a list to tune exact printings and card allocations.
         </p>
       </div>
-      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto xl:justify-end">
         <Button
           type="button"
           variant="outline"
@@ -91,7 +91,7 @@ function DeckGallerySkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className="grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3 min-[160rem]:grid-cols-4 min-[200rem]:grid-cols-5"
+      className="grid gap-x-6 gap-y-8 sm:grid-cols-2 md:grid-cols-3 min-[160rem]:grid-cols-4 min-[200rem]:grid-cols-5"
     >
       <span className="sr-only">Loading deck gallery</span>
       {[0, 1, 2].map((index) => (
@@ -251,7 +251,7 @@ function DeckFormatSections({
               {countSuffix ? ` ${countSuffix}` : ""}
             </span>
           </div>
-          <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3 min-[160rem]:grid-cols-4 min-[200rem]:grid-cols-5">
+          <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 md:grid-cols-3 min-[160rem]:grid-cols-4 min-[200rem]:grid-cols-5">
             {decks.map((deck) => (
               <DeckGalleryCard
                 key={deck.id}

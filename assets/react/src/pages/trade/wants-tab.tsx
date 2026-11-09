@@ -148,7 +148,7 @@ export function WantsTab() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <form className="max-w-md" onSubmit={submitSearch}>
+          <form className="w-full sm:max-w-md" onSubmit={submitSearch}>
             <CardNameSearchField
               aria-label="Search for a card to add to your want list"
               disabled={createState.loading}

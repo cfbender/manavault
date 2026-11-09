@@ -150,15 +150,17 @@ export function BinderTab() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <SearchField
-            aria-label="Search binder"
-            placeholder="Search your binder"
-            value={q}
-            onValueChange={setQ}
-            className="w-64 max-w-full"
-          />
+      <div className="grid gap-3 xl:flex xl:items-center xl:justify-between">
+        <div className="grid gap-2 sm:grid-cols-2 min-[56rem]:grid-cols-[1fr_auto_auto] xl:flex xl:flex-wrap xl:items-center">
+          <div className="sm:col-span-2 min-[56rem]:col-span-1 xl:w-64">
+            <SearchField
+              aria-label="Search binder"
+              placeholder="Search your binder"
+              value={q}
+              onValueChange={setQ}
+              className="w-full"
+            />
+          </div>
           <SortDropdown sort={sort} onSortChange={setSort} />
           <Button
             type="button"
@@ -193,7 +195,7 @@ export function BinderTab() {
             <span className="label-text text-sm">Include deck cards</span>
           </label>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {typeof forTradeCount === "number" ? (
             <p className="text-sm text-base-content/60">
               {pluralize(forTradeCount, "card")} up for trade
@@ -221,6 +223,7 @@ export function BinderTab() {
           forTradeQuantityOverrides={tradeQuantityOverrides}
           pendingForTradePrintingIds={pendingPrintingIds}
           onToggleForTrade={incrementForTrade}
+          responsive
         />
       )}
 

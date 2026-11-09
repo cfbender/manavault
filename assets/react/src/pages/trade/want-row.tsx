@@ -19,7 +19,7 @@ export function WantRow({
   const printing = printingLabel(want)
 
   return (
-    <div className="flex items-center gap-4 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
+    <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm sm:flex sm:items-center sm:gap-4">
       <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-base-200">
         {want.imageUrl ? (
           <img
@@ -53,45 +53,47 @@ export function WantRow({
         </div>
       </div>
 
-      <div className="join shrink-0">
+      <div className="col-span-2 flex items-center justify-end gap-2 sm:contents">
+        <div className="join shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="join-item px-3"
+            disabled={isUpdating || want.quantity <= 1}
+            aria-label={`Decrease quantity of ${cardName}`}
+            onClick={() => onChangeQuantity(want.quantity - 1)}
+          >
+            −
+          </Button>
+          <span className="join-item flex min-w-10 items-center justify-center border border-base-300 bg-base-100 px-2 text-sm font-bold tabular-nums">
+            {want.quantity}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="join-item px-3"
+            disabled={isUpdating}
+            aria-label={`Increase quantity of ${cardName}`}
+            onClick={() => onChangeQuantity(want.quantity + 1)}
+          >
+            +
+          </Button>
+        </div>
+
         <Button
           type="button"
-          variant="outline"
-          size="sm"
-          className="join-item px-3"
-          disabled={isUpdating || want.quantity <= 1}
-          aria-label={`Decrease quantity of ${cardName}`}
-          onClick={() => onChangeQuantity(want.quantity - 1)}
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-error hover:bg-error/10"
+          disabled={isRemoving}
+          aria-label={`Remove ${cardName} from wants`}
+          onClick={onRemove}
         >
-          −
-        </Button>
-        <span className="join-item flex min-w-10 items-center justify-center border border-base-300 bg-base-100 px-2 text-sm font-bold tabular-nums">
-          {want.quantity}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="join-item px-3"
-          disabled={isUpdating}
-          aria-label={`Increase quantity of ${cardName}`}
-          onClick={() => onChangeQuantity(want.quantity + 1)}
-        >
-          +
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="shrink-0 text-error hover:bg-error/10"
-        disabled={isRemoving}
-        aria-label={`Remove ${cardName} from wants`}
-        onClick={onRemove}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
     </div>
   )
 }

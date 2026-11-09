@@ -14,7 +14,7 @@ import {
 } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
 import { DECK_CARD_HOVER_DELAY_MS } from "./deck-types"
-import { useCardSize } from "../../lib/card-size"
+import { cardSizeFromWidthRem, useCardSize } from "../../lib/card-size"
 
 export function deckStackIndexFromPointer(
   pointerY: number,
@@ -96,6 +96,8 @@ export function DeckStackGroup({
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
+  const [availableWidthPx, setAvailableWidthPx] = useState<number | null>(null)
+  const groupRef = useRef<HTMLElement>(null)
   const stackRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
@@ -108,7 +110,10 @@ export function DeckStackGroup({
     startY: number
   } | null>(null)
   const { isMobile } = useIsMobile()
-  const size = useCardSize()
+  const preferredSize = useCardSize()
+  const size = cardSizeFromWidthRem(
+    Math.min(preferredSize.widthRem, (availableWidthPx ?? preferredSize.widthPx) / 16),
+  )
   const isUnstacked = shouldUnstackDeckStackGroup({ isMobile, isSelecting })
   const activeIndex = isSelecting ? null : (hoveredIndex ?? pinnedIndex)
   const revealOffset = group.cards.length > 1 ? size.revealOffsetPx : 0
@@ -119,6 +124,20 @@ export function DeckStackGroup({
     },
     [],
   )
+
+  useEffect(() => {
+    const element = groupRef.current
+    if (!element) return
+
+    const updateAvailableWidth = () => {
+      const width = element.getBoundingClientRect().width
+      setAvailableWidthPx(width > 0 ? width : null)
+    }
+    updateAvailableWidth()
+    const observer = new ResizeObserver(updateAvailableWidth)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (pinnedIndex == null) return
@@ -273,7 +292,10 @@ export function DeckStackGroup({
   }
 
   return (
-    <section className="mb-5 inline-flex w-full break-inside-avoid flex-col items-center gap-3">
+    <section
+      ref={groupRef}
+      className="mb-5 inline-flex w-full break-inside-avoid flex-col items-center gap-3"
+    >
       <div
         className="flex items-center gap-2 text-sm font-black tracking-normal"
         style={{ width: `min(${size.widthPx}px, 100%)` }}

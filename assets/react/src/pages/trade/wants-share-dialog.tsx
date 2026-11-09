@@ -130,7 +130,7 @@ export function WantsShareDialog({
               <p className="text-sm text-error">Could not copy from this browser context.</p>
             ) : null}
 
-            <div className="flex flex-wrap items-center gap-2 border-t border-base-300 pt-4">
+            <div className="grid grid-cols-2 gap-2 border-t border-base-300 pt-4 sm:flex sm:flex-wrap sm:items-center">
               <Button
                 type="button"
                 variant="ghost"
@@ -149,7 +149,7 @@ export function WantsShareDialog({
                 <RotateCw className="h-4 w-4" />
                 Rotate link
               </Button>
-              <span className="flex-1" />
+              <span className="hidden sm:block sm:flex-1" />
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Close
               </Button>

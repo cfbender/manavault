@@ -10,7 +10,7 @@ export function DeckDetailLoadingState({ deck }: { deck?: DeckBoxFieldsFragment 
       {deck ? (
         // The deck the gallery already loaded: its box stands in place, so the
         // gallery's box carries straight into the page.
-        <div className="items-center gap-6 md:grid md:grid-cols-[minmax(0,30rem)_1fr]">
+        <div className="items-center gap-6 sm:grid sm:grid-cols-[minmax(0,20rem)_1fr] xl:grid-cols-[minmax(0,30rem)_1fr]">
           <DeckBox deck={deck} className="w-full" />
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -19,7 +19,7 @@ export function DeckDetailLoadingState({ deck }: { deck?: DeckBoxFieldsFragment 
                 {compactNumber(deck.cardCount || 0)} cards
               </span>
             </div>
-            <h1 className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal sm:text-5xl">
+            <h1 className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal lg:text-5xl">
               {deck.name}
             </h1>
             <div className="h-5 w-56 animate-pulse rounded-full bg-base-300" />
