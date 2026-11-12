@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { CardDetailPage } from "../../pages/cards"
 import { decodeCollectionFilters, encodeCollectionFilters } from "../../lib/collection-filters"
 import { deserializeCatalogSort, serializeCatalogSort } from "../../pages/cards/sort"
+import type { TradeTab } from "../../pages/trade"
 
 type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
 
@@ -14,9 +15,11 @@ type CardSearch = {
   edhrecExcludeLands?: boolean
   returnCollection?: boolean
   returnLocationId?: string
+  returnTradeTab?: TradeTab
 }
 
 const EDHREC_TABS: CardReturnEdhrecTab[] = ["recs", "cuts", "commander"]
+const TRADE_TABS: TradeTab[] = ["binder", "wants", "matches"]
 
 export const Route = createFileRoute("/cards/$id")({
   staticData: { title: "Card" },
@@ -49,6 +52,11 @@ export const Route = createFileRoute("/cards/$id")({
           ? true
           : undefined,
       returnLocationId: returnLocationId || undefined,
+      returnTradeTab:
+        typeof search.returnTradeTab === "string" &&
+        TRADE_TABS.includes(search.returnTradeTab as TradeTab)
+          ? (search.returnTradeTab as TradeTab)
+          : undefined,
     }
   },
   component: CardRoute,
@@ -68,6 +76,7 @@ function CardRoute() {
       returnEdhrecTab={search.edhrec}
       returnCollection={Boolean(search.returnCollection)}
       returnLocationId={search.returnLocationId}
+      returnTradeTab={search.returnTradeTab}
     />
   )
 }

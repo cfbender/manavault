@@ -140,11 +140,11 @@ async fn lists_are_none_for_missing_wrong_or_malformed_tokens() {
 }
 
 const WANTS_QUERY: &str = "query WantsList($id: ID!) {
-  wantsList(id: $id) { entries { cardName quantity typeLine setCode collectorNumber imageUrl } }
+  wantsList(id: $id) { entries { cardId cardName quantity typeLine setCode collectorNumber imageUrl priceText } }
 }";
 
 const BINDER_QUERY: &str = "query BinderList($id: ID!) {
-  binderList(id: $id) { entries { cardName quantity typeLine setCode collectorNumber imageUrl finish condition } }
+  binderList(id: $id) { entries { cardId cardName quantity typeLine setCode collectorNumber imageUrl finish condition priceText } }
 }";
 
 fn find(entries: &Value, predicate: impl Fn(&Value) -> bool) -> &Value {
@@ -176,16 +176,20 @@ async fn wants_list_shows_printing_detail_only_for_printing_wants() {
     assert_eq!(
         find(entries, |e| e["cardName"] == "Time Walk"),
         &json!({
+            "cardId": manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Card, "oracle-2").0,
             "cardName": "Time Walk", "quantity": 3, "typeLine": "Sorcery",
-            "setCode": null, "collectorNumber": null, "imageUrl": null
+            "setCode": null, "collectorNumber": null, "imageUrl": null,
+            "priceText": "$5"
         })
     );
     assert_eq!(
         find(entries, |e| e["cardName"] == "Black Lotus"),
         &json!({
+            "cardId": manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Card, "oracle-1").0,
             "cardName": "Black Lotus", "quantity": 1, "typeLine": "Artifact",
             "setCode": "leb", "collectorNumber": "233",
-            "imageUrl": "https://example.test/black-lotus.jpg"
+            "imageUrl": "https://example.test/black-lotus.jpg",
+            "priceText": "$100k"
         })
     );
 }
@@ -237,25 +241,35 @@ async fn binder_list_aggregates_by_printing_finish_and_condition() {
         .unwrap();
     let data = app.gql_data(BINDER_QUERY, json!({"id": token})).await;
     let entries = &data["binderList"]["entries"];
+    let lotus_id =
+        manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Card, "oracle-1").0;
+    let walk_id =
+        manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Card, "oracle-2").0;
     assert_eq!(
         entries,
         &json!([
             {
+                "cardId": lotus_id,
                 "cardName": "Black Lotus", "quantity": 1, "typeLine": "Artifact",
                 "setCode": "lea", "collectorNumber": "232",
                 "imageUrl": "https://example.test/black-lotus.jpg",
-                "finish": "nonfoil", "condition": "lightly_played"
+                "finish": "nonfoil", "condition": "lightly_played",
+                "priceText": "$100k"
             },
             {
+                "cardId": lotus_id,
                 "cardName": "Black Lotus", "quantity": 2, "typeLine": "Artifact",
                 "setCode": "lea", "collectorNumber": "232",
                 "imageUrl": "https://example.test/black-lotus.jpg",
-                "finish": "nonfoil", "condition": "near_mint"
+                "finish": "nonfoil", "condition": "near_mint",
+                "priceText": "$100k"
             },
             {
+                "cardId": walk_id,
                 "cardName": "Time Walk", "quantity": 4, "typeLine": "Sorcery",
                 "setCode": "lea", "collectorNumber": "84", "imageUrl": null,
-                "finish": "foil", "condition": "near_mint"
+                "finish": "foil", "condition": "near_mint",
+                "priceText": "$5"
             }
         ])
     );

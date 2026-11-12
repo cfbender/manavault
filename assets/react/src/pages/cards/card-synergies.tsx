@@ -33,9 +33,12 @@ export function CardSynergies({
 }) {
   const { data, error, loading, previousData } = useQuery(CardEdhrecDocument, {
     variables: { name: cardName },
+    skip: Boolean(graphqlEndpoint),
     context: graphqlEndpointContext(graphqlEndpoint),
     fetchPolicy: graphqlEndpoint ? "no-cache" : "cache-and-network",
   })
+
+  if (graphqlEndpoint) return null
   const edhrec = data?.cardEdhrec ?? previousData?.cardEdhrec
   const edhrecUrl = safeHttpUrl(edhrec?.url)
   const sectionsByTag = new Map(edhrec?.sections.map((section) => [section.tag, section]))

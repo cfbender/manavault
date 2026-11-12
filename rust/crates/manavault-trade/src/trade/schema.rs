@@ -46,11 +46,31 @@ impl Want {
     async fn image_url(&self) -> Option<String> {
         self.display_image_url()
     }
+
+    async fn price_text(&self, ctx: &Context<'_>) -> Result<Option<String>> {
+        let state = state(ctx);
+        let cents = match &self.preferred_printing_id {
+            Some(id) => Printing::load(&state.db, id)
+                .await
+                .map_err(internal_error)?
+                .and_then(|printing| printing.price_cents_for(&state.prices, None)),
+            None => manavault_catalog::catalog::loader::printings_of(ctx, &self.oracle_id)
+                .await?
+                .iter()
+                .filter_map(|printing| printing.price_cents_for(&state.prices, None))
+                .min(),
+        };
+        Ok(format_cents(cents))
+    }
 }
 
 /// `WantsListEntry`.
 #[Object(name = "WantsListEntry")]
 impl WantsEntry {
+    async fn card_id(&self) -> ID {
+        global_id(NodeKind::Card, &self.oracle_id)
+    }
+
     async fn card_name(&self) -> &str {
         &self.card_name
     }
@@ -74,11 +94,36 @@ impl WantsEntry {
     async fn image_url(&self) -> Option<&str> {
         self.image_url.as_deref()
     }
+
+    async fn price_text(&self, ctx: &Context<'_>) -> Result<Option<String>> {
+        let state = state(ctx);
+        let cents = match (&self.preferred_printing_id, &self.preferred_prices) {
+            (Some(id), Some(prices)) => {
+                manavault_catalog::catalog::price::price_cents_for_scryfall_and_prices(
+                    &state.prices,
+                    id.as_str(),
+                    prices,
+                    None,
+                )
+            }
+            (Some(_), None) => None,
+            (None, _) => manavault_catalog::catalog::loader::printings_of(ctx, &self.oracle_id)
+                .await?
+                .iter()
+                .filter_map(|printing| printing.price_cents_for(&state.prices, None))
+                .min(),
+        };
+        Ok(format_cents(cents))
+    }
 }
 
 /// `BinderListEntry`.
 #[Object(name = "BinderListEntry")]
 impl BinderEntry {
+    async fn card_id(&self) -> ID {
+        global_id(NodeKind::Card, &self.oracle_id)
+    }
+
     async fn card_name(&self) -> &str {
         &self.card_name
     }
@@ -109,6 +154,16 @@ impl BinderEntry {
 
     async fn condition(&self) -> Option<&str> {
         Some(&self.condition)
+    }
+
+    async fn price_text(&self, ctx: &Context<'_>) -> Option<String> {
+        let cents = manavault_catalog::catalog::price::price_cents_for_scryfall_and_prices(
+            &state(ctx).prices,
+            self.scryfall_id.as_str(),
+            &self.prices,
+            Some(&self.finish),
+        );
+        format_cents(cents)
     }
 }
 
@@ -275,6 +330,10 @@ impl MatchResult {
 /// `TradeBinderMatch`.
 #[Object(name = "TradeBinderMatch")]
 impl BinderMatch {
+    async fn card_id(&self) -> ID {
+        global_id(NodeKind::Card, &self.oracle_id)
+    }
+
     async fn card_name(&self) -> &str {
         &self.card_name
     }
@@ -313,6 +372,10 @@ impl BinderMatch {
 /// `TradeWantMatch`.
 #[Object(name = "TradeWantMatch")]
 impl WantMatch {
+    async fn card_id(&self) -> ID {
+        global_id(NodeKind::Card, &self.oracle_id)
+    }
+
     async fn card_name(&self) -> &str {
         &self.card_name
     }

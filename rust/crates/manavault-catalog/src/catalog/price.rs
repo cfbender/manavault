@@ -42,9 +42,25 @@ pub fn price_cents_for_printing(
     printing: &PrintingRecord,
     finish: Option<&str>,
 ) -> Option<i64> {
+    price_cents_for_scryfall_and_prices(
+        prices,
+        printing.scryfall_id.as_str(),
+        &printing.prices,
+        finish,
+    )
+}
+
+/// The price in cents for a printing's Scryfall id and Scryfall `prices` JSON.
+#[must_use]
+pub fn price_cents_for_scryfall_and_prices(
+    prices: &PriceStore,
+    scryfall_id: &str,
+    prices_json: &str,
+    finish: Option<&str>,
+) -> Option<i64> {
     prices
-        .price_cents(printing.scryfall_id.as_str(), finish_fallbacks(finish))
-        .or_else(|| scryfall_price_cents(&printing.prices, finish))
+        .price_cents(scryfall_id, finish_fallbacks(finish))
+        .or_else(|| scryfall_price_cents(prices_json, finish))
 }
 
 /// The Scryfall price in cents from a printing's `prices` JSON text.

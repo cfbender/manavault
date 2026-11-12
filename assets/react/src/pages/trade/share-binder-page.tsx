@@ -1,8 +1,10 @@
 import { useQuery } from "@apollo/client/react"
+import { useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { graphqlEndpointContext } from "../../lib/apollo"
 import { usePageTitle } from "../../lib/page-title"
 import { pluralize, titleize } from "../../lib/utils"
+import { CardDetailDialog, type CardDetailDialogTarget } from "../decks/deck-card-detail-dialog"
 import { BinderListDocument } from "./documents"
 import { ShareListActions } from "./share-list-actions"
 import type { BinderListQuery } from "../../gql/graphql"
@@ -11,6 +13,7 @@ type BinderListEntry = NonNullable<BinderListQuery["binderList"]>["entries"][num
 
 export function ShareBinderPage({ token }: { token: string }) {
   usePageTitle("Shared trade binder")
+  const [selectedCard, setSelectedCard] = useState<CardDetailDialogTarget | null>(null)
 
   const { data, error, loading } = useQuery(BinderListDocument, {
     variables: { id: token },
@@ -52,28 +55,38 @@ export function ShareBinderPage({ token }: { token: string }) {
       ) : (
         <div className="space-y-2">
           {entries.map((entry, index) => (
-            <BinderListEntryRow key={`${entry.cardName}-${index}`} entry={entry} />
+            <BinderListEntryRow
+              key={`${entry.cardName}-${index}`}
+              entry={entry}
+              onSelect={() => setSelectedCard({ id: entry.cardId, name: entry.cardName })}
+            />
           ))}
         </div>
       )}
+
+      <CardDetailDialog
+        card={selectedCard}
+        graphqlEndpoint="/share/graphql"
+        hidePrivateControls
+        onOpenChange={(open) => !open && setSelectedCard(null)}
+      />
     </div>
   )
 }
 
-function BinderListEntryRow({ entry }: { entry: BinderListEntry }) {
+function BinderListEntryRow({ entry, onSelect }: { entry: BinderListEntry; onSelect: () => void }) {
   const printing = printingLabel(entry)
   const isFoil = entry.finish === "foil" || entry.finish === "etched"
 
   return (
-    <div className="flex items-center gap-4 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group flex w-full cursor-pointer items-center gap-4 rounded-box border border-base-300 bg-base-100 p-3 text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
       <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-base-200">
         {entry.imageUrl ? (
-          <img
-            src={entry.imageUrl}
-            alt={entry.cardName}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
+          <img src={entry.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
         ) : (
           <div className="flex h-full items-center justify-center text-center text-[0.6rem] text-base-content/50">
             No image
@@ -82,7 +95,7 @@ function BinderListEntryRow({ entry }: { entry: BinderListEntry }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate font-bold leading-tight">{entry.cardName}</p>
+        <p className="truncate font-bold leading-tight group-hover:underline">{entry.cardName}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-2">
           {entry.typeLine ? (
             <p className="truncate text-sm text-base-content/60">{entry.typeLine}</p>
@@ -102,13 +115,18 @@ function BinderListEntryRow({ entry }: { entry: BinderListEntry }) {
               {titleize(entry.condition)}
             </span>
           ) : null}
+          {entry.priceText ? (
+            <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-base-content/80">
+              {entry.priceText}
+            </span>
+          ) : null}
         </div>
       </div>
 
       <span className="shrink-0 rounded-full bg-base-200 px-3 py-1 text-sm font-bold tabular-nums">
         ×{entry.quantity}
       </span>
-    </div>
+    </button>
   )
 }
 

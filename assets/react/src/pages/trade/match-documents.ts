@@ -7,6 +7,7 @@ export const TradeMatchesDocument = graphql(`
       entryCount
       unrecognized
       binderMatches {
+        cardId
         cardName
         oracleId
         theirQuantity
@@ -16,6 +17,7 @@ export const TradeMatchesDocument = graphql(`
           condition
           finish
           forTrade
+          priceText
           printing {
             id
             setCode
@@ -29,6 +31,7 @@ export const TradeMatchesDocument = graphql(`
         }
       }
       wantMatches {
+        cardId
         cardName
         oracleId
         theirQuantity
@@ -36,6 +39,11 @@ export const TradeMatchesDocument = graphql(`
           id
           quantity
           imageUrl
+          priceText
+          printing {
+            setCode
+            collectorNumber
+          }
           card {
             id
             name

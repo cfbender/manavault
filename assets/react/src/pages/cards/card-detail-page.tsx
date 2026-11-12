@@ -11,6 +11,7 @@ import { cardPageTransitionName } from "../../lib/card-page-morph"
 import { useCardTilt } from "../../lib/card-tilt"
 import { present } from "../../lib/utils"
 import { AddCollectionItemDialog, type AddCollectionItemInitialPrinting } from "../collection"
+import type { TradeTab } from "../trade"
 import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
 import { CardActionsMenu } from "./card-actions-menu"
 import { CardCollectionCopiesPanel } from "./card-collection-copies"
@@ -44,6 +45,7 @@ export type CardDetailPageProps = {
   returnEdhrecExcludeLands?: boolean
   returnEdhrecTab?: CardReturnEdhrecTab
   returnLocationId?: string
+  returnTradeTab?: TradeTab
 }
 
 export function CardDetailPage({
@@ -59,6 +61,7 @@ export function CardDetailPage({
   returnEdhrecExcludeLands = false,
   returnEdhrecTab,
   returnLocationId,
+  returnTradeTab,
 }: CardDetailPageProps) {
   const tiltRef = useCardTilt<HTMLElement>()
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
@@ -96,6 +99,16 @@ export function CardDetailPage({
               }}
             >
               {returnEdhrecTab ? "Back to EDHREC" : "Back to deck"}
+            </Link>
+          </Button>
+        ) : returnTradeTab ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/trade" search={{ tab: returnTradeTab }}>
+              {returnTradeTab === "wants"
+                ? "Back to wants"
+                : returnTradeTab === "matches"
+                  ? "Back to matches"
+                  : "Back to binder"}
             </Link>
           </Button>
         ) : returnLocationId ? (

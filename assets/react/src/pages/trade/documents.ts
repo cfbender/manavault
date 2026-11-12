@@ -24,6 +24,7 @@ export const TradeWantsDocument = graphql(`
       id
       quantity
       imageUrl
+      priceText
       card {
         id
         oracleId
@@ -47,6 +48,7 @@ export const CreateTradeWantDocument = graphql(`
         id
         quantity
         imageUrl
+        priceText
         card {
           id
           oracleId
@@ -151,12 +153,14 @@ export const WantsListDocument = graphql(`
   query WantsList($id: ID!) {
     wantsList(id: $id) {
       entries {
+        cardId
         cardName
         quantity
         typeLine
         setCode
         collectorNumber
         imageUrl
+        priceText
       }
     }
   }
@@ -198,6 +202,7 @@ export const BinderListDocument = graphql(`
   query BinderList($id: ID!) {
     binderList(id: $id) {
       entries {
+        cardId
         cardName
         quantity
         typeLine
@@ -206,6 +211,7 @@ export const BinderListDocument = graphql(`
         imageUrl
         finish
         condition
+        priceText
       }
     }
   }

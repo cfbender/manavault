@@ -1,0 +1,131 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.oracle_id AS \"oracle_id!: OracleId\",\n             i.scryfall_id AS \"scryfall_id!: ScryfallId\",\n             MIN(p.prices) AS \"prices!: String\",\n             c.name AS \"card_name!\",\n             c.type_line AS \"type_line?\",\n             p.set_code AS \"set_code!\", p.collector_number AS \"collector_number!\",\n             MIN(p.image_uris) AS \"image_uris!: String\", i.finish AS \"finish!\",\n             i.condition AS \"condition!\", SUM(i.for_trade_quantity) AS \"quantity!: i64\"\n           FROM collection_items AS i\n           JOIN scryfall_printings AS p ON p.scryfall_id = i.scryfall_id\n           JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           LEFT JOIN locations AS l ON l.id = i.location_id\n           WHERE i.for_trade_quantity > 0 AND (l.id IS NULL OR l.kind != 'list')\n           GROUP BY i.scryfall_id, i.finish, i.condition\n           ORDER BY c.name, p.set_code, p.collector_number, i.finish, i.condition",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id!: ScryfallId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "prices!: String",
+        "ordinal": 2,
+        "type_info": "Null",
+        "origin": "Expression"
+      },
+      {
+        "name": "card_name!",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "type_line?",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "type_line"
+          }
+        }
+      },
+      {
+        "name": "set_code!",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "collector_number!",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "collector_number"
+          }
+        }
+      },
+      {
+        "name": "image_uris!: String",
+        "ordinal": 7,
+        "type_info": "Null",
+        "origin": "Expression"
+      },
+      {
+        "name": "finish!",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "condition!",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "condition"
+          }
+        }
+      },
+      {
+        "name": "quantity!: i64",
+        "ordinal": 10,
+        "type_info": "Null",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false,
+      null,
+      false,
+      true,
+      false,
+      false,
+      null,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "a49abd6e99779991e03f6275f2892e458afae21385c2b4fff5daa666ab996cfd"
+}

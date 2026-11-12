@@ -3,7 +3,7 @@
 //! for-trade quantity, except items stored in list-kind locations (a list
 //! location tracks cards wanted from someone else, not cards on hand).
 
-use lotus::OracleId;
+use lotus::{OracleId, ScryfallId};
 use sqlx::SqlitePool;
 
 use crate::trade::collection_item_stub::BinderItem;
@@ -14,6 +14,9 @@ use manavault_catalog::catalog::sql::json_list;
 /// of one printing in one finish and condition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinderEntry {
+    pub oracle_id: OracleId,
+    pub scryfall_id: ScryfallId,
+    pub prices: String,
     pub card_name: String,
     pub quantity: i64,
     pub type_line: Option<String>,
@@ -28,7 +31,11 @@ pub struct BinderEntry {
 /// name, set code, collector number, finish, and condition.
 pub async fn entries(pool: &SqlitePool) -> Result<Vec<BinderEntry>, sqlx::Error> {
     let rows = sqlx::query!(
-        r#"SELECT c.name AS "card_name!", c.type_line AS "type_line?",
+        r#"SELECT c.oracle_id AS "oracle_id!: OracleId",
+             i.scryfall_id AS "scryfall_id!: ScryfallId",
+             MIN(p.prices) AS "prices!: String",
+             c.name AS "card_name!",
+             c.type_line AS "type_line?",
              p.set_code AS "set_code!", p.collector_number AS "collector_number!",
              MIN(p.image_uris) AS "image_uris!: String", i.finish AS "finish!",
              i.condition AS "condition!", SUM(i.for_trade_quantity) AS "quantity!: i64"
@@ -45,6 +52,9 @@ pub async fn entries(pool: &SqlitePool) -> Result<Vec<BinderEntry>, sqlx::Error>
     Ok(rows
         .into_iter()
         .map(|row| BinderEntry {
+            oracle_id: row.oracle_id,
+            scryfall_id: row.scryfall_id,
+            prices: row.prices,
             card_name: row.card_name,
             quantity: row.quantity,
             type_line: row.type_line,

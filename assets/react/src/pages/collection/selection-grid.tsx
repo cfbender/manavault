@@ -1,6 +1,6 @@
 import { useApolloClient } from "@apollo/client/react"
-import { Link, useLocation } from "@tanstack/react-router"
-import { CheckSquare, Edit3, Layers, ListPlus, MoveUpRight, Trash2, X } from "lucide-react"
+import { Link, useLocation, useNavigate } from "@tanstack/react-router"
+import { CheckSquare, Edit3, Eye, Layers, ListPlus, MoveUpRight, Trash2, X } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { addToDeckAction, addToListAction, CardTile } from "../../components/card-tile"
@@ -547,8 +547,10 @@ const CollectionItemTile = memo(function CollectionItemTile({
   const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CollectionItem[] | null>(null)
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const cardReturnSearch = collectionCardReturnSearch(pathname)
   const item = group.items[0]
+  const cardId = item.printing?.card?.id
 
   function refreshCollection() {
     void invalidateCollectionViews(client, item.location?.id)
@@ -610,6 +612,18 @@ const CollectionItemTile = memo(function CollectionItemTile({
         primaryActionLabel={`Open ${item.printing?.card?.name || "card"} full screen`}
         primaryActionRole="button"
         menuActions={[
+          {
+            disabled: !cardId,
+            icon: <Eye className="h-4 w-4" />,
+            label: "View card",
+            onClick: () =>
+              cardId &&
+              void navigate({
+                to: "/cards/$id",
+                params: { id: cardId },
+                search: cardReturnSearch,
+              }),
+          },
           hasMixedFinishes
             ? {
                 disabled: true,
@@ -618,7 +632,7 @@ const CollectionItemTile = memo(function CollectionItemTile({
               }
             : addToDeckAction({
                 onClick: () => setDeckTarget(group.items),
-                disabled: !item.printing?.card?.id,
+                disabled: !cardId,
               }),
           addToListAction({ onClick: () => setListTarget(group.items) }),
         ]}

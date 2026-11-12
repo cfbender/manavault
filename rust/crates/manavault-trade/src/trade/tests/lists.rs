@@ -285,9 +285,9 @@ mod matcher_tests {
             .gql_data(
                 "mutation($text: String) { tradeMatches(text: $text) {
                    sourceName entryCount unrecognized
-                   binderMatches { cardName oracleId theirQuantity
+                   binderMatches { cardId cardName oracleId theirQuantity
                      items { id quantity condition finish forTrade printing { setCode card { name } } } }
-                   wantMatches { cardName oracleId theirQuantity want { quantity card { name } } }
+                   wantMatches { cardId cardName oracleId theirQuantity want { quantity card { name } } }
                  } }",
                 json!({"text": "3 Sol Ring\n1 Black Lotus\n1 Nope"}),
             )
@@ -299,6 +299,7 @@ mod matcher_tests {
                 "entryCount": 3,
                 "unrecognized": ["Nope"],
                 "binderMatches": [{
+                    "cardId": manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Card, "oracle-sol-ring").0,
                     "cardName": "Sol Ring", "oracleId": "oracle-sol-ring", "theirQuantity": 3,
                     "items": [{
                         "id": manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::CollectionItem, item).0,
@@ -308,6 +309,7 @@ mod matcher_tests {
                     }]
                 }],
                 "wantMatches": [{
+                    "cardId": manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Card, "oracle-lotus").0,
                     "cardName": "Black Lotus", "oracleId": "oracle-lotus", "theirQuantity": 1,
                     "want": {"quantity": 2, "card": {"name": "Black Lotus"}}
                 }]

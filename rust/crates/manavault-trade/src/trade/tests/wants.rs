@@ -213,11 +213,16 @@ async fn image_url_prefers_the_preferred_printing_over_the_latest_one() {
     );
 }
 
-const WANT_FIELDS: &str = "id quantity imageUrl card { name } printing { setCode }";
+const WANT_FIELDS: &str = "id quantity imageUrl priceText card { name } printing { setCode }";
 
 #[tokio::test]
 async fn graphql_want_crud() {
     let app = app_with_cards().await;
+    app.import_cards(&[fixtures::merge(
+        fixtures::black_lotus_beta(),
+        json!({"prices": {"usd": "90000.00"}}),
+    )])
+    .await;
     let created = app
         .gql_data(
             &format!(
@@ -231,20 +236,26 @@ async fn graphql_want_crud() {
     assert_eq!(want["card"]["name"], "Black Lotus");
     assert_eq!(want["printing"], serde_json::Value::Null);
     assert_eq!(want["imageUrl"], "https://example.test/black-lotus.jpg");
+    // Cheapest printing of Black Lotus is Beta ($90k vs Alpha $100k).
+    assert_eq!(want["priceText"], "$90k");
     let id = want["id"].as_str().unwrap().to_owned();
     assert!(id.parse::<i64>().is_ok(), "raw integer ids: {id}");
 
     let specific = app
         .gql_data(
             &format!(
-                "mutation {{ createTradeWant(scryfallId: \"scryfall-printing-3\") {{ tradeWant {{ {WANT_FIELDS} }} }} }}"
+                "mutation {{ createTradeWant(scryfallId: \"scryfall-printing-1\") {{ tradeWant {{ {WANT_FIELDS} }} }} }}"
             ),
             json!({}),
         )
         .await;
     assert_eq!(
         specific["createTradeWant"]["tradeWant"]["printing"]["setCode"],
-        "leb"
+        "lea"
+    );
+    assert_eq!(
+        specific["createTradeWant"]["tradeWant"]["priceText"],
+        "$100k"
     );
 
     let listed = app

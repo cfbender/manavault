@@ -562,15 +562,16 @@ The Trade tab connects owned inventory to trading with other players:
   each tile that marks a collection item (and quantity) up for trade, plus
   sorting, filters, an only-for-trade filter, and a flagged count. Items stored
   in list-kind locations never count as tradable copies.
-- **Wants** - a card-search-backed want list with quantities. Wants are
+- **Wants** - a card-search-backed want list with quantities and prices
+  (from the cheapest known printing or the pinned printing). Wants are
   either generic ("any printing") or pinned to an exact printing via the
   opt-in printing picker or the **Add to wants** action on a card detail
-  printing. Cards can also be dragged in from other sites (see
-  [Dragging cards in](#dragging-cards-in)).
+  printing, and click through to the card detail page. Cards can also be
+  dragged in from other sites (see [Dragging cards in](#dragging-cards-in)).
 - **Matches** - paste list text or a supported link, declare whether the
   list is the partner's haves or wants, and see the overlap: cards you have
   up for trade that they want, or cards they have that are on your want
-  list. Unrecognized lines are reported.
+  list, with prices and links to each card. Unrecognized lines are reported.
 
 Deck detail pages additionally offer a **Compare decklist** action that diffs
 an external list against the open deck as adds, cuts, and quantity changes
@@ -612,8 +613,10 @@ through a bearer link:
 
 - `/share/decks/...` - read-only deck view with copy, export, and playtest
   actions, plus a generated preview image for link unfurls
-- `/share/wants/...` - the want list
-- `/share/binder/...` - each for-trade printing with finish and condition
+- `/share/wants/...` - the want list, with prices and a read-only card detail
+  dialog on click
+- `/share/binder/...` - each for-trade printing with finish, condition, price,
+  and a read-only card detail dialog on click
 
 Share pages offer copy-to-clipboard (with a plain-http fallback) and `.txt`
 download as standard decklist text, ready to paste into any ManaVault Matches

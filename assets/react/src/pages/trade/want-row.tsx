@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { Trash2 } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import type { TradeWant } from "./types"
@@ -15,43 +16,68 @@ export function WantRow({
   onRemove: () => void
   want: TradeWant
 }) {
+  const cardId = want.card?.id
   const cardName = want.card?.name || "Unknown card"
   const printing = printingLabel(want)
+  const thumbnail = (
+    <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-base-200">
+      {want.imageUrl ? (
+        <img
+          src={want.imageUrl}
+          alt={cardId ? "" : cardName}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center text-center text-[0.6rem] text-base-content/50">
+          No image
+        </div>
+      )}
+    </div>
+  )
+  const details = (
+    <>
+      <p className="truncate font-bold leading-tight group-hover/want:underline">{cardName}</p>
+      <div className="mt-0.5 flex flex-wrap items-center gap-2">
+        {want.card?.typeLine ? (
+          <p className="truncate text-sm text-base-content/60">{want.card.typeLine}</p>
+        ) : null}
+        {printing ? (
+          <span className="badge badge-sm badge-outline shrink-0 text-base-content/70">
+            {printing}
+          </span>
+        ) : (
+          <span className="shrink-0 text-[0.65rem] font-bold uppercase tracking-wide text-base-content/40">
+            Any printing
+          </span>
+        )}
+        {want.priceText ? (
+          <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-base-content/80">
+            {printing ? want.priceText : `from ${want.priceText}`}
+          </span>
+        ) : null}
+      </div>
+    </>
+  )
 
   return (
     <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm sm:flex sm:items-center sm:gap-4">
-      <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-base-200">
-        {want.imageUrl ? (
-          <img
-            src={want.imageUrl}
-            alt={cardName}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-center text-[0.6rem] text-base-content/50">
-            No image
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-bold leading-tight">{cardName}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2">
-          {want.card?.typeLine ? (
-            <p className="truncate text-sm text-base-content/60">{want.card.typeLine}</p>
-          ) : null}
-          {printing ? (
-            <span className="badge badge-sm badge-outline shrink-0 text-base-content/70">
-              {printing}
-            </span>
-          ) : (
-            <span className="shrink-0 text-[0.65rem] font-bold uppercase tracking-wide text-base-content/40">
-              Any printing
-            </span>
-          )}
-        </div>
-      </div>
+      {cardId ? (
+        <Link
+          to="/cards/$id"
+          params={{ id: cardId }}
+          search={{ returnTradeTab: "wants" }}
+          className="group/want col-span-2 grid min-w-0 flex-1 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:flex sm:gap-4"
+        >
+          {thumbnail}
+          <div className="min-w-0 flex-1">{details}</div>
+        </Link>
+      ) : (
+        <>
+          {thumbnail}
+          <div className="min-w-0 flex-1">{details}</div>
+        </>
+      )}
 
       <div className="col-span-2 flex items-center justify-end gap-2 sm:contents">
         <div className="join shrink-0">

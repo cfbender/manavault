@@ -6,6 +6,8 @@ export function invalidateCollectionViews(client: ApolloClient, _locationId?: st
 }
 
 export function collectionCardReturnSearch(pathname: string) {
+  if (/^\/trade(?:\/|$)/.test(pathname)) return { returnTradeTab: "binder" as const }
+
   const locationMatch = /^\/collection\/locations\/([^/?#]+)/.exec(pathname)
   if (locationMatch?.[1]) return { returnLocationId: decodeURIComponent(locationMatch[1]) }
 

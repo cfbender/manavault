@@ -6,6 +6,7 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use lotus::{OracleId, ScryfallId};
 use sqlx::{Sqlite, SqlitePool, Transaction};
 
 use crate::trade::binder::{self, BinderEntry};
@@ -182,6 +183,9 @@ pub async fn matches(pool: &SqlitePool, kind: ShareKind, token: &str) -> Result<
 /// One public want-list entry (`WantsListEntry`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WantsEntry {
+    pub oracle_id: OracleId,
+    pub preferred_printing_id: Option<ScryfallId>,
+    pub preferred_prices: Option<String>,
     pub card_name: String,
     pub quantity: i64,
     pub type_line: Option<String>,
@@ -201,9 +205,12 @@ pub async fn wants_list(
         return Ok(None);
     }
     let rows = sqlx::query!(
-        r#"SELECT c.name AS "card_name!", c.type_line AS "type_line?",
-             w.quantity AS "quantity!", w.preferred_printing_id AS "preferred_printing_id?",
+        r#"SELECT w.oracle_id AS "oracle_id!: OracleId", c.name AS "card_name!",
+             c.type_line AS "type_line?",
+             w.quantity AS "quantity!",
+             w.preferred_printing_id AS "preferred_printing_id?: ScryfallId",
              pp.set_code AS "set_code?", pp.collector_number AS "collector_number?",
+             pp.prices AS "preferred_prices?",
              pp.image_uris AS "preferred_image_uris?",
              (SELECT p.image_uris FROM scryfall_printings AS p
                WHERE p.oracle_id = w.oracle_id
@@ -224,6 +231,9 @@ pub async fn wants_list(
                     _ => row.latest_image_uris.as_deref().and_then(want::image_url),
                 };
                 WantsEntry {
+                    oracle_id: row.oracle_id,
+                    preferred_printing_id: row.preferred_printing_id,
+                    preferred_prices: row.preferred_prices,
                     card_name: row.card_name,
                     quantity: row.quantity,
                     type_line: row.type_line,

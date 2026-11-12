@@ -1,4 +1,5 @@
 import { useMutation } from "@apollo/client/react"
+import { Link } from "@tanstack/react-router"
 import { Search } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import { EmptyState } from "../../components/card-image"
@@ -38,9 +39,11 @@ function FinishBadge({ finish }: { finish: string }) {
   )
 }
 
-function printingLabel(item: BinderMatchItem) {
-  const setCode = item.printing?.setCode?.toUpperCase()
-  const collectorNumber = item.printing?.collectorNumber
+function printingLabel(
+  printing: { setCode?: string | null; collectorNumber?: string | null } | null | undefined,
+) {
+  const setCode = printing?.setCode?.toUpperCase()
+  const collectorNumber = printing?.collectorNumber
   if (!setCode) return null
   return collectorNumber ? `${setCode} #${collectorNumber}` : setCode
 }
@@ -275,41 +278,123 @@ function MatchResults({ result, role }: { result: TradeMatchResult; role: ListRo
 
 function BinderMatchRow({ match }: { match: BinderMatch }) {
   const totalQuantity = match.items.reduce((sum, item) => sum + item.quantity, 0)
+  const cardId = match.cardId || match.items[0]?.printing?.card?.id
+  const imageUrl = match.items.find((item) => item.printing?.imageUrl)?.printing?.imageUrl
 
   return (
-    <li className="p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="font-bold text-base-content">{match.cardName}</span>
-        <span className="text-xs text-base-content/60">
-          They want ×{match.theirQuantity} · You have ×{totalQuantity} for trade
-        </span>
+    <li className="flex items-start gap-4 p-4">
+      <MatchCardThumbnail cardId={cardId} imageUrl={imageUrl} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <MatchCardTitle cardId={cardId} cardName={match.cardName} />
+          <span className="text-xs text-base-content/60">
+            They want ×{match.theirQuantity} · You have ×{totalQuantity} for trade
+          </span>
+        </div>
+        <ul className="mt-2 space-y-1">
+          {match.items.map((item: BinderMatchItem) => {
+            const printing = printingLabel(item.printing)
+
+            return (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center gap-2 text-sm text-base-content/80"
+              >
+                <span className="font-mono font-bold">×{item.quantity}</span>
+                {printing ? <span className="text-base-content/60">{printing}</span> : null}
+                <FinishBadge finish={item.finish} />
+                <span className="text-xs text-base-content/50">{titleize(item.condition)}</span>
+                {item.priceText ? (
+                  <span className="font-mono text-xs font-bold tabular-nums text-base-content/80">
+                    {item.priceText}
+                  </span>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
       </div>
-      <ul className="mt-2 space-y-1">
-        {match.items.map((item) => (
-          <li
-            key={item.id}
-            className="flex flex-wrap items-center gap-2 text-sm text-base-content/80"
-          >
-            <span className="font-mono font-bold">×{item.quantity}</span>
-            {printingLabel(item) ? (
-              <span className="text-base-content/60">{printingLabel(item)}</span>
-            ) : null}
-            <FinishBadge finish={item.finish} />
-            <span className="text-xs text-base-content/50">{titleize(item.condition)}</span>
-          </li>
-        ))}
-      </ul>
     </li>
   )
 }
 
 function WantMatchRow({ match }: { match: WantMatch }) {
+  const cardId = match.cardId || match.want.card?.id
+  const printing = printingLabel(match.want.printing)
+
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-2 p-4">
-      <span className="font-bold text-base-content">{match.cardName}</span>
-      <span className="text-xs text-base-content/60">
-        They have ×{match.theirQuantity} · You want ×{match.want.quantity}
-      </span>
+    <li className="flex items-center gap-4 p-4">
+      <MatchCardThumbnail cardId={cardId} imageUrl={match.want.imageUrl} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <MatchCardTitle cardId={cardId} cardName={match.cardName} />
+          <span className="text-xs text-base-content/60">
+            They have ×{match.theirQuantity} · You want ×{match.want.quantity}
+          </span>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {printing ? (
+            <span className="badge badge-sm badge-outline text-base-content/70">{printing}</span>
+          ) : (
+            <span className="text-xs text-base-content/50">Any printing</span>
+          )}
+          {match.want.priceText ? (
+            <span className="font-mono text-xs font-bold tabular-nums text-base-content/80">
+              {printing ? match.want.priceText : `from ${match.want.priceText}`}
+            </span>
+          ) : null}
+        </div>
+      </div>
     </li>
+  )
+}
+
+function MatchCardThumbnail({
+  cardId,
+  imageUrl,
+}: {
+  cardId?: string | null
+  imageUrl?: string | null
+}) {
+  const content = (
+    <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-base-200">
+      {imageUrl ? (
+        <img src={imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+      ) : (
+        <div className="flex h-full items-center justify-center text-center text-xs text-base-content/50">
+          —
+        </div>
+      )}
+    </div>
+  )
+
+  return cardId ? (
+    <Link
+      to="/cards/$id"
+      params={{ id: cardId }}
+      search={{ returnTradeTab: "matches" }}
+      tabIndex={-1}
+      aria-hidden="true"
+      className="shrink-0 rounded-md"
+    >
+      {content}
+    </Link>
+  ) : (
+    content
+  )
+}
+
+function MatchCardTitle({ cardId, cardName }: { cardId?: string | null; cardName: string }) {
+  return cardId ? (
+    <Link
+      to="/cards/$id"
+      params={{ id: cardId }}
+      search={{ returnTradeTab: "matches" }}
+      className="rounded-sm font-bold text-base-content hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      {cardName}
+    </Link>
+  ) : (
+    <span className="font-bold text-base-content">{cardName}</span>
   )
 }
