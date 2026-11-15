@@ -91,8 +91,9 @@ export function useArtPalette(url: string | null | undefined) {
       return
     }
 
+    // Keep the previous art's palette until this one loads, so stepping
+    // through cards does not flash the untinted style in between.
     let cancelled = false
-    setPalette(null)
     loadArtPalette(url).then((result) => {
       paletteCache.set(url, result)
       if (!cancelled) setPalette(result)

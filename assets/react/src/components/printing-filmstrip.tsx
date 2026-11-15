@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from "motion/react"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { useSyncExternalStore } from "react"
 import { cn } from "../lib/utils"
 import type { FullscreenPrinting } from "./fullscreen-printing-dialog"
@@ -47,44 +47,50 @@ export function PrintingFilmstrip({
       aria-label="Cards"
       className="printing-filmstrip relative z-20 -mx-3 flex shrink-0 justify-center overflow-hidden px-3 pb-[calc(var(--safe-bottom)+0.25rem)] pt-3 sm:mx-0 sm:px-0 sm:pb-0"
     >
-      <ul className="flex items-end gap-1.5 sm:gap-2">
-        {visible.map((printing) => {
-          const current = printing.scryfallId === printings[currentIndex]?.scryfallId
-          const name = printing.name || cardName
-          const label = [name, printing.setCode?.toUpperCase(), printing.collectorNumber]
-            .filter(Boolean)
-            .join(" ")
-          return (
-            <motion.li
-              key={printing.scryfallId}
-              layout={!reduceMotion}
-              transition={{ type: "spring", stiffness: 420, damping: 34 }}
-              className="shrink-0"
-            >
-              <button
-                type="button"
-                className={cn(
-                  "printing-filmstrip__card block overflow-hidden rounded-[0.3rem] bg-base-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  current && "printing-filmstrip__card--current",
-                )}
-                aria-current={current ? "true" : undefined}
-                aria-label={current ? `${label} (showing)` : `Show ${label}`}
-                title={label}
-                onClick={() => !current && onSelect(printing.scryfallId)}
+      <ul className="relative flex items-end gap-1.5 sm:gap-2">
+        {/* Cards entering and leaving at the ends fade instead of popping. */}
+        <AnimatePresence initial={false} mode="popLayout">
+          {visible.map((printing) => {
+            const current = printing.scryfallId === printings[currentIndex]?.scryfallId
+            const name = printing.name || cardName
+            const label = [name, printing.setCode?.toUpperCase(), printing.collectorNumber]
+              .filter(Boolean)
+              .join(" ")
+            return (
+              <motion.li
+                key={printing.scryfallId}
+                layout={!reduceMotion}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                className="shrink-0"
               >
-                {printing.imageUrl ? (
-                  <img
-                    src={printing.imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    draggable={false}
-                    loading="lazy"
-                  />
-                ) : null}
-              </button>
-            </motion.li>
-          )
-        })}
+                <button
+                  type="button"
+                  className={cn(
+                    "printing-filmstrip__card block overflow-hidden rounded-[0.3rem] bg-base-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    current && "printing-filmstrip__card--current",
+                  )}
+                  aria-current={current ? "true" : undefined}
+                  aria-label={current ? `${label} (showing)` : `Show ${label}`}
+                  title={label}
+                  onClick={() => !current && onSelect(printing.scryfallId)}
+                >
+                  {printing.imageUrl ? (
+                    <img
+                      src={printing.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                      loading="lazy"
+                    />
+                  ) : null}
+                </button>
+              </motion.li>
+            )
+          })}
+        </AnimatePresence>
       </ul>
     </nav>
   )

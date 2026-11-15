@@ -328,14 +328,15 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
 }
 
 /* Filmstrip: neighboring cards under the full-screen card, the current one
-   raised above the others. */
+   raised above the others. The strip's layout animation grows and moves the
+   cards, so width must not transition here too: the two would fight and the
+   strip would snap at the end. */
 .printing-filmstrip__card {
   width: 2.5rem;
   aspect-ratio: 5 / 7;
   opacity: 0.62;
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
   transition:
-    width 260ms cubic-bezier(0.2, 0.9, 0.25, 1.1),
     transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1.1),
     opacity 200ms ease;
 }
