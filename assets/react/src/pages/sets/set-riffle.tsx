@@ -3,11 +3,20 @@ import {
   animate,
   motion,
   useMotionValue,
+  useMotionValueEvent,
   useReducedMotion,
   useTransform,
   type MotionValue,
 } from "motion/react"
-import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react"
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react"
 import { useArtPalette } from "../../lib/art-colors"
 import { useCardTilt } from "../../lib/card-tilt"
 import { cn } from "../../lib/utils"
@@ -35,6 +44,9 @@ const PEEK = 7.5
 const DEPTH = 34
 const WHEEL_STEP = 56
 const DRAG_STEP = 64
+/** The most cards the stack flips past in one move, a little more than a
+ * flick; longer moves, such as along the scrubber, jump most of the way. */
+const MAX_FLIP = 14
 const SPRING = { type: "spring", stiffness: 230, damping: 30, mass: 0.9 } as const
 
 function clamp(value: number, min: number, max: number) {
@@ -184,18 +196,24 @@ export function SetRiffle<P extends RifflePrinting>({
   const front = items[index]
   const frontPrinting = front?.kind === "card" ? front.printing : null
   const palette = useArtPalette(frontPrinting?.artCropUrl || frontPrinting?.imageUrl)
+  // The card the stack shows at the front while it springs toward `index`.
+  const [shown, setShown] = useState(index)
+  useMotionValueEvent(position, "change", (p) => setShown(Math.round(p)))
 
   // Keep the latest values for the wheel listener, which is bound once.
   const latest = useRef({ last, onIndexChange })
   latest.current = { last, onIndexChange }
 
-  useEffect(() => {
+  // Before paint, so the newly drawn cards never show at the old position.
+  useLayoutEffect(() => {
     targetRef.current = index
     if (draggingRef.current) return
     if (reduceMotion) {
       position.set(index)
       return
     }
+    const gap = index - position.get()
+    if (Math.abs(gap) > MAX_FLIP) position.jump(index - Math.sign(gap) * MAX_FLIP)
     const controls = animate(position, index, SPRING)
     return () => controls.stop()
   }, [index, position, reduceMotion])
@@ -308,8 +326,12 @@ export function SetRiffle<P extends RifflePrinting>({
     }
   }
 
-  const from = Math.max(0, index - 2)
-  const to = Math.min(last, index + BEHIND + 1)
+  // Draw the cards around both the shown card and the target, so the stack
+  // never springs through cards that are not drawn. The effect above jumps a
+  // longer move to MAX_FLIP from the target.
+  const near = clamp(shown, index - MAX_FLIP, index + MAX_FLIP)
+  const from = Math.max(0, Math.min(index, near) - 2)
+  const to = Math.min(last, Math.max(index, near) + BEHIND + 1)
   const visible = items.slice(from, to + 1)
   const ambient = palette
     ? ({
