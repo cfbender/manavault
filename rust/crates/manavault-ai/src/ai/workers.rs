@@ -23,7 +23,7 @@ fn id_arg(args: &Value, key: &str) -> Option<i64> {
 
 fn reason(error: &AiError) -> String {
     match error {
-        AiError::User(message) => message.clone(),
+        AiError::User(message) | AiError::Final(message) => message.clone(),
         other => other.to_string(),
     }
 }
@@ -65,13 +65,15 @@ impl Worker for DeckAnalysisWorker {
         match analyze_deck::run(state, &deck).await {
             Ok(_) => Outcome::Done,
             Err(RunError::Invalid) => Outcome::Retry(RunError::Invalid.to_string()),
+            Err(RunError::Ai(error @ AiError::Final(_))) => Outcome::Fail(reason(&error)),
             Err(RunError::Ai(error)) => Outcome::Retry(reason(&error)),
         }
     }
 }
 
-/// Answers one saved question. After the last attempt the question is
-/// marked failed with the error.
+/// Answers one saved question. After the last attempt, or a timeout or
+/// output token limit that would only repeat, the question is marked failed
+/// with the error.
 pub struct DeckQuestionWorker;
 
 impl Worker for DeckQuestionWorker {
@@ -97,10 +99,10 @@ impl Worker for DeckQuestionWorker {
         };
         match answer_deck_question::run(state, id).await {
             Ok(()) => Outcome::Done,
-            Err(error) if job.attempt >= job.max_attempts => {
+            Err(error) if matches!(error, AiError::Final(_)) || job.attempt >= job.max_attempts => {
                 match answer_deck_question::fail(state, id, &error).await {
-                    Ok(()) => Outcome::Retry(reason(&error)),
-                    Err(failure) => Outcome::Retry(reason(&failure)),
+                    Ok(()) => Outcome::Fail(reason(&error)),
+                    Err(failure) => Outcome::Fail(reason(&failure)),
                 }
             }
             Err(error) => Outcome::Retry(reason(&error)),

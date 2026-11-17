@@ -41,6 +41,8 @@ pub enum Outcome {
     Done,
     /// Retry with backoff until `max_attempts`, then fail.
     Retry(String),
+    /// Fail now: another attempt would fail the same way.
+    Fail(String),
     /// Stop without retrying.
     Cancel(String),
 }
@@ -469,6 +471,7 @@ impl Jobs {
                 Outcome::Done => drained.success += 1,
                 Outcome::Retry(_) if exhausted => drained.discard += 1,
                 Outcome::Retry(_) => drained.failure += 1,
+                Outcome::Fail(_) => drained.discard += 1,
                 Outcome::Cancel(_) => drained.cancelled += 1,
             }
         }
@@ -496,11 +499,12 @@ impl Jobs {
                 .execute(&self.pool)
                 .await?;
             }
-            Outcome::Retry(reason) => {
+            Outcome::Retry(reason) | Outcome::Fail(reason) => {
                 // Retries only come from registered workers (unknown ones
                 // are cancelled), so the lookup only fails for the log line.
                 let worker = self.workers.get(job.worker.as_str());
-                let exhausted = job.attempt >= job.max_attempts;
+                let exhausted =
+                    matches!(outcome, Outcome::Fail(_)) || job.attempt >= job.max_attempts;
                 // Failures reach the application log (and the server log
                 // page), not just the job row.
                 tracing::error!(

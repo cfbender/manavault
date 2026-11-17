@@ -287,7 +287,7 @@ async fn saved(app: &TestApp, id: i64) -> question_answers::QuestionAnswer {
 
 fn user_message(result: Result<(), AiError>) -> String {
     match result {
-        Err(AiError::User(message)) => message,
+        Err(AiError::User(message) | AiError::Final(message)) => message,
         other => format!("{other:?}"),
     }
 }
@@ -421,10 +421,11 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     for request in [request, answer_request] {
         assert!(request.get("tool_choice").is_none());
         assert_eq!(request["reasoning"], json!({"effort": "xhigh"}));
+        // Reasoning shares the output limit, so a set effort raises it.
+        assert_eq!(request["max_tokens"], 64_000);
         assert!(request.get("tools").is_some());
         assert!(request.get("response_format").is_none());
     }
-    assert_eq!(request["max_tokens"], 20_000);
     assert!(request.get("temperature").is_none());
     assert!(request.get("max_completion_tokens").is_none());
     assert!(request.get("plugins").is_none());
@@ -672,7 +673,7 @@ async fn saves_successful_deck_questions_newest_first_without_changing_the_analy
     );
     assert_eq!(saved(&app, failed.id).await.status, Status::Pending);
     assert!(
-        matches!(DeckQuestionWorker.perform(&app.state, &job(3)).await, Outcome::Retry(ref reason) if reason == empty)
+        matches!(DeckQuestionWorker.perform(&app.state, &job(3)).await, Outcome::Fail(ref reason) if reason == empty)
     );
     let failed = saved(&app, failed.id).await;
     assert_eq!(failed.status, Status::Failed);
@@ -807,12 +808,27 @@ async fn uses_generic_question_options_and_logs_safe_diagnostics_when_output_is_
         }))
     })
     .await;
+    let limit = "OpenRouter ran out of output tokens before finishing the answer.";
     let log = capture_logs("google/gemini-3.7-flash", async {
         let question = ask_default(&app, deck_id, "Do not include this question in logs.").await;
         assert_eq!(
             user_message(answer_deck_question::run(&app.state, question.id).await),
-            "OpenRouter ran out of output tokens before finishing the answer."
+            limit
         );
+        // Another attempt would hit the same limit, so the first one fails.
+        let job = Job {
+            id: 0,
+            worker: DECK_QUESTION_WORKER.into(),
+            args: json!({"question_answer_id": question.id}),
+            attempt: 1,
+            max_attempts: 3,
+        };
+        assert!(
+            matches!(DeckQuestionWorker.perform(&app.state, &job).await, Outcome::Fail(ref reason) if reason == limit)
+        );
+        let failed = saved(&app, question.id).await;
+        assert_eq!(failed.status, Status::Failed);
+        assert_eq!(failed.error.as_deref(), Some(limit));
     })
     .await;
     for fragment in [

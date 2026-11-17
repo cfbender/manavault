@@ -133,8 +133,7 @@ pub async fn analyze_payload(
 ) -> Result<Analysis, AiError> {
     let raw = match settings.provider()? {
         Provider::OpenRouter => openrouter::analyze_deck(state, settings, &payload.value).await,
-    }
-    .map_err(AiError::User)?;
+    }?;
     deck_analysis::normalize_result(
         &raw,
         &payload.format,

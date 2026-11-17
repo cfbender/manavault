@@ -37,6 +37,11 @@ pub enum AiError {
     /// Shown to the user as is.
     #[error("{0}")]
     User(String),
+    /// Shown to the user as is, like [`Self::User`]; the provider timed out
+    /// or ran out of output tokens, so repeating the request would only
+    /// fail the same way after the same wait.
+    #[error("{0}")]
+    Final(String),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
     #[error("{0}")]
@@ -60,7 +65,9 @@ impl AiError {
     #[must_use]
     pub fn into_graphql(self) -> async_graphql::Error {
         match self {
-            Self::User(message) => manavault_core::graphql::user_error(message),
+            Self::User(message) | Self::Final(message) => {
+                manavault_core::graphql::user_error(message)
+            }
             other => manavault_core::graphql::internal_error(other),
         }
     }

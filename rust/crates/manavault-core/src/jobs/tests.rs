@@ -37,6 +37,7 @@ impl Worker for Scripted {
         match job.args.get("outcome").and_then(Value::as_str) {
             Some("retry") => Outcome::Retry(format!("attempt {} broke", job.attempt)),
             Some("cancel") => Outcome::Cancel("not applicable".to_owned()),
+            Some("fail") => Outcome::Fail("would fail again".to_owned()),
             _ => Outcome::Done,
         }
     }
@@ -186,6 +187,20 @@ async fn retries_back_off_and_fail_after_the_last_attempt() {
     );
     assert_eq!(failed.last_error.as_deref(), Some("attempt 2 broke"));
     assert_eq!(drain(&state, &jobs, true).await, Drained::default());
+
+    // A failure that would repeat fails on its first attempt.
+    let id = jobs
+        .enqueue(PLAIN, json!({"outcome": "fail"}))
+        .await
+        .unwrap();
+    let drained = drain(&state, &jobs, true).await;
+    assert_eq!((drained.failure, drained.discard), (0, 1));
+    let failed = row(&state, id).await;
+    assert_eq!(
+        (failed.state.as_str(), failed.attempt, failed.finished),
+        ("failed", 1, true)
+    );
+    assert_eq!(failed.last_error.as_deref(), Some("would fail again"));
 }
 
 #[tokio::test]

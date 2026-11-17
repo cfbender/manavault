@@ -107,7 +107,7 @@ pub async fn fail(state: &AppState, id: i64, reason: &AiError) -> Result<(), AiE
         return Ok(());
     }
     let error = match reason {
-        AiError::User(message) => message.chars().take(2_000).collect(),
+        AiError::User(message) | AiError::Final(message) => message.chars().take(2_000).collect(),
         _ => "The AI question could not be completed.".to_owned(),
     };
     question_answers::fail(&state.db, &turn, &error)
@@ -173,8 +173,7 @@ async fn generate(
             Provider::OpenRouter => {
                 openrouter::ask_deck_question(state, settings, &payload.value, &turn).await
             }
-        }
-        .map_err(AiError::User)?;
+        }?;
         let result = deck_question::normalize_result(&raw).map_err(AiError::User)?;
         let cards = cards_by_name::by_names(&state.db, &result.recommended_additions).await?;
         let issues = recommendation_issues(&result, payload, &cards);

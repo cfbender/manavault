@@ -27,10 +27,10 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value, json};
 
-use super::Configured;
 use super::deck_analysis::prompt as analysis_prompt;
 use super::deck_question::{self, SwapContext};
 use super::tools;
+use super::{AiError, Configured};
 use manavault_core::settings::ai::openrouter::response_error;
 use manavault_core::state::AppState;
 
@@ -46,6 +46,15 @@ const REPAIR_PROMPT: &str = "Return that answer as exactly one JSON object match
 /// the answer are both finished, and high effort on current models can spend
 /// longer than five minutes on that before any tokens arrive.
 const COMPLETION_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+/// Output tokens (reasoning and answer combined) for a completion at the
+/// model's default effort.
+const MAX_TOKENS: u32 = 20_000;
+/// Output tokens when a reasoning effort is set. Reasoning counts against
+/// `max_tokens`, and at high efforts it can use all of [`MAX_TOKENS`] before
+/// the answer starts. This is about what a model streams within
+/// [`COMPLETION_TIMEOUT`], so a larger limit would only trade the token limit
+/// for the timeout.
+const REASONING_MAX_TOKENS: u32 = 64_000;
 /// How long an AI job may run: every completion at [`COMPLETION_TIMEOUT`].
 /// Tool calls are accepted while `round` is `0..=MAX_TOOL_ROUNDS`, then the
 /// model must answer, and a bad answer gets one schema repair.
@@ -134,7 +143,7 @@ pub async fn analyze_deck(
     state: &AppState,
     settings: &Configured,
     payload: &Value,
-) -> Result<Value, String> {
+) -> Result<Value, AiError> {
     let instructions = settings.deck_analysis_instructions.as_deref();
     let request = json!({
         "model": settings.model,
@@ -143,7 +152,7 @@ pub async fn analyze_deck(
             {"role": "user", "content": analysis_prompt::user(payload)}
         ],
         "session_id": session_id("deck-analysis", &payload.to_string()),
-        "max_tokens": 20_000,
+        "max_tokens": MAX_TOKENS,
         "tools": tools::definitions(),
         "response_format": {
             "type": "json_schema",
@@ -163,12 +172,12 @@ pub async fn ask_deck_question(
     settings: &Configured,
     payload: &Value,
     turn: &Turn,
-) -> Result<Value, String> {
+) -> Result<Value, AiError> {
     let request = json!({
         "model": settings.model,
         "messages": question_messages(payload, turn),
         "session_id": session_id("deck-question", &turn.conversation),
-        "max_tokens": 20_000,
+        "max_tokens": MAX_TOKENS,
         "tools": tools::definitions(),
         "plugins": [{"id": "response-healing"}],
         "response_format": {
@@ -306,12 +315,13 @@ async fn complete(
     settings: &Configured,
     request: Value,
     operation: Operation,
-) -> Result<Value, String> {
+) -> Result<Value, AiError> {
     let Value::Object(mut request) = request else {
-        return Err(operation.http_error().to_owned());
+        return Err(AiError::User(operation.http_error().to_owned()));
     };
     if let Some(effort) = &settings.reasoning_effort {
         request.insert("reasoning".into(), json!({"effort": effort}));
+        request.insert("max_tokens".into(), REASONING_MAX_TOKENS.into());
     }
     describe_response_format(&mut request);
     let mut round = 0;
@@ -351,7 +361,14 @@ async fn complete(
                         Err(error) => LogResult::Decode(error),
                     };
                     log_completion(&outcome, operation, &settings.model, started, status, &body);
-                    return result.map_err(|error| operation.decode_error(error).to_owned());
+                    return result.map_err(|error| {
+                        let message = operation.decode_error(error).to_owned();
+                        if error == DecodeError::TokenLimit {
+                            AiError::Final(message)
+                        } else {
+                            AiError::User(message)
+                        }
+                    });
                 }
                 log_completion(
                     &LogResult::ToolCalls,
@@ -362,11 +379,15 @@ async fn complete(
                     &body,
                 );
                 if round > MAX_TOOL_ROUNDS {
-                    return Err(TOOL_LOOP.to_owned());
+                    return Err(AiError::User(TOOL_LOOP.to_owned()));
                 }
                 let mut follow_up = vec![assistant_message(&body)];
                 for call in &calls {
-                    follow_up.push(tool_message(state, call, round >= MAX_TOOL_ROUNDS).await?);
+                    follow_up.push(
+                        tool_message(state, call, round >= MAX_TOOL_ROUNDS)
+                            .await
+                            .map_err(AiError::User)?,
+                    );
                 }
                 if let Some(Value::Array(messages)) = request.get_mut("messages") {
                     messages.extend(follow_up);
@@ -394,7 +415,11 @@ async fn complete(
                         404,
                         &body,
                     );
-                    return Err(response_error(404, &text, operation.http_error()));
+                    return Err(AiError::User(response_error(
+                        404,
+                        &text,
+                        operation.http_error(),
+                    )));
                 }
             }
             Response::Http { status, body, text } => {
@@ -406,7 +431,11 @@ async fn complete(
                     status,
                     &body,
                 );
-                return Err(response_error(status, &text, operation.http_error()));
+                return Err(AiError::User(response_error(
+                    status,
+                    &text,
+                    operation.http_error(),
+                )));
             }
             Response::Failed(error) => {
                 tracing::warn!(
@@ -417,9 +446,12 @@ async fn complete(
                     request_error_reason(&error)
                 );
                 return Err(if error.is_timeout() {
-                    format!("{} The request timed out.", operation.request_error())
+                    AiError::Final(format!(
+                        "{} The request timed out.",
+                        operation.request_error()
+                    ))
                 } else {
-                    operation.request_error().to_owned()
+                    AiError::User(operation.request_error().to_owned())
                 });
             }
         }
