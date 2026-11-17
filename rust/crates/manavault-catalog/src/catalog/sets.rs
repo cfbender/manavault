@@ -23,6 +23,8 @@ const SUMMARIES_KEY: &str = "sets:summaries";
 const SUMMARIES_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 /// How many of a set's most valuable cards its summary carries.
 const PREVIEW_COUNT: i64 = 3;
+// scryfall_printings_set_preview_index indexes these expressions; keep the two
+// in sync or the previews query in load_summaries scans every printing.
 const PRICE_SQL: &str =
     "COALESCE(CAST(p.prices->>'usd' AS REAL), CAST(p.prices->>'usd_foil' AS REAL), 0)";
 const RARITY_SQL: &str = "CASE p.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END";
@@ -57,18 +59,23 @@ async fn load_summaries(pool: &SqlitePool) -> Result<Vec<SetSummary>, sqlx::Erro
     )
     .fetch_all(pool)
     .await?;
-    // Priciest first, as PRICE_SQL and RARITY_SQL order them.
+    // Priciest first, as PRICE_SQL and RARITY_SQL order them. The per-set
+    // LIMIT reads a few entries of scryfall_printings_set_preview_index per
+    // set instead of ranking every printing.
     let previews = sqlx::query!(
-        r#"SELECT set_code AS "set_code!", image_uris AS "image_uris!" FROM (
-             SELECT p.set_code, p.image_uris,
-                    ROW_NUMBER() OVER (
-                      PARTITION BY p.set_code
-                      ORDER BY COALESCE(CAST(p.prices->>'usd' AS REAL), CAST(p.prices->>'usd_foil' AS REAL), 0) DESC,
-                               CASE p.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,
-                               p.collector_number ASC
-                    ) AS position
-             FROM scryfall_printings AS p)
-           WHERE position <= ?1 ORDER BY set_code, position"#,
+        r#"SELECT s.set_code AS "set_code!", p.image_uris AS "image_uris!"
+           FROM (SELECT DISTINCT set_code FROM scryfall_printings) AS s
+           JOIN scryfall_printings AS p ON p.scryfall_id IN (
+             SELECT q.scryfall_id FROM scryfall_printings AS q
+             WHERE q.set_code = s.set_code
+             ORDER BY COALESCE(CAST(q.prices->>'usd' AS REAL), CAST(q.prices->>'usd_foil' AS REAL), 0) DESC,
+                      CASE q.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,
+                      q.collector_number ASC
+             LIMIT ?1)
+           ORDER BY s.set_code,
+                    COALESCE(CAST(p.prices->>'usd' AS REAL), CAST(p.prices->>'usd_foil' AS REAL), 0) DESC,
+                    CASE p.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,
+                    p.collector_number ASC"#,
         PREVIEW_COUNT
     )
     .fetch_all(pool)

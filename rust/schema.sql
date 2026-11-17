@@ -161,6 +161,15 @@ CREATE INDEX "scryfall_printings_set_name_set_code_index" ON "scryfall_printings
 CREATE INDEX "scryfall_printings_flavor_name_oracle_id_index"
 ON "scryfall_printings" ("flavor_name", "oracle_id")
 WHERE "flavor_name" IS NOT NULL AND "flavor_name" != '';
+CREATE INDEX "scryfall_printings_set_code_released_at_set_name_index"
+ON "scryfall_printings" ("set_code", "released_at", "set_name");
+CREATE INDEX "scryfall_printings_set_preview_index" ON "scryfall_printings" (
+  "set_code",
+  COALESCE(CAST(prices->>'usd' AS REAL), CAST(prices->>'usd_foil' AS REAL), 0) DESC,
+  CASE rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,
+  "collector_number",
+  "scryfall_id"
+);
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -248,3 +257,4 @@ INSERT INTO schema_migrations VALUES(20261023210150,NULL);
 INSERT INTO schema_migrations VALUES(20261029213201,NULL);
 INSERT INTO schema_migrations VALUES(20261106193503,NULL);
 INSERT INTO schema_migrations VALUES(20261117172810,NULL);
+INSERT INTO schema_migrations VALUES(20261117184023,NULL);

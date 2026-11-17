@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT s.set_code AS \"set_code!\", p.image_uris AS \"image_uris!\"\n           FROM (SELECT DISTINCT set_code FROM scryfall_printings) AS s\n           JOIN scryfall_printings AS p ON p.scryfall_id IN (\n             SELECT q.scryfall_id FROM scryfall_printings AS q\n             WHERE q.set_code = s.set_code\n             ORDER BY COALESCE(CAST(q.prices->>'usd' AS REAL), CAST(q.prices->>'usd_foil' AS REAL), 0) DESC,\n                      CASE q.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,\n                      q.collector_number ASC\n             LIMIT ?1)\n           ORDER BY s.set_code,\n                    COALESCE(CAST(p.prices->>'usd' AS REAL), CAST(p.prices->>'usd_foil' AS REAL), 0) DESC,\n                    CASE p.rarity WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END DESC,\n                    p.collector_number ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "set_code!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "image_uris!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b88da66d925ddf5ef8030bdca847092b22cbb542c34aa72119424bd3b91a8eec"
+}
