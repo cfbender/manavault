@@ -204,7 +204,6 @@ test("renders saved questions as an oldest-first conversation", () => {
   const dialog = screen.getByRole("dialog", { name: "Ask about this deck" })
   const entries = within(dialog).getAllByRole("article", { name: /\?/ })
 
-  expect(dialog.querySelector("details")).toBeNull()
   expect(entries).toHaveLength(2)
   expect(entries[0]?.textContent).toContain("What is the weakest card?")
   expect(entries[1]?.textContent).toContain("How should I protect my counters?")
@@ -268,11 +267,9 @@ test("submits a trimmed deck question, shows pending work, and starts polling", 
     />,
   )
 
-  const dialog = screen.getByRole("dialog", { name: "Ask about this deck" })
   const question = screen.getByRole("textbox", { name: "Ask about this deck" })
   const submit = screen.getByRole("button", { name: "Send question" })
 
-  expect(dialog.getAttribute("aria-describedby")).toBe("deck-question-description")
   expect(screen.getByText(/Counter Deck/)).toBeInstanceOf(HTMLElement)
   expect((submit as HTMLButtonElement).disabled).toBe(true)
 

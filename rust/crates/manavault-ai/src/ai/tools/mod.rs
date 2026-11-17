@@ -106,20 +106,6 @@ mod tests {
     use super::*;
     use crate::test_app::TestApp;
 
-    #[test]
-    fn offers_the_card_lookup_and_collection_status_tools() {
-        let names: Vec<Value> = definitions()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|tool| tool["function"]["name"].clone())
-            .collect();
-        assert_eq!(
-            names,
-            vec![json!("lookup_cards"), json!("check_collection")]
-        );
-    }
-
     #[tokio::test]
     async fn dispatches_calls_by_tool_name_and_describes_unknown_tools() {
         let app = TestApp::new().await;

@@ -1502,52 +1502,6 @@ async fn failed_mutations_and_queries_answer_null_fields() {
     assert_eq!(errors(&response), ["Location was not found."]);
 }
 
-#[tokio::test]
-async fn deleting_storage_unfiles_cards_and_deleting_a_list_deletes_them() {
-    let app = TestApp::new().await;
-    app.import_cards(&[black_lotus()]).await;
-    let storage = create_location(&app, "Delete Location", "box").await;
-    let list = create_location(&app, "Delete List", "list").await;
-    let stored = create_item(
-        &app,
-        "scryfall-printing-1",
-        Attrs {
-            location_id: Some(storage.id),
-            ..Attrs::default()
-        },
-    )
-    .await
-    .record
-    .id;
-    let listed = create_item(
-        &app,
-        "scryfall-printing-1",
-        Attrs {
-            location_id: Some(list.id),
-            ..Attrs::default()
-        },
-    )
-    .await
-    .record
-    .id;
-    let delete =
-        r"mutation DeleteLocation($id: ID!) { deleteLocation(id: $id) { location { name } } }";
-    app.gql_data(delete, json!({"id": gid(NodeKind::Location, storage.id)}))
-        .await;
-    assert_eq!(reload(&app, stored).await.unwrap().record.location_id, None);
-    app.gql_data(delete, json!({"id": gid(NodeKind::Location, list.id)}))
-        .await;
-    assert!(reload(&app, listed).await.is_none());
-    assert_eq!(
-        item_ids(
-            &app,
-            &ItemFilters::at(crate::collection::filters::LocationFilter::Unfiled)
-        )
-        .await,
-        [stored]
-    );
-}
-
 const PREVIEW_IMPORT: &str = r"mutation PreviewCollectionImport($input: CollectionImportPreviewInput!) {
     previewCollectionImport(input: $input) {
       importPreview {

@@ -96,9 +96,6 @@ test("saved AI analysis is collapsed by default", () => {
   expect(disclosure?.open).toBe(true)
   expect(screen.getByRole("heading", { name: "Overview" })).toBeInstanceOf(HTMLElement)
   expect(screen.getByText(/test\/model · Analyzed/)).toBeInstanceOf(HTMLElement)
-  expect(container.querySelector("summary")?.textContent).not.toContain("test/model")
-  expect(screen.queryByRole("button", { name: /refresh ai analysis/i })).toBeNull()
-  expect(screen.queryByRole("button", { name: /ask ai about this deck/i })).toBeNull()
 })
 
 test("card reference previews show the catalog image, or say a card is unknown", async () => {

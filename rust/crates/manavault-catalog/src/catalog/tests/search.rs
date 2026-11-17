@@ -3,7 +3,7 @@
 
 use serde_json::json;
 
-use super::{insert_collection_item, link_token};
+use super::insert_collection_item;
 use crate::catalog::card::Card;
 use crate::catalog::search::cards::{SearchOptions, Sort, TokenScope, search_cards};
 use crate::catalog::search::cards_by_name;
@@ -458,7 +458,6 @@ async fn token_scope_excludes_includes_or_restricts_to_tokens() {
         names(&app, "", scope(TokenScope::Only)).await,
         ["Soldier", "Treasure"]
     );
-    link_token(&app, "scryfall-printing-1", "token-treasure-tlea").await;
 }
 
 async fn import_named(app: &TestApp, oracle_id: &str, name: &str, extra: serde_json::Value) {

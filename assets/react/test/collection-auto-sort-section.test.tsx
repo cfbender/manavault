@@ -227,7 +227,6 @@ test("auto-sort summary shows printing details and keeps the image preview in th
   )
 
   expect(screen.getByText("LEA #233")).not.toBeNull()
-  expect(screen.queryByText(/Item ID|Source ID/)).toBeNull()
 
   const cardLink = screen.getByRole("link", { name: "Black Lotus" })
   vi.spyOn(cardLink, "getBoundingClientRect").mockReturnValue({

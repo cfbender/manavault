@@ -1,6 +1,5 @@
 //! GraphQL-level tests of deck EDHREC suggestions, Recommander, Commander
-//! Spellbook combos, buylists, disassembly, and bulk and pull-list
-//! allocation.
+//! Spellbook combos, buylists, disassembly, and bulk allocation.
 
 use manavault_allocation::{
     CollectionItemId, DeckCardId, DeckId, LocationKind, Quantity, allocate,
@@ -1283,7 +1282,7 @@ async fn deck_disassembly_previews_then_restores_and_archives() {
     );
 }
 
-// --- Bulk and pull-list allocation -------------------------------------------------------
+// --- Bulk allocation ---------------------------------------------------------------------
 
 const BULK_ALLOCATE: &str = r"
 mutation BulkAllocateDeck($id: ID!, $mode: String!) {
@@ -1353,121 +1352,4 @@ async fn bulk_allocate_deck_over_graphql() {
         error_message(&response),
         "Unarchive this deck before changing allocations."
     );
-}
-
-mod pull_list {
-    use async_graphql::{Context, EmptySubscription, ID, InputObject, Object, Schema};
-
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-    use crate::deck_intel::schema::{
-        AllocateDeckPullListPayload, PullListEntryArgs, allocate_deck_pull_list,
-    };
-
-    /// Stand-in for the deck engineer's input type.
-    #[derive(InputObject)]
-    #[graphql(name = "DeckPullListEntryInput")]
-    struct EntryInput {
-        deck_card_id: ID,
-        collection_item_id: ID,
-        quantity: Option<i64>,
-    }
-
-    struct Query;
-
-    #[Object]
-    impl Query {
-        async fn ok(&self) -> bool {
-            true
-        }
-    }
-
-    struct Mutation;
-
-    #[Object]
-    impl Mutation {
-        async fn allocate_deck_pull_list(
-            &self,
-            ctx: &Context<'_>,
-            deck_id: ID,
-            entries: Vec<EntryInput>,
-        ) -> manavault_core::graphql::Result<Option<AllocateDeckPullListPayload>> {
-            let entries: Vec<PullListEntryArgs> = entries
-                .into_iter()
-                .map(|entry| PullListEntryArgs {
-                    deck_card_id: entry.deck_card_id,
-                    collection_item_id: entry.collection_item_id,
-                    quantity: entry.quantity,
-                })
-                .collect();
-            allocate_deck_pull_list(ctx, &deck_id, &entries).await
-        }
-    }
-
-    const PULL_LIST: &str = r"
-    mutation AllocateDeckPullList($deckId: ID!, $entries: [DeckPullListEntryInput!]!) {
-      allocateDeckPullList(deckId: $deckId, entries: $entries) { allocationResult { allocated cards skipped } }
-    }";
-
-    #[tokio::test]
-    async fn allocate_deck_pull_list_resolver_body() {
-        let app = TestApp::new().await;
-        let schema = Schema::build(Query, Mutation, EmptySubscription)
-            .data(app.state.clone())
-            .finish();
-        let run = |variables: Value| {
-            let schema = schema.clone();
-            async move {
-                let request = async_graphql::Request::new(PULL_LIST)
-                    .variables(async_graphql::Variables::from_json(variables));
-                serde_json::to_value(schema.execute(request).await).unwrap()
-            }
-        };
-        app.import_cards(&[fixtures::black_lotus()]).await;
-        let copies = item(&app, "scryfall-printing-1", 2, "nonfoil", None).await;
-        let d = deck(&app, "Pull List Deck", "brewing").await;
-        let card = add_card(
-            &app,
-            d,
-            "oracle-1",
-            2,
-            "mainboard",
-            Some("scryfall-printing-1"),
-            "nonfoil",
-        )
-        .await;
-        let entry = |quantity: Value| {
-            json!({
-                "deckCardId": global_id(NodeKind::DeckCard, card.0).to_string(),
-                "collectionItemId": global_id(NodeKind::CollectionItem, copies.0).to_string(),
-                "quantity": quantity
-            })
-        };
-
-        let response = run(json!({"deckId": deck_gid(d), "entries": [entry(json!(0))]})).await;
-        assert_eq!(
-            error_message(&response),
-            "Could not add collection item to deck."
-        );
-
-        let response = run(json!({"deckId": deck_gid(d), "entries": [entry(json!(2))]})).await;
-        assert_eq!(
-            response["data"]["allocateDeckPullList"]["allocationResult"],
-            json!({"allocated": 2, "cards": 1, "skipped": 0})
-        );
-        assert_eq!(
-            manavault_allocation::allocation_status(app.db(), card)
-                .await
-                .unwrap()
-                .allocated,
-            2
-        );
-
-        let response = run(json!({"deckId": deck_gid(d), "entries": [entry(Value::Null)]})).await;
-        assert_eq!(
-            response["data"]["allocateDeckPullList"]["allocationResult"],
-            json!({"allocated": 0, "cards": 0, "skipped": 1})
-        );
-    }
 }

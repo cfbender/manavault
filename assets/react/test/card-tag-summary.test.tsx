@@ -36,7 +36,6 @@ test("nonlegendary cards link only their card rank and show the bare salt score"
   expect(cardRank.getAttribute("href")).toBe("https://edhrec.com/cards/ranked-card")
   expect(screen.queryByText(/as commander/)).toBeNull()
   expect(screen.getByText("2.50")).toBeTruthy()
-  expect(screen.queryByText(/\/ 4|Community survey|MTGJSON/)).toBeNull()
 })
 
 test("legendary creatures link commander and card ranks to their respective pages", () => {

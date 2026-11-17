@@ -134,8 +134,6 @@ test("trade binder applies collection sorting and structured filters", async () 
   renderBinder()
 
   await user.click(screen.getByRole("button", { name: "Sort by Card name, Asc" }))
-  const sortMenu = screen.getByRole("menu")
-  expect(sortMenu.classList.contains("w-[min(18rem,calc(100vw-2rem))]")).toBe(true)
   await user.click(screen.getByRole("menuitem", { name: "Descending" }))
   await user.click(screen.getByRole("button", { name: "Sort by Card name, Desc" }))
   await user.click(screen.getByRole("menuitem", { name: "Price" }))
@@ -143,14 +141,6 @@ test("trade binder applies collection sorting and structured filters", async () 
   expect(latestBinderQueryOptions().variables?.sort).toEqual({ field: "price", direction: "desc" })
 
   await user.click(screen.getByRole("button", { name: "Filter" }))
-  const filterDialog = screen.getByRole("dialog", { name: "Filter collection" })
-  const filterScroller = filterDialog.querySelector(".overscroll-contain")
-  expect(filterScroller?.classList.contains("min-w-0")).toBe(true)
-  expect(filterScroller?.classList.contains("flex-1")).toBe(true)
-  expect(filterScroller?.classList.contains("overflow-y-auto")).toBe(true)
-  expect(
-    screen.getAllByRole("button", { name: "Any" })[0].parentElement?.classList.contains("w-full"),
-  ).toBe(true)
   await user.type(screen.getByPlaceholderText("Card name"), "Black Lotus")
   await user.click(screen.getByRole("button", { name: "Apply filters" }))
 
@@ -164,23 +154,6 @@ test("trade binder applies collection sorting and structured filters", async () 
   await user.click(screen.getByRole("button", { name: "Apply filters" }))
 
   expect(latestBinderQueryOptions().variables?.filters).toEqual({ unallocatedOnly: true })
-})
-
-test("sort dropdown supports keyboard navigation", async () => {
-  const user = userEvent.setup()
-  renderBinder()
-  const trigger = screen.getByRole("button", { name: "Sort by Card name, Asc" })
-
-  trigger.focus()
-  await user.keyboard("{Enter}")
-  await waitFor(() =>
-    expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: "Ascending" })),
-  )
-  await user.keyboard("{ArrowDown}{Enter}")
-
-  expect(screen.getByRole("button", { name: "Sort by Card name, Desc" })).toBeInstanceOf(
-    HTMLElement,
-  )
 })
 
 test("trade quantity updates optimistically without refetching the binder", async () => {

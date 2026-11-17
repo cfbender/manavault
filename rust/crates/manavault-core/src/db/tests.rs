@@ -63,7 +63,6 @@ async fn a_new_database_gets_every_migration_and_the_starter_tags() {
     let pool = pool_at(&dir).await;
     let outcome = prepare(&pool).await.expect("migrate");
     assert_eq!(outcome.applied.len(), migrate::MIGRATIONS.len());
-    assert_eq!(migrate::MIGRATIONS.len(), 88);
     assert_eq!(
         applied(&pool).await,
         migrate::versions().collect::<Vec<_>>()
@@ -269,7 +268,7 @@ async fn scalar_i64(pool: &SqlitePool, sql: &str) -> i64 {
         .expect("query")
 }
 
-/// Boots the server on the v1.0.0 database: the 46 newer migrations apply,
+/// Boots the server on the v1.0.0 database: the newer migrations apply,
 /// their data steps run, and the owner's data survives.
 #[tokio::test]
 async fn upgrades_a_v1_0_0_database_with_data() {
@@ -281,7 +280,12 @@ async fn upgrades_a_v1_0_0_database_with_data() {
     assert_eq!(before.last(), Some(&20_260_708_000_003));
 
     let outcome = prepare(&pool).await.expect("migrate");
-    assert_eq!(outcome.applied.len(), 54);
+    assert_eq!(
+        outcome.applied,
+        migrate::versions()
+            .filter(|version| !before.contains(version))
+            .collect::<Vec<_>>()
+    );
     assert_eq!(
         applied(&pool).await,
         migrate::versions().collect::<Vec<_>>()

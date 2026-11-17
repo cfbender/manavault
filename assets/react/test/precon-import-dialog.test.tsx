@@ -85,26 +85,30 @@ afterEach(() => {
   mocks.navigate.mockReset()
 })
 
-function preconNames() {
+function preconButtons() {
   const list = screen.getByRole("list", { name: "Commander precons" })
   return within(list)
     .getAllByRole("button")
-    .map((button) => button.querySelector("span span")?.textContent)
+    .map((button) => button.textContent)
 }
 
 test("searches precons by every word of the deck name or product", async () => {
   const user = userEvent.setup()
   render(<PreconImportDialog open onOpenChange={vi.fn()} />)
 
-  expect(preconNames()).toEqual(["Subjective Reality", "Éowyn's Riders", "Nature of the Beast"])
+  expect(preconButtons()).toEqual([
+    expect.stringContaining("Subjective Reality"),
+    expect.stringContaining("Éowyn's Riders"),
+    expect.stringContaining("Nature of the Beast"),
+  ])
 
   await user.type(screen.getByRole("searchbox", { name: "Search precons" }), "commander 2013")
-  expect(preconNames()).toEqual(["Nature of the Beast"])
+  expect(preconButtons()).toEqual([expect.stringContaining("Nature of the Beast")])
   expect(screen.getByText("1 of 3 precons")).toBeInstanceOf(HTMLElement)
 
   await user.clear(screen.getByRole("searchbox", { name: "Search precons" }))
   await user.type(screen.getByRole("searchbox", { name: "Search precons" }), "eowyn rings")
-  expect(preconNames()).toEqual(["Éowyn's Riders"])
+  expect(preconButtons()).toEqual([expect.stringContaining("Éowyn's Riders")])
 })
 
 test("imports the chosen precon into a storage location and opens the new deck", async () => {

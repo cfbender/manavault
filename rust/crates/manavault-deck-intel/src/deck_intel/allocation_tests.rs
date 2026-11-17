@@ -474,6 +474,35 @@ async fn deck_pull_list_allocation_over_graphql() {
         json!({"allocated": 2, "cards": 1, "skipped": 0})
     );
     assert_eq!(allocated(&app, deck_card.id).await, 2);
+    // Without a quantity, an entry whose deck card is already covered is skipped.
+    let data = app
+        .gql_data(
+            mutation,
+            json!({"deckId": deck_gid(deck.id), "entries": [{
+                "deckCardId": card_gid(deck_card.id),
+                "collectionItemId": item_gid(item),
+                "quantity": null
+            }]}),
+        )
+        .await;
+    assert_eq!(
+        data["allocateDeckPullList"]["allocationResult"],
+        json!({"allocated": 0, "cards": 0, "skipped": 1})
+    );
+    assert_eq!(
+        error_message(
+            &app.gql(
+                mutation,
+                json!({"deckId": deck_gid(deck.id), "entries": [{
+                    "deckCardId": card_gid(deck_card.id),
+                    "collectionItemId": item_gid(item),
+                    "quantity": 0
+                }]})
+            )
+            .await
+        ),
+        "Could not add collection item to deck."
+    );
     assert_eq!(
         error_message(
             &app.gql(

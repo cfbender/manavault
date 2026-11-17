@@ -207,20 +207,12 @@ test("category and theme grouping keep commander in its own first group", () => 
   }
 })
 
-test("existing labels remain human-readable for category and mana value", () => {
-  const groups = groupDeckCards(
-    [
-      deckCard("draw", { card: { name: "Phyrexian Arena", deckCategory: "card_advantage" } }),
-      deckCard("six", { card: { name: "Sun Titan", cmc: 6 } }),
-    ],
-    "category",
-  )
+test("mana value grouping labels high-cost cards Mana 6+", () => {
   const manaGroups = groupDeckCards(
     [deckCard("six", { card: { name: "Sun Titan", cmc: 6 } })],
     "manaValue",
   )
 
-  assert.equal(groups.find((group) => group.key === "card_advantage")?.label, "Card Advantage")
   assert.equal(manaGroups[0].label, "Mana 6+")
 })
 

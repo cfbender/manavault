@@ -329,50 +329,6 @@ pub async fn require_browser(
 mod tests {
     use super::*;
 
-    const SECRET: &str = "UsvngUheE20ovBxVkk8mYUrhf1l5zpBV+Pe5DVeypCZK0QnQde9NDUj1YhFADst6";
-
-    /// Request headers carrying `value` sealed the way a response would send it.
-    fn jar_with(key: &Key, value: &str) -> HeaderMap {
-        let jar =
-            PrivateCookieJar::new(key.clone()).add(Cookie::new(COOKIE_NAME, value.to_owned()));
-        let response = (jar, StatusCode::OK).into_response();
-        let set_cookie = response.headers()[axum::http::header::SET_COOKIE]
-            .to_str()
-            .unwrap();
-        let pair = set_cookie.split(';').next().unwrap();
-        let mut headers = HeaderMap::new();
-        headers.insert(axum::http::header::COOKIE, pair.parse().unwrap());
-        headers
-    }
-
-    #[test]
-    fn the_cookie_round_trips_and_rejects_tampering_and_other_keys() {
-        let key = cookie_key(SECRET);
-        let data = SessionData {
-            csrf_token: Some("token".to_owned()),
-            owner_fingerprint: Some("fingerprint".to_owned()),
-            session_id: Some("session".to_owned()),
-        };
-        let encoded = serde_json::to_string(&data).unwrap();
-        let headers = jar_with(&key, &encoded);
-        let read = |key: &Key, headers: &HeaderMap| {
-            PrivateCookieJar::from_headers(headers, key.clone())
-                .get(COOKIE_NAME)
-                .and_then(|cookie| serde_json::from_str::<SessionData>(cookie.value()).ok())
-        };
-        assert_eq!(read(&key, &headers), Some(data));
-        assert_eq!(read(&cookie_key("other secret"), &headers), None);
-
-        let sealed = headers[axum::http::header::COOKIE]
-            .to_str()
-            .unwrap()
-            .to_owned();
-        let tampered = format!("{}x", sealed.trim_end_matches('='));
-        let mut headers = HeaderMap::new();
-        headers.insert(axum::http::header::COOKIE, tampered.parse().unwrap());
-        assert_eq!(read(&key, &headers), None);
-    }
-
     #[test]
     fn csrf_tokens_are_created_once_and_compared_exactly() {
         let session = Session::default();

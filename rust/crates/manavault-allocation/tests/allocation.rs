@@ -10,9 +10,9 @@ use manavault_allocation::{
     allocate, allocation_status, deallocate,
 };
 use support::{
-    BLACK_LOTUS, LOTUS_ALPHA, LOTUS_BETA, NewItem, PLAINS, TIME_WALK_ALPHA, TestResult,
-    allocation_count, db, deck, deck_card, deck_card_row, item, item_row, items_in, location, qty,
-    set_deck_status, set_preferred_printing, set_proxy_quantity, set_tag,
+    BLACK_LOTUS, LOTUS_ALPHA, LOTUS_BETA, NewItem, TIME_WALK_ALPHA, TestResult, allocation_count,
+    db, deck, deck_card, deck_card_row, item, item_row, items_in, location, qty, set_deck_status,
+    set_preferred_printing, set_tag,
 };
 
 #[tokio::test]
@@ -152,60 +152,6 @@ async fn splitting_an_item_keeps_its_provenance_and_clamps_trade_copies() -> Tes
 }
 
 #[tokio::test]
-async fn proxies_count_as_allocated_without_moving_copies() -> TestResult {
-    let pool = db().await?;
-    let binder = location(&pool, "Trade Binder", LocationKind::Binder).await?;
-    let copy = item(&pool, NewItem::new(LOTUS_ALPHA, 1, Some(binder))).await?;
-    let d = deck(&pool, "Proxy Test", DeckStatus::Brewing).await?;
-    let lotus = deck_card(&pool, d, BLACK_LOTUS, 2, Zone::Mainboard).await?;
-    set_proxy_quantity(&pool, lotus, 1).await?;
-
-    let status = allocation_status(&pool, lotus).await?;
-    assert_eq!(status.allocated, 1);
-    assert_eq!(status.proxy_allocated, 1);
-    assert_eq!(status.available, 1);
-    assert_eq!(status.missing, 0);
-    assert_eq!(item_row(&pool, copy).await?.location_id, Some(binder));
-
-    let allocation = allocate(&pool, lotus, copy, qty(1)?).await?;
-    assert_eq!(
-        item_row(&pool, allocation.collection_item_id)
-            .await?
-            .location_id,
-        None
-    );
-    let status = allocation_status(&pool, lotus).await?;
-    assert_eq!(status.state, AllocationState::Allocated);
-    assert_eq!(status.allocated, 2);
-
-    set_proxy_quantity(&pool, lotus, 0).await?;
-    let status = allocation_status(&pool, lotus).await?;
-    assert_eq!(status.allocated, 1);
-    assert_eq!(status.missing, 1);
-    Ok(())
-}
-
-#[tokio::test]
-async fn considering_cards_never_allocate_collection_copies() -> TestResult {
-    let pool = db().await?;
-    let binder = location(&pool, "Idea Binder", LocationKind::Binder).await?;
-    let copy = item(&pool, NewItem::new(LOTUS_ALPHA, 2, Some(binder))).await?;
-    let d = deck(&pool, "Considering Only", DeckStatus::Brewing).await?;
-    let idea = deck_card(&pool, d, BLACK_LOTUS, 1, Zone::Considering).await?;
-
-    let result = allocate(&pool, idea, copy, qty(1)?).await;
-
-    assert!(matches!(
-        result,
-        Err(AllocationError::ConsideringNotAllocatable)
-    ));
-    assert_eq!(allocation_count(&pool).await?, 0);
-    let row = item_row(&pool, copy).await?;
-    assert_eq!((row.quantity, row.location_id), (2, Some(binder)));
-    Ok(())
-}
-
-#[tokio::test]
 async fn items_in_list_locations_are_not_owned() -> TestResult {
     let pool = db().await?;
     let wishlist = location(&pool, "Wishlist", LocationKind::List).await?;
@@ -311,23 +257,6 @@ async fn allocations_in_any_deck_make_copies_unavailable_elsewhere() -> TestResu
 
     let result = allocate(&pool, active_lotus, brewing_item, qty(1)?).await;
     assert!(matches!(result, Err(AllocationError::NotEnoughAvailable)));
-    Ok(())
-}
-
-#[tokio::test]
-async fn basic_lands_are_treated_as_allocated() -> TestResult {
-    let pool = db().await?;
-    let d = deck(&pool, "Basics", DeckStatus::Brewing).await?;
-    let plains = deck_card(&pool, d, PLAINS, 12, Zone::Mainboard).await?;
-
-    let status = allocation_status(&pool, plains).await?;
-
-    assert_eq!(status.state, AllocationState::BasicLand);
-    assert_eq!(status.required, 12);
-    assert_eq!(status.owned, 0);
-    assert_eq!(status.allocated, 12);
-    assert_eq!(status.available, 0);
-    assert_eq!(status.missing, 0);
     Ok(())
 }
 

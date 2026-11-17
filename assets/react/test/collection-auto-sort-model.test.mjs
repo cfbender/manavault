@@ -2,7 +2,6 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
-  AUTO_SORT_RARITIES,
   centsToCurrencyInput,
   cloneAutoSortRuleRow,
   formRowsToAutoSortRuleInput,
@@ -181,7 +180,6 @@ test("server rules normalize allowed values and sort deterministically by priori
   assert.deepEqual(rows[2].rarities, ["rare", "bonus"])
   assert.equal(rows[2].colorMode, "any")
   assert.equal(rows[2].setCodes, "lea, dmu")
-  assert.deepEqual(AUTO_SORT_RARITIES, ["common", "uncommon", "rare", "mythic", "special", "bonus"])
 })
 
 test("row cloning isolates list edits and movement preserves deterministic boundaries", () => {

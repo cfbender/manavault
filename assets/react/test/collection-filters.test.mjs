@@ -90,10 +90,7 @@ test("collection filter search params round trip active filters", () => {
   filters.priceOperator = "<"
   filters.priceUsd = "2.50"
 
-  const encoded = encodeCollectionFilters(filters)
-  assert.equal(typeof encoded, "string")
-
-  assert.deepEqual(decodeCollectionFilters(encoded), {
+  assert.deepEqual(decodeCollectionFilters(encodeCollectionFilters(filters)), {
     ...EMPTY_COLLECTION_FILTERS,
     name: "Lightning Bolt",
     colors: ["r"],

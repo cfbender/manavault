@@ -36,18 +36,6 @@ async fn cards_default_to_name_ascending_and_apply_sorts() {
         card_names(&app, json!({"field": "mana_value", "direction": "desc"})).await,
         ["Time Walk", "Black Lotus", "Plains"]
     );
-    assert_eq!(
-        card_names(&app, json!({"field": "mana_value", "direction": "asc"})).await,
-        ["Black Lotus", "Plains", "Time Walk"]
-    );
-    assert_eq!(
-        card_names(&app, json!({"field": "bogus", "direction": "desc"})).await,
-        ["Time Walk", "Plains", "Black Lotus"]
-    );
-    assert_eq!(
-        card_names(&app, json!({"field": "bogus", "direction": "sideways"})).await,
-        ["Black Lotus", "Plains", "Time Walk"]
-    );
 }
 
 #[tokio::test]

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 import { CardTile } from "../src/components/card-tile"
@@ -39,19 +39,22 @@ test("trade control shows offered copies separately from copies owned", async ()
   expect(onToggleForTrade).toHaveBeenCalledTimes(1)
 })
 
-test("card reveal waits for a stationary touch to finish", () => {
+function touchTap(card: HTMLElement) {
+  fireEvent.pointerDown(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
+  fireEvent.pointerUp(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
+  fireEvent.click(card)
+}
+
+test("a first touch tap reveals the card and the next tap opens it", () => {
   const onSelect = vi.fn()
   render(<CardTile name="Black Lotus" onSelect={onSelect} />)
   const card = screen.getByRole("link", { name: "View Black Lotus" })
 
-  fireEvent.pointerDown(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
-  expect(card.classList.contains("-translate-y-2")).toBe(false)
-
-  fireEvent.pointerUp(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
-  expect(card.classList.contains("-translate-y-2")).toBe(true)
-
-  fireEvent.click(card)
+  touchTap(card)
   expect(onSelect).not.toHaveBeenCalled()
+
+  touchTap(card)
+  expect(onSelect).toHaveBeenCalledTimes(1)
 })
 
 test("dragging across a card neither reveals nor activates it", () => {
@@ -66,9 +69,14 @@ test("dragging across a card neither reveals nor activates it", () => {
     fireEvent.pointerMove(card, { clientX: 10, clientY: 30, pointerId: 1, pointerType: "touch" })
     fireEvent.pointerUp(card, { clientX: 10, clientY: 30, pointerId: 1, pointerType: "touch" })
     fireEvent.click(card)
-
-    expect(card.classList.contains("-translate-y-2")).toBe(false)
     expect(onSelect).not.toHaveBeenCalled()
+    act(() => vi.runAllTimers())
+
+    // The drag did not reveal the card, so the next tap only reveals it.
+    touchTap(card)
+    expect(onSelect).not.toHaveBeenCalled()
+    touchTap(card)
+    expect(onSelect).toHaveBeenCalledTimes(1)
   } finally {
     vi.useRealTimers()
   }

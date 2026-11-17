@@ -15,7 +15,6 @@ test.each([
     <DeckBracketBadge deck={{ commanderBracket: official, commanderBracketEstimate: practical }} />,
   )
   expect(screen.getByText(label)).toBeInstanceOf(HTMLElement)
-  expect(screen.queryByText(/Pace/)).toBeNull()
 })
 
 test.each(["3-", "3", "3+"])("shows the independently assessed rating %s", (rating) => {
@@ -25,7 +24,6 @@ test.each(["3-", "3", "3+"])("shows the independently assessed rating %s", (rati
     />,
   )
   const badge = screen.getByText(`Bracket ${rating}`)
-  expect(badge.getAttribute("aria-label")).toBeNull()
   expect(badge.title).toContain("+ upper end")
 })
 

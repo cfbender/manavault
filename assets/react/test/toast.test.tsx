@@ -37,9 +37,9 @@ function ToastHarness() {
   )
 }
 
-test("loading toasts show a linear loader and update in the lower-right viewport", async () => {
+test("a loading toast shows a progress bar and is replaced by a later toast with its id", async () => {
   const user = userEvent.setup()
-  const { container } = render(
+  render(
     <ToastProvider>
       <ToastHarness />
     </ToastProvider>,
@@ -51,11 +51,6 @@ test("loading toasts show a linear loader and update in the lower-right viewport
   expect(screen.getByRole("progressbar", { name: "AI deck analysis in progress" })).toBeInstanceOf(
     HTMLProgressElement,
   )
-
-  const viewport = container.querySelector(".toast")
-  expect(viewport?.classList.contains("toast-bottom")).toBe(true)
-  expect(viewport?.classList.contains("toast-end")).toBe(true)
-  expect(viewport?.classList.contains("toast-top")).toBe(false)
 
   await user.click(screen.getByRole("button", { name: "Complete analysis" }))
 

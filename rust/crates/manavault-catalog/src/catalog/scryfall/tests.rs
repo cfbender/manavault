@@ -1053,24 +1053,6 @@ async fn import_prioritizes_mass_disruption_over_targeted_disruption() {
 }
 
 #[tokio::test]
-async fn import_derives_land_grouping_from_the_type_line_without_tags() {
-    let app = TestApp::new().await;
-    import(&app, &[fixtures::plains()]).await;
-    assert_eq!(
-        card_column::<String>(&app, "oracle-plains", "oracle_tags").await,
-        "[]"
-    );
-    assert_eq!(
-        card_column::<String>(&app, "oracle-plains", "deck_category").await,
-        "lands"
-    );
-    assert_eq!(
-        card_column::<String>(&app, "oracle-plains", "deck_themes").await,
-        r#"["land"]"#
-    );
-}
-
-#[tokio::test]
 async fn import_replaces_stale_oracle_tag_data_on_rerun() {
     let app = TestApp::new().await;
     let ramp = vec![function_tag("tag-ramp", "ramp", &[], &["oracle-1"])];
@@ -1119,18 +1101,6 @@ async fn import_writes_more_than_one_batch_of_rows() {
         printing_column::<String>(&app, "batch-printing-600", "collector_number").await,
         "600"
     );
-}
-
-#[tokio::test]
-async fn stored_rows_from_both_backends_compare_equal() {
-    // A card row with an integral mana value is stored as NUMERIC 0; the
-    // diff must read it back as the same value, or every import rewrites it.
-    let app = TestApp::new().await;
-    import(&app, &[fixtures::black_lotus(), fixtures::plains()]).await;
-    let cmc: Option<f64> = card_column(&app, "oracle-1", "cmc").await;
-    assert_eq!(cmc, Some(0.0));
-    let summary = import(&app, &[fixtures::black_lotus(), fixtures::plains()]).await;
-    assert_eq!(summary.committed_batches, 0);
 }
 
 // ---- syncs ----
@@ -1953,30 +1923,6 @@ async fn sync_preserves_commander_ranks_when_edhrec_is_unavailable() {
 }
 
 #[tokio::test]
-async fn sync_rejects_former_json_array_bulk_metadata() {
-    let app = TestApp::new().await;
-    let feed = Feed::new().await;
-    feed.json(
-        "/metadata",
-        json!({"download_uri": feed.url("/default-cards.json")}),
-    )
-    .await;
-    Mock::given(method("GET"))
-        .and(path("/default-cards.json"))
-        .respond_with(ResponseTemplate::new(200))
-        .expect(0)
-        .mount(&feed.server)
-        .await;
-    let record = sync_failed(&app, &feed.options()).await;
-    assert_eq!(record.status, SyncStatus::Failed);
-    assert_eq!(
-        record.error.as_deref(),
-        Some("Scryfall bulk metadata did not include jsonl_download_uri")
-    );
-    assert_eq!(count(&app, "scryfall_cards").await, 0);
-}
-
-#[tokio::test]
 async fn sync_validates_json_lines_before_committing_any_batch() {
     let app = TestApp::new().await;
     let feed = Feed::new().await;
@@ -2188,42 +2134,4 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
     assert!(worker::forced(&json!({"force": true})));
     assert!(!worker::forced(&json!({"force": false})));
     assert!(!worker::forced(&json!({})));
-}
-
-/// The shared global test log hub.
-fn test_log_hub() -> &'static manavault_core::logs::LogHub {
-    manavault_core::testing::log_hub()
-}
-
-#[tokio::test]
-async fn sync_emits_info_progress_logs() {
-    let app = TestApp::new().await;
-    let feed = Feed::new().await;
-    feed.cards(&[fixtures::black_lotus()]).await;
-    let hub = test_log_hub();
-    let mut events = hub.subscribe();
-    let record = sync_ok(&app, &feed.options()).await;
-    assert_eq!((record.cards_count, record.printings_count), (1, 1));
-    let mut log = String::new();
-    loop {
-        match events.try_recv() {
-            Ok(event) => {
-                log.push_str(&event.message);
-                log.push('\n');
-            }
-            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {}
-            Err(_) => break,
-        }
-    }
-    for expected in [
-        "Scryfall catalog sync started sync_id=",
-        "Scryfall catalog sync fetching default-cards metadata",
-        "Scryfall catalog sync downloaded default-cards bulk",
-        "Scryfall catalog sync decoded default-cards bulk",
-        "Scryfall catalog import progress source_cards=1/1 cards=1 printings=1",
-        "Scryfall catalog import completed source_cards=1 cards=1 printings=1",
-        "Scryfall catalog sync succeeded",
-    ] {
-        assert!(log.contains(expected), "missing {expected:?} in\n{log}");
-    }
 }

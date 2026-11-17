@@ -217,35 +217,3 @@ test("custom tag update returns undefined when data is undefined", () => {
 
   assert.equal(result, undefined)
 })
-
-test("custom tag update does not mutate the original fixture", () => {
-  const originalNode = deckCardWithTags("deck-card-1", ["ramp"])
-  const originalTags = [customTag("ramp", 1)]
-  const data = customTagsDeckQuery([originalNode], originalTags)
-
-  updateDeckCardCustomTagsInDeckQuery(
-    data,
-    [{ id: "deck-card-1", tagIds: ["ramp", "draw"] }],
-    [{ id: "ramp", cardCount: 5 }],
-  )
-
-  assert.deepEqual(originalNode.tagIds, ["ramp"])
-  assert.deepEqual(originalTags, [customTag("ramp", 1)])
-  assert.equal(data.deck.deckCards.edges[0].node, originalNode)
-  assert.equal(data.deck.tags, originalTags)
-})
-
-test("tag mutation success replaces an optimistic tag and a failed request rolls it back", () => {
-  const data = deckQuery([deckCard("deck-card-1", null)])
-  const optimistic = updateDeckCardTagsInDeckQuery(data, [{ id: "deck-card-1", tag: "getting" }])
-  const reconciled = updateDeckCardTagsInDeckQuery(optimistic, [
-    { currentTag: "getting", id: "deck-card-1", tag: "consider_cutting" },
-  ])
-  const rolledBack = updateDeckCardTagsInDeckQuery(optimistic, [
-    { currentTag: "getting", id: "deck-card-1", tag: null },
-  ])
-
-  assert.equal(reconciled.deck.deckCards.edges[0].node.tag, "consider_cutting")
-  assert.equal(rolledBack.deck.deckCards.edges[0].node.tag, null)
-  assert.equal(data.deck.deckCards.edges[0].node.tag, null)
-})

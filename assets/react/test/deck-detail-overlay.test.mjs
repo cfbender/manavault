@@ -32,7 +32,6 @@ test("deck detail overlays switch workflows without retaining a prior card targe
     mode: "any",
     selectedItemIds: {},
   })
-  assert.equal("deckCard" in bulk, false)
 })
 
 test("deck detail bulk allocation mode switches clear stale choices, exclusions, and failures", () => {
@@ -58,13 +57,14 @@ test("deck detail bulk allocation mode switches clear stale choices, exclusions,
   })
 })
 
-test("deck detail cancel and completion reset an active overlay to the explicit empty state", () => {
-  const moving = moveCardOverlay(deckCard)
-
-  assert.equal(moving.kind, "move-card")
-  assert.equal(NO_DECK_DETAIL_OVERLAY.kind, "none")
+test("deck detail workflow errors only attach to the workflow that is open", () => {
   assert.equal(
     updateCardWorkflowError(NO_DECK_DETAIL_OVERLAY, "move-card", "ignored"),
     NO_DECK_DETAIL_OVERLAY,
   )
+  assert.deepEqual(updateCardWorkflowError(moveCardOverlay(deckCard), "edit-card", "ignored"), {
+    kind: "move-card",
+    deckCard,
+    error: null,
+  })
 })

@@ -534,9 +534,7 @@ mod tests {
         bracketed.bracket_label = Some("Bracket 3+".into());
         let svg = bracketed.svg();
         assert!(svg.contains(">Bracket 3+</text>"));
-        assert!(svg.contains(&format!(
-            r#"<text x="{}" y="111""#,
-            116 + 187 + badge_width("Bracket 3+")
-        )));
+        // The card count follows the format and bracket badges.
+        assert!(svg.contains(r#"<text x="506" y="111""#));
     }
 }

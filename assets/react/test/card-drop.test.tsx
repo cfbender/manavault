@@ -86,7 +86,7 @@ test("a card dragged in shows the zones, and the one it is dropped on receives t
   const onDropCard = vi.fn(() => Promise.resolve())
   render(<CardDropOverlay enabled onDropCard={onDropCard} zones={ZONES} />)
 
-  expect(screen.queryByTestId("card-drop-overlay")).toBeNull()
+  expect(screen.queryByRole("region", { name: "Drop to add to Mainboard" })).toBeNull()
   act(() => {
     fireEvent.dragEnter(window, { dataTransfer: dropData({ "text/uri-list": "" }) })
   })
@@ -115,6 +115,6 @@ test("a card dragged from the page itself shows no zones", () => {
     fireEvent.dragEnter(window, { dataTransfer: dropData({ "text/uri-list": "" }) })
   })
 
-  expect(screen.queryByTestId("card-drop-overlay")).toBeNull()
+  expect(screen.queryByRole("region", { name: "Drop to add to Mainboard" })).toBeNull()
   image.remove()
 })

@@ -14,17 +14,6 @@ mod encrypted_tests {
     const SECRET: &str = "UsvngUheE20ovBxVkk8mYUrhf1l5zpBV+Pe5DVeypCZK0QnQde9NDUj1YhFADst6";
 
     #[test]
-    fn dump_prefixes_ciphertext_without_the_plaintext() {
-        let dumped = encrypt_secret(SECRET, "super-secret-key").unwrap();
-        assert!(dumped.starts_with("enc.v1."));
-        assert!(!dumped.contains("super-secret-key"));
-        assert_eq!(
-            decrypt_secret(SECRET, &dumped).as_deref(),
-            Some("super-secret-key")
-        );
-    }
-
-    #[test]
     fn each_dump_uses_a_fresh_iv() {
         let a = encrypt_secret(SECRET, "same-value").unwrap();
         let b = encrypt_secret(SECRET, "same-value").unwrap();

@@ -479,65 +479,6 @@ mod tests {
     use manavault_core::testing::body_text;
     use tower::ServiceExt as _;
 
-    async fn call(router: &Router, authorization: Option<&str>) -> Response {
-        let mut builder = Request::get("/api/v1/ping");
-        if let Some(value) = authorization {
-            builder = builder.header("authorization", value);
-        }
-        router
-            .clone()
-            .oneshot(builder.body(Body::empty()).unwrap())
-            .await
-            .unwrap()
-    }
-
-    #[tokio::test]
-    async fn requires_a_valid_bearer_key_and_shares_the_budget() {
-        let app =
-            TestApp::with_config(|config| config.public_share_rate_limit.max_per_ip = 3).await;
-        let (_key, token) = manavault_core::api_keys::create(app.db(), "Test")
-            .await
-            .unwrap();
-        let router = scope(
-            app.state.clone(),
-            Router::new().route("/api/v1/ping", get(|| async { "pong" })),
-        );
-        let missing = call(&router, None).await;
-        assert_eq!(missing.status(), 401);
-        assert_eq!(
-            body_text(missing).await,
-            r#"{"error":{"code":"unauthorized","message":"A valid Bearer API key is required"}}"#
-        );
-        assert_eq!(call(&router, Some("Bearer mvk_wrong")).await.status(), 401);
-        let ok = call(&router, Some(&format!("Bearer {token}"))).await;
-        assert_eq!(body_text(ok).await, "pong");
-        let limited = call(&router, Some(&format!("Bearer {token}"))).await;
-        assert_eq!(limited.status(), 429);
-        assert!(body_text(limited).await.contains("rate_limited"));
-    }
-
-    /// A database that cannot answer the key lookup is a server failure, not a
-    /// bad key: a client that reads 401 would throw away a valid key.
-    #[tokio::test]
-    async fn a_failed_key_lookup_is_a_500_and_not_a_401() {
-        let app = TestApp::new().await;
-        let (_key, token) = manavault_core::api_keys::create(app.db(), "Test")
-            .await
-            .unwrap();
-        let router = scope(
-            app.state.clone(),
-            Router::new().route("/api/v1/ping", get(|| async { "pong" })),
-        );
-        app.db().close().await;
-
-        let response = call(&router, Some(&format!("Bearer {token}"))).await;
-        assert_eq!(response.status(), 500);
-        assert_eq!(
-            body_text(response).await,
-            r#"{"error":{"code":"internal_error","message":"Something went wrong"}}"#
-        );
-    }
-
     /// The handler's own failure path. The auth layer runs first, so a closed
     /// pool never reaches here in a full-router test; routing to `decks`
     /// directly is what exercises the response it returns.

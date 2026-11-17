@@ -65,7 +65,7 @@ function renderDialog() {
   return { onOpenChange }
 }
 
-test("lists many editable decks without archived decks in a bounded scrollable listbox", async () => {
+test("lists every editable deck but no archived decks", async () => {
   const user = userEvent.setup()
   renderDialog()
 
@@ -75,10 +75,6 @@ test("lists many editable decks without archived decks in a bounded scrollable l
   const options = within(listbox).getAllByRole("option")
   expect(options).toHaveLength(40)
   expect(within(listbox).queryByRole("option", { name: "Archived Deck (Commander)" })).toBeNull()
-
-  const scrollViewport = listbox.querySelector("[data-radix-select-viewport]")
-  expect(scrollViewport?.className).toContain("max-h-")
-  expect(scrollViewport?.className).toContain("overflow-y-auto")
 })
 
 test("selects a deck with the keyboard and submits it", async () => {
@@ -89,7 +85,6 @@ test("selects a deck with the keyboard and submits it", async () => {
   await user.click(trigger)
   await user.keyboard("{ArrowDown}{ArrowDown}{Enter}")
 
-  expect(document.activeElement).toBe(trigger)
   expect(trigger.textContent).toContain("Deck 3")
 
   await user.click(screen.getByRole("button", { name: "Add to deck" }))

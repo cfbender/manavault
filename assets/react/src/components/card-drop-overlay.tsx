@@ -197,7 +197,6 @@ export function CardDropOverlay<Zone extends string>({
   const landing = phase === "landing"
   return createPortal(
     <div
-      data-testid="card-drop-overlay"
       className={cn(
         "card-drop-overlay pointer-events-auto fixed inset-0 flex bg-black/65 p-4 pb-[calc(var(--safe-bottom)_+_1rem)] pl-[calc(var(--safe-left)_+_1rem)] pr-[calc(var(--safe-right)_+_1rem)] pt-[calc(var(--safe-top)_+_1rem)] backdrop-blur-sm sm:p-8",
         landing && "card-drop-overlay--landing pointer-events-none",

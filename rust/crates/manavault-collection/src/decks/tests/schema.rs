@@ -1536,8 +1536,6 @@ async fn deck_card_ids_round_trip_as_global_ids() {
     .await;
     let deck = create_deck(app.db(), "Node Contract Deck", None, None).await;
     let card = add_card(app.db(), deck.id, "Contract Card", 1, "mainboard").await;
-    assert_eq!(card_gid(DeckCardId(4)), "RGVja0NhcmQ6NA==");
-    assert_eq!(deck_gid(crate::decks::model::DeckId(3)), "RGVjazoz");
     let data = app
         .gql_data(
             "mutation UpdateDeckCard($id: ID!, $input: DeckCardUpdateInput!) { updateDeckCard(id: $id, input: $input) { deckCard { id quantity } } }",

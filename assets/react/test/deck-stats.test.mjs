@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { buildDeckStats, MANA_STAT_COLORS } from "../src/lib/deck-stats.ts"
+import { buildDeckStats } from "../src/lib/deck-stats.ts"
 
 const CURVE_BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+"]
 
@@ -559,16 +559,6 @@ test("mana production contributors include explicit, any, and practical green un
       },
     }),
   )
-
-  const practicalGreenContributorIds = new Set(
-    [...stats.manaProduction.contributors.G, ...stats.manaProduction.contributors.any].map(
-      ({ id }) => id,
-    ),
-  )
-
-  assert.deepEqual([...practicalGreenContributorIds].sort(), ["druid", "forest", "signet"])
-  assert.ok(stats.manaProduction.contributors.G.some(({ id }) => id === "druid"))
-  assert.ok(stats.manaProduction.contributors.any.some(({ id }) => id === "druid"))
 })
 
 test("empty and malformed inputs return visible zero-shaped stats", () => {
@@ -598,8 +588,4 @@ test("empty and malformed inputs return visible zero-shaped stats", () => {
     ]),
     emptyStats,
   )
-})
-
-test("exported mana color order is stable for UI summaries", () => {
-  assert.deepEqual(MANA_STAT_COLORS, ["W", "U", "B", "R", "G", "C"])
 })

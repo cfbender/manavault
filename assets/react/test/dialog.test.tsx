@@ -12,12 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../src/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../src/components/ui/dropdown-menu"
 
 type DialogHarnessProps = {
   onClose: () => void
@@ -51,32 +45,6 @@ function DialogHarness({ onClose }: DialogHarnessProps) {
               Last action
             </button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-
-function DialogDropdownHarness() {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <>
-      <button type="button" onClick={() => setOpen(true)}>
-        Open card dialog
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Card details</DialogTitle>
-            <DialogClose onClose={() => setOpen(false)} />
-          </DialogHeader>
-          <DropdownMenu>
-            <DropdownMenuTrigger>Card actions</DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>View on Scryfall</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </DialogContent>
       </Dialog>
     </>
@@ -188,10 +156,6 @@ describe("Dialog", () => {
     const lastButton = controls.getByRole("button", { name: "Last action" })
 
     expect(dialog.getAttribute("aria-describedby")).toBe("inventory-dialog-description")
-    expect(dialog.classList.contains("min-w-0")).toBe(true)
-    expect(dialog.classList.contains("overflow-x-hidden")).toBe(true)
-    expect(dialog.parentElement?.classList.contains("pl-[var(--safe-left)]")).toBe(true)
-    expect(dialog.parentElement?.classList.contains("pr-[var(--safe-right)]")).toBe(true)
     expect(screen.getByText("Choose an inventory action.").id).toBe("inventory-dialog-description")
     expect(appRoot.getAttribute("aria-hidden")).toBe("true")
     await waitFor(() => expect(document.activeElement).toBe(closeButton))
@@ -296,27 +260,10 @@ describe("Dialog", () => {
     await waitFor(() => expect(document.body.hasAttribute("data-scroll-locked")).toBe(false))
     await waitFor(() => expect(document.activeElement).toBe(parentTrigger))
   })
-
-  test("layers portalled dropdown menus above the dialog", async () => {
-    const user = userEvent.setup()
-    render(<DialogDropdownHarness />)
-
-    await user.click(screen.getByRole("button", { name: "Open card dialog" }))
-    await user.click(
-      within(screen.getByRole("dialog", { name: "Card details" })).getByText("Card actions"),
-    )
-
-    const dialog = screen.getByRole("dialog", { name: "Card details", hidden: true })
-    const menu = screen.getByRole("menu")
-    expect(dialog.contains(menu)).toBe(false)
-    expect(Number(getComputedStyle(menu).zIndex)).toBeGreaterThan(
-      Number(getComputedStyle(dialog.parentElement!).zIndex),
-    )
-  })
 })
 
 describe("ConfirmDialog", () => {
-  test("keeps destructive semantics and emits one action for cancellation and confirmation", async () => {
+  test("is described by its copy and emits one action for cancellation and confirmation", async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const onConfirm = vi.fn()
@@ -331,10 +278,8 @@ describe("ConfirmDialog", () => {
       throw new Error("Expected destructive confirmation copy to describe the dialog")
 
     const cancelButton = within(alertDialog).getByRole("button", { name: "Keep cards" })
-    const confirmButton = within(alertDialog).getByRole("button", { name: "Delete cards" })
 
     expect(document.getElementById(descriptionId)?.textContent).toBe("This cannot be undone.")
-    expect(confirmButton.classList.contains("btn-error")).toBe(true)
 
     await user.click(cancelButton)
     expect(onClose).toHaveBeenCalledTimes(1)

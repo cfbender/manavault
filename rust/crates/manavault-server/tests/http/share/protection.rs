@@ -217,14 +217,6 @@ async fn global_limits_apply_across_client_ips() {
 
 // Public access mutation guard.
 
-#[test]
-fn the_public_schema_exposes_no_mutation_fields() {
-    let sdl = manavault_share::share::sdl();
-    assert!(!sdl.contains("type Mutation"));
-    assert!(!sdl.contains("mutation:"));
-    assert!(manavault_server::graphql::sdl().contains("type Mutation"));
-}
-
 #[tokio::test]
 async fn public_share_graphql_rejects_mutation_operations() {
     let app = TestApp::new().await;

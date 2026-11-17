@@ -70,7 +70,7 @@ export const AUTO_SORT_RELEASE_DATE_OPERATORS = [
   { label: "Released after", value: "after" },
 ] as const
 
-export const AUTO_SORT_RARITIES = [
+const AUTO_SORT_RARITIES = [
   ...RARITY_OPTIONS.map((rarity) => rarity.value),
   "special",
   "bonus",

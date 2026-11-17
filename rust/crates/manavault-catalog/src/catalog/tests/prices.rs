@@ -1,4 +1,4 @@
-//! Price fallback consistency for cards, and the price helpers.
+//! Price fallback consistency for cards and vendor price filters.
 
 use lotus::ScryfallId;
 use serde_json::json;
@@ -174,17 +174,4 @@ async fn card_price_filters_use_the_selected_vendor_price() {
     }
     assert_eq!(names("usd>=15").await, ["Price Probe 2"]);
     assert_eq!(names("usd<15").await, ["Price Probe 1"]);
-}
-
-#[test]
-fn price_text_shortens_prices() {
-    let prices = r#"{"usd": "12.34", "usd_foil": "24.00"}"#;
-    assert_eq!(
-        price::format_cents(price::scryfall_price_cents(prices, Some("nonfoil"))).as_deref(),
-        Some("$12.34")
-    );
-    assert_eq!(
-        price::format_cents(price::scryfall_price_cents(prices, Some("foil"))).as_deref(),
-        Some("$24")
-    );
 }

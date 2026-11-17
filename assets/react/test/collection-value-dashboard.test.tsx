@@ -38,7 +38,6 @@ test("moves collection value into a persisted tab", async () => {
     />,
   )
 
-  expect(screen.queryByText("Market value")).toBeNull()
   await userEvent.click(screen.getByRole("tab", { name: "Value" }))
   expect(onSelectTab).toHaveBeenCalledWith("value")
   expect(deserializeCollectionTab('"value"')).toBe("value")

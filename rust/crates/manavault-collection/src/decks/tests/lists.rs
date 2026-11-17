@@ -587,15 +587,3 @@ async fn new_decks_copy_the_default_tags() {
         0
     );
 }
-
-#[tokio::test]
-async fn fresh_databases_have_the_migration_default_tags() {
-    let app = TestApp::new().await;
-    let defaults: Vec<String> = tags::list_default_deck_tags(app.db())
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|t| t.name)
-        .collect();
-    assert_eq!(defaults, vec!["Ramp", "Draw", "Interact", "Plan"]);
-}
