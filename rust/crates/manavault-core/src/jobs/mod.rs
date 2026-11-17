@@ -140,7 +140,7 @@ pub struct CronEntry {
 }
 
 /// Jobs stuck `running` for this long are returned to the queue; every
-/// worker's timeout must be shorter. AI jobs cover every OpenRouter round
+/// worker's timeout must be shorter. AI jobs cover every `OpenRouter` round
 /// at the full completion timeout, which is longer than an hour.
 pub const STUCK_AFTER: Duration = Duration::from_secs(2 * 3600);
 

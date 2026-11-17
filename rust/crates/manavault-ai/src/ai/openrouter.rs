@@ -42,18 +42,16 @@ const TOOL_LIMIT_REACHED: &str =
 const TOOL_LOOP: &str = "OpenRouter kept calling tools instead of answering.";
 /// Asks the model to restate a final message that was not the JSON object.
 const REPAIR_PROMPT: &str = "Return that answer as exactly one JSON object matching the required schema, with no other text.";
-/// One non-streaming completion. OpenRouter sends no body until reasoning and
+/// One non-streaming completion. `OpenRouter` sends no body until reasoning and
 /// the answer are both finished, and high effort on current models can spend
 /// longer than five minutes on that before any tokens arrive.
 const COMPLETION_TIMEOUT: Duration = Duration::from_secs(15 * 60);
-/// Completions one analysis or question can send. Tool calls are accepted
-/// while `round` is `0..=MAX_TOOL_ROUNDS`, then the model must answer, and a
-/// bad answer gets one schema repair.
-const REQUESTS_PER_JOB: u32 = MAX_TOOL_ROUNDS as u32 + 3;
-
 /// How long an AI job may run: every completion at [`COMPLETION_TIMEOUT`].
+/// Tool calls are accepted while `round` is `0..=MAX_TOOL_ROUNDS`, then the
+/// model must answer, and a bad answer gets one schema repair.
 pub(crate) fn job_timeout() -> Duration {
-    COMPLETION_TIMEOUT.saturating_mul(REQUESTS_PER_JOB)
+    let requests = u32::try_from(MAX_TOOL_ROUNDS + 3).unwrap_or(u32::MAX);
+    COMPLETION_TIMEOUT.saturating_mul(requests)
 }
 
 /// One question turn (`Provider.question_turn`).
