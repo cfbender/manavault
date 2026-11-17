@@ -158,6 +158,9 @@ CREATE TABLE "scryfall_sets" (
   "released_at" TEXT
 );
 CREATE INDEX "scryfall_printings_set_name_set_code_index" ON "scryfall_printings" ("set_name", "set_code");
+CREATE INDEX "scryfall_printings_flavor_name_oracle_id_index"
+ON "scryfall_printings" ("flavor_name", "oracle_id")
+WHERE "flavor_name" IS NOT NULL AND "flavor_name" != '';
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -244,3 +247,4 @@ INSERT INTO schema_migrations VALUES(20261021201543,NULL);
 INSERT INTO schema_migrations VALUES(20261023210150,NULL);
 INSERT INTO schema_migrations VALUES(20261029213201,NULL);
 INSERT INTO schema_migrations VALUES(20261106193503,NULL);
+INSERT INTO schema_migrations VALUES(20261117172810,NULL);
