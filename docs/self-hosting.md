@@ -537,10 +537,10 @@ Card scanner:
 
 ### Diagnosing a stalled catalog sync
 
-Once a minute the job runner returns jobs left `running` for over an hour
+Once a minute the job runner returns jobs left `running` for over two hours
 (a worker that never returned) to the queue, and at boot it requeues every
-job the previous process was running. The one-hour threshold must stay above
-every worker timeout; current workers run for at most 30 minutes.
+job the previous process was running. The two-hour threshold must stay above
+every worker timeout; current workers run for at most 105 minutes.
 
 `database is locked` while updating `jobs` means a job could not record its
 result. A backup worker error alone does not establish that the catalog sync
