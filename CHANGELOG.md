@@ -8,6 +8,32 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.4.0] - 2026-11-17
+
+### Bug Fixes
+
+- **deps:** Bump jdx/mise-action from 5.2.3 to 5.2.5 (#178) ([`5743e2a0`](../../commit/5743e2a0680dc473f43e5fe3a5a63cbfc00c3a3e))
+- **collection:** Allow applying filters that remove the last active filter ([`70ff23cc`](../../commit/70ff23ccb517e201ff9ead6e396d9f164e054ab1))
+- **server:** Build the Rust backend on Windows (#179) ([`a2da48d5`](../../commit/a2da48d52e708376101a9e6e9ea125f84b33f330))
+- **pricing:** Stop showing an aborted toast after switching price source ([`d68cd014`](../../commit/d68cd01442b4a33ac547a4cc1f32555bbbac7f95))
+- **deps:** Bump softprops/action-gh-release from 3.0.3 to 3.0.4 (#181) ([`196adebe`](../../commit/196adebef0332b8d22e1650ac43dc8ef7182939b))
+- **deps:** Bump docker/login-action from 4.7.0 to 4.8.0 (#183) ([`9df59c98`](../../commit/9df59c9861d04664237fdc52c262b06296ef4a16))
+- **deps:** Bump jdx/mise-action from 5.2.5 to 5.2.7 (#182) ([`f12490b8`](../../commit/f12490b8e81cc60b81be56c6b471521aa8ef95e9))
+- **sets:** Keep the flip stack drawn during long scrubs ([`47442752`](../../commit/47442752ec36f7e08b8860250885b11526f2194f))
+- **cards:** Stop the full-screen card view flickering between cards ([`a1cc615e`](../../commit/a1cc615e96c75326948164bc5208c3302c1b1715))
+
+### Features
+
+- **cards:** Drag cards into decks, the collection, and wants ([`46b959d1`](../../commit/46b959d13757090f1db90324dad0ccf96b0f5019))
+- **collection:** Import Mana Pool order CSV exports ([`0176ccc1`](../../commit/0176ccc1835977680f8ea264d0c0a7159905bd35))
+- **decks:** Link external decks from the edit and new deck dialogs (#180) ([`60f0a975`](../../commit/60f0a975b99eca2f40a87a6f975b3d24ee28994b))
+- **ui:** Improve responsive layouts across workspaces ([`32affc61`](../../commit/32affc61707170f730b90ace156b5c3f08a31696))
+- **trade:** Add card clickthrough and prices across trade and wants ([`fe961362`](../../commit/fe961362f54e3ae3f244348405c7e8e52c5627d4))
+
+### Performance
+
+- **catalog:** Index set names and codes for set suggestions ([`682a9d05`](../../commit/682a9d0574ee11ab2198450fb2de3ca66a543bcc))
+
 ## [2.3.2] - 2026-11-04
 
 ### Bug Fixes
