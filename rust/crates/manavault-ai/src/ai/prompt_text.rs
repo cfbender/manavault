@@ -44,10 +44,11 @@ a few calls of up to 20 names and read their actual text before recommending the
 candidate by how it works with this deck's engine and resources, not by its general reputation.
 
 Evaluate the deck by its structure, not only by individual card quality:
-- State its objective as a chain: the core action it repeats, how it capitalizes on that action,
-  and how that becomes a win or an insurmountable lead. Name the specific cards filling each
-  link. A thin or missing link (for example, plenty of setup but few ways to convert it) matters
-  more than any single weak card, and is usually the most useful thing to point out.
+- Break its objective into three stages: the core action it repeats, how it capitalizes on that
+  action, and how that becomes a win or an insurmountable lead. Name the specific cards filling
+  each stage. A thin or missing stage (for example, plenty of setup but few ways to convert it)
+  matters more than any single weak card, and is usually the most useful thing to point out.
+  Describe the plan in ordinary Magic terms; do not call it a chain or its stages links.
 - Take inventory of the resources the deck's engine actually produces in abundance by the turn
   it wants to win, such as mana or Treasures, creature or artifact tokens, cards drawn, spells
   cast per turn, life, counters, or graveyard contents, and roughly how much of each. Judge
@@ -122,7 +123,7 @@ their own removal, sweepers, and counterplay, and three opposing turns between e
   these numbers barely matter; flag only large ones the deck's plan does not explain, and do not
   recite the numbers in the analysis.
 
-Keep the analysis cohesive. Settle the objective chain, resource inventory, role coverage, and
+Keep the analysis cohesive. Settle the deck's objective, resource inventory, role coverage, and
 finisher assessment before writing, then make every section follow from them. Every
 recommendation should address a weakness you named or be clearly framed as a power-level change.
 Never cut a card from a role you call thin, especially a finisher or protection piece, unless its
@@ -193,7 +194,7 @@ Apply the October 21, 2025 official expectations:
 
 For a non-Commander deck, return null for all three bracket fields and explain that Commander
 Brackets do not apply. The official source is https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-october-21-2025.
-In game_plan, walk through the objective chain and how its pieces sequence over a typical game,
+In game_plan, walk through the deck's plan and how its pieces sequence over a typical game,
 including roughly when the deck expects to present a win or a dominant position.
 In closing_out, explain how the deck turns a winning position into an actual win: which
 finishers or lines it uses, the resources it will have when it deploys them, roughly how many
@@ -204,18 +205,18 @@ In from_behind, explain how the deck plays when it falls behind: after a board w
 disrupted start, losing its commander or a key engine piece, or facing a faster opponent. Name
 the cards and lines that stabilize, rebuild, or steal a win, and say whether its card advantage,
 recursion, and interaction are enough to recover. Say plainly when it has few ways back.
-In power_up, lead with the change that most strengthens the thinnest link or most
+In power_up, lead with the change that most strengthens the thinnest stage or most
 under-represented role, favor synergistic engines over generic staples, and pair each addition
 with the low-synergy card it should replace. For a proposed Commander finisher, briefly show why
 it can end a game against three opponents with this deck's board and resources. Say when a
 change would also move the bracket.
 In power_down, weaken the plan by removing redundancy from multipliers or payoffs and replacing
 synergistic advantage engines with slower effects, while keeping the objective recognizable.
-In consistency, judge whether the deck reliably assembles its chain on time: redundancy for
-each link, whether the card draw digs deep enough to find the payoffs, whether the mana comes
+In consistency, judge whether the deck reliably assembles its plan on time: redundancy for
+each stage, whether the card draw digs deep enough to find the payoffs, whether the mana comes
 online when the plan needs it, land count and curve, and whether a typical hand does something
 meaningful in the first few turns. Distinguish improvements that make the deck more reliable
-from those that make it more powerful. Consistency changes must not weaken a thin link or cut a
+from those that make it more powerful. Consistency changes must not weaken a thin stage or cut a
 finisher, protection piece, or engine piece to make room. Every consistency item must recommend
 a concrete card addition, cut, replacement, or quantity change and explain how it improves
 reliability. Do not include gameplay advice, sequencing tips, mulligan decisions, or other ways
@@ -245,7 +246,7 @@ Other role.
 
 /// `Prompt.user/1` up to the payload JSON (followed by the JSON and `\n`).
 pub const ANALYSIS_USER_HEAD: &str = r"Analyze this deck's goals, themes, game plan, how it closes out games, and how it plays from
-behind. Identify its objective chain, the resources its engine produces, and how well each structural role is covered,
+behind. Identify its objective, the resources its engine produces, and how well each structural role is covered,
 accounting for any commander. For Commander, judge it as a multiplayer deck that must defeat
 three opponents, and check that its finishers can actually close that game. Recommend focused
 ways to power it up, power it down, and improve consistency, naming both the cards to add and
