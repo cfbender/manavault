@@ -328,21 +328,60 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
 }
 
 /* Filmstrip: neighboring cards under the full-screen card, the current one
-   raised above the others. The strip's layout animation grows and moves the
-   cards, so width must not transition here too: the two would fight and the
-   strip would snap at the end. */
+   raised above the others. Every thumbnail is drawn at the current card's
+   size and placed by transforms only (slot position, then a scale down for
+   the others), so moving to the next card never lays the strip out again. */
+.printing-filmstrip__track {
+  --thumb: 2.5rem;
+  --thumb-current: 3.5rem;
+  --thumb-scale: calc(2.5 / 3.5);
+  --thumb-gap: 0.375rem;
+  --ease-strip: 260ms cubic-bezier(0.2, 0.9, 0.25, 1.1);
+  position: relative;
+  height: calc(var(--thumb-current) * 7 / 5 + 0.35rem);
+}
+
+.printing-filmstrip__slot {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: var(--thumb-current);
+  opacity: 0;
+  /* The left edge of slot n, with the row centered and the current card wider. */
+  transform: translateX(
+    calc(
+      -0.5 * ((var(--count) - 1) * (var(--thumb) + var(--thumb-gap)) + var(--thumb-current)) +
+        var(--slot) * (var(--thumb) + var(--thumb-gap)) + var(--after-current) *
+        (var(--thumb-current) - var(--thumb)) - (1 - var(--is-current)) *
+        (var(--thumb-current) - var(--thumb)) / 2
+    )
+  );
+  transition:
+    transform var(--ease-strip),
+    opacity 200ms ease;
+}
+
+.printing-filmstrip__slot[data-shown] {
+  opacity: 1;
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
 .printing-filmstrip__card {
-  width: 2.5rem;
+  width: 100%;
   aspect-ratio: 5 / 7;
   opacity: 0.62;
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+  transform-origin: 50% 100%;
+  transform: scale(var(--thumb-scale));
   transition:
-    transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1.1),
+    transform var(--ease-strip),
     opacity 200ms ease;
 }
 
 .printing-filmstrip__card--current {
-  width: 3.5rem;
   opacity: 1;
   transform: translateY(-0.35rem);
   box-shadow:
@@ -353,22 +392,22 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
 @media (hover: hover) {
   .printing-filmstrip__card:not(.printing-filmstrip__card--current):hover {
     opacity: 1;
-    transform: translateY(-0.5rem) scale(1.06);
+    transform: translateY(-0.5rem) scale(calc(var(--thumb-scale) * 1.06));
   }
 }
 
 @media (min-width: 640px) {
-  .printing-filmstrip__card {
-    width: 3rem;
-  }
-
-  .printing-filmstrip__card--current {
-    width: 4.25rem;
+  .printing-filmstrip__track {
+    --thumb: 3rem;
+    --thumb-current: 4.25rem;
+    --thumb-scale: calc(3 / 4.25);
+    --thumb-gap: 0.5rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .fullscreen-printing-dialog,
+  .printing-filmstrip__slot,
   .printing-filmstrip__card {
     transition: none;
   }
