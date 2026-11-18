@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO deck_analysis_requests\n             (source_type, source, source_name, format, analysis, model, commander_bracket,\n              commander_bracket_estimate, commander_bracket_rating, inserted_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)\n           RETURNING id AS \"id!\", source_type, source, source_name, format, analysis, model,\n             commander_bracket, commander_bracket_estimate, commander_bracket_rating,\n             inserted_at AS \"inserted_at!: Timestamp\"",
+  "query": "SELECT id AS \"id!\", source_type, source, source_name, format,\n                 status AS \"status: Status\", error, analysis, model, commander_bracket,\n                 commander_bracket_estimate, commander_bracket_rating,\n                 inserted_at AS \"inserted_at!: Timestamp\"\n               FROM deck_analysis_requests ORDER BY inserted_at DESC, id DESC LIMIT ?1",
   "describe": {
     "columns": [
       {
@@ -59,8 +59,30 @@
         }
       },
       {
-        "name": "analysis",
+        "name": "status: Status",
         "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "error",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "name": "analysis",
+        "ordinal": 7,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -71,7 +93,7 @@
       },
       {
         "name": "model",
-        "ordinal": 6,
+        "ordinal": 8,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -82,7 +104,7 @@
       },
       {
         "name": "commander_bracket",
-        "ordinal": 7,
+        "ordinal": 9,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -93,7 +115,7 @@
       },
       {
         "name": "commander_bracket_estimate",
-        "ordinal": 8,
+        "ordinal": 10,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -104,7 +126,7 @@
       },
       {
         "name": "commander_bracket_rating",
-        "ordinal": 9,
+        "ordinal": 11,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -115,7 +137,7 @@
       },
       {
         "name": "inserted_at!: Timestamp",
-        "ordinal": 10,
+        "ordinal": 12,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -126,7 +148,7 @@
       }
     ],
     "parameters": {
-      "Right": 10
+      "Right": 1
     },
     "nullable": [
       false,
@@ -135,6 +157,8 @@
       false,
       false,
       false,
+      true,
+      false,
       false,
       true,
       true,
@@ -142,5 +166,5 @@
       false
     ]
   },
-  "hash": "284ffddd03034456b6132eb8c29f06f451330c592dd5604fac84e91b934c2d88"
+  "hash": "a8c30c9f50baa50f4329c740260fdad905aeaf961892dd2a863113fd55cccfa8"
 }

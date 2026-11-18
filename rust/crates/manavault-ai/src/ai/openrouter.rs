@@ -29,7 +29,7 @@ use serde_json::{Map, Value, json};
 
 use super::deck_analysis::prompt as analysis_prompt;
 use super::deck_question::{self, SwapContext};
-use super::tools;
+use super::tools::{self, Tool};
 use super::{AiError, Configured};
 use manavault_core::settings::ai::openrouter::response_error;
 use manavault_core::state::AppState;
@@ -138,11 +138,13 @@ enum DecodeError {
     Invalid,
 }
 
-/// `analyze_deck/2`: the raw structured analysis object.
+/// `analyze_deck/2`: the raw structured analysis object, offering the model
+/// only `tools`.
 pub async fn analyze_deck(
     state: &AppState,
     settings: &Configured,
     payload: &Value,
+    tools: &[Tool],
 ) -> Result<Value, AiError> {
     let instructions = settings.deck_analysis_instructions.as_deref();
     let request = json!({
@@ -153,7 +155,7 @@ pub async fn analyze_deck(
         ],
         "session_id": session_id("deck-analysis", &payload.to_string()),
         "max_tokens": MAX_TOKENS,
-        "tools": tools::definitions(),
+        "tools": tools::definitions(tools),
         "response_format": {
             "type": "json_schema",
             "json_schema": {
@@ -163,7 +165,7 @@ pub async fn analyze_deck(
             }
         }
     });
-    complete(state, settings, request, Operation::DeckAnalysis).await
+    complete(state, settings, request, tools, Operation::DeckAnalysis).await
 }
 
 /// `ask_deck_question/3`: the raw structured answer object.
@@ -178,7 +180,7 @@ pub async fn ask_deck_question(
         "messages": question_messages(payload, turn),
         "session_id": session_id("deck-question", &turn.conversation),
         "max_tokens": MAX_TOKENS,
-        "tools": tools::definitions(),
+        "tools": tools::definitions(&Tool::ALL),
         "plugins": [{"id": "response-healing"}],
         "response_format": {
             "type": "json_schema",
@@ -189,7 +191,14 @@ pub async fn ask_deck_question(
             }
         }
     });
-    complete(state, settings, request, Operation::DeckQuestion).await
+    complete(
+        state,
+        settings,
+        request,
+        &Tool::ALL,
+        Operation::DeckQuestion,
+    )
+    .await
 }
 
 fn question_messages(payload: &Value, turn: &Turn) -> Vec<Value> {
@@ -314,6 +323,7 @@ async fn complete(
     state: &AppState,
     settings: &Configured,
     request: Value,
+    tools: &[Tool],
     operation: Operation,
 ) -> Result<Value, AiError> {
     let Value::Object(mut request) = request else {
@@ -384,7 +394,7 @@ async fn complete(
                 let mut follow_up = vec![assistant_message(&body)];
                 for call in &calls {
                     follow_up.push(
-                        tool_message(state, call, round >= MAX_TOOL_ROUNDS)
+                        tool_message(state, tools, call, round >= MAX_TOOL_ROUNDS)
                             .await
                             .map_err(AiError::User)?,
                     );
@@ -516,6 +526,7 @@ fn decode_arguments(arguments: Option<&Value>) -> Value {
 /// The tool result for one call; past the round limit the call is not run.
 async fn tool_message(
     state: &AppState,
+    tools: &[Tool],
     call: &Value,
     limit_reached: bool,
 ) -> Result<Value, String> {
@@ -525,7 +536,7 @@ async fn tool_message(
         json!({"error": TOOL_LIMIT_REACHED})
     } else {
         let arguments = decode_arguments(function.and_then(|function| function.get("arguments")));
-        tools::call(&state.db, name.and_then(Value::as_str), &arguments)
+        tools::call(&state.db, tools, name.and_then(Value::as_str), &arguments)
             .await
             .map_err(|error| {
                 tracing::error!(%error, "AI tool call failed");

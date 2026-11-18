@@ -72,7 +72,7 @@ CREATE INDEX "scryfall_printings_normalized_flavor_name_index" ON "scryfall_prin
 CREATE TABLE "ai_settings" ("id" INTEGER PRIMARY KEY, "provider" TEXT DEFAULT 'openrouter' NOT NULL, "api_key" TEXT, "model" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "deck_analysis_instructions" TEXT, "decision_model" TEXT, "reasoning_effort" TEXT);
 CREATE TABLE "deck_question_answers" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "deck_id" INTEGER NOT NULL CONSTRAINT "deck_question_answers_deck_id_fkey" REFERENCES "decks"("id") ON DELETE CASCADE, "question" TEXT NOT NULL, "answer" TEXT NOT NULL, "inserted_at" TEXT NOT NULL, "recommendations" TEXT, "status" TEXT DEFAULT 'completed' NOT NULL, "error" TEXT, "model" TEXT, "thread_id" TEXT, "swap_context" TEXT, "conversation_id" TEXT);
 CREATE INDEX "deck_question_answers_deck_id_inserted_at_index" ON "deck_question_answers" ("deck_id", "inserted_at");
-CREATE TABLE "deck_analysis_requests" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "source_type" TEXT NOT NULL, "source" TEXT NOT NULL, "source_name" TEXT NOT NULL, "format" TEXT NOT NULL, "analysis" TEXT NOT NULL, "model" TEXT NOT NULL, "commander_bracket" INTEGER, "commander_bracket_estimate" INTEGER, "inserted_at" TEXT NOT NULL, "commander_bracket_rating" TEXT);
+CREATE TABLE "deck_analysis_requests" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "source_type" TEXT NOT NULL, "source" TEXT NOT NULL, "source_name" TEXT NOT NULL, "format" TEXT NOT NULL, "analysis" TEXT NOT NULL, "model" TEXT NOT NULL, "commander_bracket" INTEGER, "commander_bracket_estimate" INTEGER, "inserted_at" TEXT NOT NULL, "commander_bracket_rating" TEXT, "status" TEXT DEFAULT 'completed' NOT NULL, "error" TEXT);
 CREATE INDEX "deck_analysis_requests_inserted_at_index" ON "deck_analysis_requests" ("inserted_at");
 CREATE INDEX scryfall_printings_search_covering_index
 ON scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number,
@@ -258,3 +258,4 @@ INSERT INTO schema_migrations VALUES(20261029213201,NULL);
 INSERT INTO schema_migrations VALUES(20261106193503,NULL);
 INSERT INTO schema_migrations VALUES(20261117172810,NULL);
 INSERT INTO schema_migrations VALUES(20261117184023,NULL);
+INSERT INTO schema_migrations VALUES(20261118003246,NULL);

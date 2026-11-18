@@ -1,15 +1,17 @@
-//! The `ai` queue workers: deck analysis and deck questions.
+//! The `ai` queue workers: deck analysis, one-time decklist analysis, and
+//! deck questions.
 
 use std::time::Duration;
 
 use serde_json::Value;
 
 use super::analyze_deck::{self, RunError};
-use super::{AiError, answer_deck_question, decks};
+use super::{AiError, analyze_deck_list, answer_deck_question, decks};
 use manavault_core::jobs::{Job, Outcome, Unique, Worker};
 use manavault_core::state::AppState;
 
 pub const DECK_ANALYSIS_WORKER: &str = "deck_analysis";
+pub const DECK_LIST_ANALYSIS_WORKER: &str = "deck_list_analysis";
 pub const DECK_QUESTION_WORKER: &str = "deck_question";
 
 /// An integer id argument, carried as a number or a string.
@@ -67,6 +69,45 @@ impl Worker for DeckAnalysisWorker {
             Err(RunError::Invalid) => Outcome::Retry(RunError::Invalid.to_string()),
             Err(RunError::Ai(error @ AiError::Final(_))) => Outcome::Fail(reason(&error)),
             Err(RunError::Ai(error)) => Outcome::Retry(reason(&error)),
+        }
+    }
+}
+
+/// Analyzes one pasted or linked decklist. After the last attempt, or a
+/// timeout or output token limit that would only repeat, the request is
+/// marked failed with the error.
+pub struct DeckListAnalysisWorker;
+
+impl Worker for DeckListAnalysisWorker {
+    fn name(&self) -> &'static str {
+        DECK_LIST_ANALYSIS_WORKER
+    }
+    fn queue(&self) -> &'static str {
+        "ai"
+    }
+    fn max_attempts(&self) -> i64 {
+        3
+    }
+    fn timeout(&self) -> Duration {
+        super::openrouter::job_timeout()
+    }
+    fn backoff(&self, attempt: i64) -> Duration {
+        Duration::from_secs(u64::try_from(attempt).unwrap_or(1).saturating_mul(15))
+    }
+
+    async fn perform(&self, state: &AppState, job: &Job) -> Outcome {
+        let Some(id) = id_arg(&job.args, "request_id") else {
+            return Outcome::Cancel("missing request_id".to_owned());
+        };
+        match analyze_deck_list::run(state, id, &job.args).await {
+            Ok(()) => Outcome::Done,
+            Err(error) if matches!(error, AiError::Final(_)) || job.attempt >= job.max_attempts => {
+                match analyze_deck_list::fail(state, id, &error).await {
+                    Ok(()) => Outcome::Fail(reason(&error)),
+                    Err(failure) => Outcome::Fail(reason(&failure)),
+                }
+            }
+            Err(error) => Outcome::Retry(reason(&error)),
         }
     }
 }

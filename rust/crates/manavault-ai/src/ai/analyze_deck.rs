@@ -5,6 +5,7 @@ use sqlx::SqlitePool;
 
 use super::deck_analysis::{self, Analysis, Payload, PayloadDeck};
 use super::decks::{self, DeckInfo, SaveError, SavedAnalysis};
+use super::tools::Tool;
 use super::workers::DECK_ANALYSIS_WORKER;
 use super::{AiError, Configured, Provider, card_categories, openrouter};
 use manavault_core::state::AppState;
@@ -125,14 +126,18 @@ pub async fn refresh_all(state: &AppState) -> Result<usize, AiError> {
     Ok(ids.len())
 }
 
-/// `analyze_payload/2`: asks the provider and normalizes the result.
+/// `analyze_payload/2`: asks the provider, offering the model only `tools`,
+/// and normalizes the result.
 pub async fn analyze_payload(
     state: &AppState,
     settings: &Configured,
     payload: &Payload,
+    tools: &[Tool],
 ) -> Result<Analysis, AiError> {
     let raw = match settings.provider()? {
-        Provider::OpenRouter => openrouter::analyze_deck(state, settings, &payload.value).await,
+        Provider::OpenRouter => {
+            openrouter::analyze_deck(state, settings, &payload.value, tools).await
+        }
     }?;
     deck_analysis::normalize_result(
         &raw,
@@ -171,7 +176,7 @@ pub async fn run(state: &AppState, deck: &DeckInfo) -> Result<SavedAnalysis, Run
         },
         &cards,
     );
-    let analysis = analyze_payload(state, &settings, &payload).await?;
+    let analysis = analyze_payload(state, &settings, &payload, &Tool::ALL).await?;
     let saved = SavedAnalysis {
         ai_analysis: deck_analysis::render_markdown(&analysis),
         ai_analysis_model: settings.model.clone(),

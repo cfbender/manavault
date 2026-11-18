@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO deck_analysis_requests\n             (source_type, source, source_name, format, status, analysis, model, inserted_at)\n           VALUES (?1, ?2, ?3, ?4, 'pending', '', ?5, ?6)\n           RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6b02c8cc43a9955056703c6fc76f202ad4a183b0bee3a88b453a518a80adfd28"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_analysis_requests\n           SET status = 'completed', error = NULL, analysis = ?1, model = ?2,\n               commander_bracket = ?3, commander_bracket_estimate = ?4,\n               commander_bracket_rating = ?5\n         WHERE id = ?6 AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "82e8d155f5fc029045e7a7a8ac50ba6042f245c1398201afb58eac4a1b36f380"
+}

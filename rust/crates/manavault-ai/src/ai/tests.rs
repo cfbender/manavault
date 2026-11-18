@@ -1862,6 +1862,48 @@ async fn failed_worker_retries_become_terminal_without_replacing_the_old_analysi
 }
 
 #[tokio::test]
+async fn decklist_analysis_stays_pending_through_retries_then_records_the_failure() {
+    let server = MockServer::start().await;
+    let (app, _) = background_app(&server).await;
+    app.import_cards(&[legal_plains()]).await;
+    stub_completions(&server, |_, _| {
+        ResponseTemplate::new(400)
+            .set_body_json(json!({"error": {"message": "Provider rejected the schema"}}))
+    })
+    .await;
+    let args = super::analyze_deck_list::Args {
+        url: None,
+        text: Some("Mainboard\n2 Plains".into()),
+        format: "commander".into(),
+    };
+    let id = super::analyze_deck_list::enqueue(&app.state, &args)
+        .await
+        .unwrap()
+        .id;
+    let row = |app: &TestApp| {
+        let pool = app.db().clone();
+        async move {
+            let request = super::requests::get(&pool, id).await.unwrap().unwrap();
+            (request.status, request.error, request.analysis)
+        }
+    };
+    for attempt in 1..=3 {
+        let drained = app.state.jobs.drain_queue(&app.state, "ai", true).await;
+        assert_eq!((drained.success, drained.failure + drained.discard), (0, 1));
+        let expected = if attempt < 3 {
+            (Status::Pending, None, String::new())
+        } else {
+            (
+                Status::Failed,
+                Some("OpenRouter: Provider rejected the schema".to_owned()),
+                String::new(),
+            )
+        };
+        assert_eq!(row(&app).await, expected);
+    }
+}
+
+#[tokio::test]
 async fn retry_backoff_is_fifteen_seconds_per_attempt() {
     use std::time::Duration;
 
@@ -2048,25 +2090,56 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     );
 
     let decklist = "Commander\n1 Test Commander\n\nMainboard\n2 Plains";
+    let request_fields = "id sourceType source sourceName format status error analysis model \
+                          commanderBracket commanderBracketEstimate commanderBracketRating insertedAt";
+    let completions_before = completion_requests(&server).await.len();
     let listed = app
         .gql_data(
-            r"mutation AnalyzeDeckList($text: String!, $format: String!) {
-                 analyzeDeckList(text: $text, format: $format) {
-                   deckAnalysisRequest {
-                     id sourceType source sourceName format analysis model
-                     commanderBracket commanderBracketEstimate commanderBracketRating insertedAt
-                   }
-                 }
-               }",
+            &format!(
+                r"mutation AnalyzeDeckList($text: String!, $format: String!) {{
+                     analyzeDeckList(text: $text, format: $format) {{ deckAnalysisRequest {{ {request_fields} }} }}
+                   }}"
+            ),
             json!({"text": decklist, "format": "commander"}),
         )
         .await;
+    // The mutation only queues the analysis; the job calls the provider.
     let request = &listed["analyzeDeckList"]["deckAnalysisRequest"];
     let request_id = request["id"].clone();
-    assert_eq!(request["sourceType"], "text");
-    assert_eq!(request["source"], decklist);
-    assert_eq!(request["sourceName"], "Pasted decklist");
-    assert_eq!(request["format"], "commander");
+    assert_eq!(
+        (
+            &request["sourceType"],
+            &request["source"],
+            &request["sourceName"],
+            &request["format"]
+        ),
+        (
+            &json!("text"),
+            &json!(decklist),
+            &json!("Pasted decklist"),
+            &json!("commander")
+        )
+    );
+    assert_eq!(
+        (&request["status"], &request["error"], &request["analysis"]),
+        (&json!("pending"), &Value::Null, &json!(""))
+    );
+    assert_eq!(completion_requests(&server).await.len(), completions_before);
+    let drained = app.state.jobs.drain_queue(&app.state, "ai", false).await;
+    assert_eq!((drained.success, drained.failure), (1, 0));
+
+    let history = app
+        .gql_data(
+            &format!("query {{ deckAnalysisRequests {{ {request_fields} }} }}"),
+            json!({}),
+        )
+        .await;
+    let request = &history["deckAnalysisRequests"][0];
+    assert_eq!(request["id"], request_id);
+    assert_eq!(
+        (&request["status"], &request["error"]),
+        (&json!("completed"), &Value::Null)
+    );
     assert_eq!(request["model"], "anthropic/claude-sonnet-4");
     assert_eq!(
         (
@@ -2080,7 +2153,15 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert!(list_analysis.as_str().unwrap().contains("## Overview"));
     assert!(manavault_core::timestamp::parse(request["insertedAt"].as_str().unwrap()).is_some());
     assert!(request["insertedAt"].as_str().unwrap().ends_with('Z'));
-    let list_prompt = message_content(completion_requests(&server).await.last().unwrap(), 1);
+    let list_request = completion_requests(&server).await.pop().unwrap();
+    let list_tools: Vec<&Value> = list_request["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| &tool["function"]["name"])
+        .collect();
+    assert_eq!(list_tools, vec!["lookup_cards"]);
+    let list_prompt = message_content(&list_request, 1);
     assert!(list_prompt.contains(r#""land_count":2"#));
     assert!(list_prompt.contains(r#""name":"Pasted decklist""#));
 
@@ -2103,6 +2184,8 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert_eq!(linked["sourceType"], "url");
     assert_eq!(linked["source"], deck_url);
     assert_eq!(linked["sourceName"], "GraphQL Analysis");
+    let drained = app.state.jobs.drain_queue(&app.state, "ai", false).await;
+    assert_eq!((drained.success, drained.failure), (1, 0));
 
     let history = app
         .gql_data(

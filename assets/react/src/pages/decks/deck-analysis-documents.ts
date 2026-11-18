@@ -48,6 +48,8 @@ export const DeckAnalysisRequestsDocument = graphql(`
       source
       sourceName
       format
+      status
+      error
       analysis
       model
       commanderBracket
@@ -67,6 +69,8 @@ export const AnalyzeDeckListDocument = graphql(`
         source
         sourceName
         format
+        status
+        error
         analysis
         model
         commanderBracket

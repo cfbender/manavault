@@ -14,6 +14,7 @@ mod test_app;
 pub fn workers() -> Vec<Arc<dyn DynWorker>> {
     vec![
         Arc::new(ai::workers::DeckAnalysisWorker),
+        Arc::new(ai::workers::DeckListAnalysisWorker),
         Arc::new(ai::workers::DeckQuestionWorker),
     ]
 }

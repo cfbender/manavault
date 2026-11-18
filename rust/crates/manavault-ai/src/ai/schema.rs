@@ -110,6 +110,11 @@ pub struct DeckAnalysisRequestObject {
     pub source: String,
     pub source_name: String,
     pub format: String,
+    /// `pending` while the analysis runs, then `completed` or `failed`.
+    pub status: String,
+    /// Why a failed analysis did not complete.
+    pub error: Option<String>,
+    /// Empty until the analysis completes.
     pub analysis: String,
     pub model: String,
     pub commander_bracket: Option<i64>,
@@ -126,6 +131,8 @@ impl From<DeckAnalysisRequest> for DeckAnalysisRequestObject {
             source: request.source,
             source_name: request.source_name,
             format: request.format,
+            status: request.status.as_str().to_owned(),
+            error: request.error,
             analysis: request.analysis,
             model: request.model,
             commander_bracket: request.commander_bracket,
@@ -292,7 +299,7 @@ impl AiMutations {
         text: Option<String>,
         format: String,
     ) -> Result<Option<AnalyzeDeckListPayload>> {
-        let request = analyze_deck_list::run(state(ctx), &Args { url, text, format })
+        let request = analyze_deck_list::enqueue(state(ctx), &Args { url, text, format })
             .await
             .map_err(AiError::into_graphql)?;
         Ok(Some(AnalyzeDeckListPayload {

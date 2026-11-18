@@ -1,13 +1,19 @@
-//! Analyzing a pasted decklist or a deck link inline and saving the result
-//! (`AI.AnalyzeDeckList`).
+//! Analyzing a pasted decklist or a deck link in the background and saving
+//! the result (`AI.AnalyzeDeckList`).
+
+use serde_json::{Value, json};
 
 use super::analyze_deck::analyze_payload;
 use super::deck_analysis::{self, PayloadDeck};
 use super::decks::DeckCardInput;
-use super::requests::{self, DeckAnalysisRequest, InsertError, NewRequest, SourceType};
+use super::requests::{
+    self, CompletedAnalysis, DeckAnalysisRequest, NewRequest, SourceType, Status, WriteError,
+};
+use super::tools::Tool;
+use super::workers::DECK_LIST_ANALYSIS_WORKER;
 use super::{AiError, Configured};
 use manavault_catalog::catalog::search::cards_by_name;
-use manavault_collection::decks::model::DeckFormat;
+use manavault_collection::decks::model::{DeckFormat, parse_zone};
 use manavault_core::state::AppState;
 use manavault_trade::trade::list_source::{self, ListEntry, ResolveError};
 
@@ -104,13 +110,42 @@ fn source_name(name: Option<&str>, source_type: SourceType) -> String {
     }
 }
 
-/// `run/1`.
-pub async fn run(state: &AppState, args: &Args) -> Result<DeckAnalysisRequest, AiError> {
+/// The job's copy of the resolved list, so the worker neither refetches a
+/// link nor sees it change.
+fn job_args(request_id: i64, entries: &[ListEntry]) -> Value {
+    let cards: Vec<Value> = entries
+        .iter()
+        .map(|entry| json!({"name": entry.name, "quantity": entry.quantity, "zone": entry.zone.as_str()}))
+        .collect();
+    json!({"request_id": request_id, "cards": cards})
+}
+
+fn job_entries(args: &Value) -> Option<Vec<ListEntry>> {
+    args.get("cards")?
+        .as_array()?
+        .iter()
+        .map(|card| {
+            Some(ListEntry {
+                name: card.get("name")?.as_str()?.to_owned(),
+                quantity: card.get("quantity")?.as_i64()?,
+                zone: parse_zone(card.get("zone")?.as_str()?)?,
+                set_code: None,
+                collector_number: None,
+            })
+        })
+        .collect()
+}
+
+/// `enqueue/1`: checks the list now, so bad input fails the mutation, then
+/// saves the request as pending together with its `DeckListAnalysisWorker`
+/// job, which runs the AI analysis.
+pub async fn enqueue(state: &AppState, args: &Args) -> Result<DeckAnalysisRequest, AiError> {
     let (source_type, source) = source(args)?;
     if DeckFormat::parse(&args.format).is_none() {
         return Err(AiError::User("Choose a supported deck format.".to_owned()));
     }
     let settings = Configured::load(state).await?;
+    settings.provider()?;
     // `Trade.Lists.resolve/1`, like every other list import.
     let (url, text) = match source_type {
         SourceType::Url => (Some(source.as_str()), None),
@@ -122,33 +157,84 @@ pub async fn run(state: &AppState, args: &Args) -> Result<DeckAnalysisRequest, A
             ResolveError::User(message) => AiError::User(message.to_owned()),
             ResolveError::Db(error) => error.into(),
         })?;
-    let deck_cards = external_deck_cards(state, &resolved.entries).await?;
-    let name = source_name(resolved.source_name.as_deref(), source_type);
+    external_deck_cards(state, &resolved.entries).await?;
+    let request = NewRequest {
+        source_type,
+        source,
+        source_name: source_name(resolved.source_name.as_deref(), source_type),
+        format: args.format.clone(),
+        model: settings.model,
+    };
+    let mut tx = manavault_core::db::begin_write(&state.db).await?;
+    let saved = requests::insert_pending(&mut tx, &request)
+        .await
+        .map_err(write_error)?;
+    state
+        .jobs
+        .enqueue_in(
+            &mut tx,
+            DECK_LIST_ANALYSIS_WORKER,
+            job_args(saved.id, &resolved.entries),
+        )
+        .await?;
+    tx.commit().await?;
+    state.jobs.wake();
+    Ok(saved)
+}
+
+fn write_error(error: WriteError) -> AiError {
+    match error {
+        WriteError::Invalid(errors) => AiError::User(errors.to_string()),
+        WriteError::Db(error) => AiError::Db(error),
+    }
+}
+
+/// `run/2`: analyzes a pending request from its job's `args`; anything else
+/// is left alone.
+pub async fn run(state: &AppState, id: i64, args: &Value) -> Result<(), AiError> {
+    let Some(request) = requests::get(&state.db, id).await? else {
+        return Ok(());
+    };
+    if request.status != Status::Pending {
+        return Ok(());
+    }
+    let entries = job_entries(args).ok_or_else(|| {
+        AiError::Final("The decklist could not be analyzed. Try again.".to_owned())
+    })?;
+    let settings = Configured::load(state).await?;
+    let deck_cards = external_deck_cards(state, &entries).await?;
     let payload = deck_analysis::payload(
         &PayloadDeck {
-            name: &name,
-            format: &args.format,
+            name: &request.source_name,
+            format: &request.format,
             primer: None,
         },
         &deck_cards,
     );
-    let analysis = analyze_payload(state, &settings, &payload).await?;
-    let request = NewRequest {
-        source_type,
-        source,
-        source_name: name,
-        format: args.format.clone(),
+    // The list is not one of the user's decks, so the model gets no
+    // collection tool: the analysis stays about the list itself.
+    let analysis = analyze_payload(state, &settings, &payload, &[Tool::CardLookup]).await?;
+    let completed = CompletedAnalysis {
         analysis: deck_analysis::render_markdown(&analysis),
         model: settings.model,
         commander_bracket: analysis.official_bracket,
         commander_bracket_estimate: analysis.play_bracket,
         commander_bracket_rating: analysis.bracket_rating,
     };
-    match requests::insert(&state.db, &request).await {
-        Ok(saved) => Ok(saved),
-        Err(InsertError::Invalid(errors)) => Err(AiError::User(errors.to_string())),
-        Err(InsertError::Db(error)) => Err(error.into()),
-    }
+    requests::complete(&state.db, id, &completed)
+        .await
+        .map_err(write_error)
+}
+
+/// `fail/2`: marks a pending request failed after its last attempt. User
+/// messages are kept (up to 2,000 characters); other failures get a
+/// generic message.
+pub async fn fail(state: &AppState, id: i64, reason: &AiError) -> Result<(), AiError> {
+    let error = match reason {
+        AiError::User(message) | AiError::Final(message) => message.chars().take(2_000).collect(),
+        _ => "The AI deck analysis could not be completed.".to_owned(),
+    };
+    Ok(requests::fail(&state.db, id, &error).await?)
 }
 
 #[cfg(test)]

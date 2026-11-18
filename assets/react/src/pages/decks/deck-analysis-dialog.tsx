@@ -35,6 +35,7 @@ import { DECK_FORMATS } from "./deck-types"
 import { AnalyzeDeckListDocument, DeckAnalysisRequestsDocument } from "./deck-analysis-documents"
 
 type SourceMode = "url" | "text"
+const POLL_INTERVAL_MS = 3_000
 type AnalysisRequest = DeckAnalysisRequestsQuery["deckAnalysisRequests"][number]
 
 export function DeckAnalysisDialog({
@@ -55,10 +56,19 @@ export function DeckAnalysisDialog({
     skip: !open,
   })
   const [analyzeDeckList, analysisMutation] = useMutation(AnalyzeDeckListDocument)
+  const hasPending = requests.some(({ status }) => status === "pending")
+  const { startPolling, stopPolling } = requestsQuery
 
   useEffect(() => {
     if (requestsQuery.data) setRequests(requestsQuery.data.deckAnalysisRequests)
   }, [requestsQuery.data])
+
+  // Analyses run as background jobs: refresh the history until they finish.
+  useEffect(() => {
+    if (open && hasPending) startPolling(POLL_INTERVAL_MS)
+    else stopPolling()
+    return () => stopPolling()
+  }, [open, hasPending, startPolling, stopPolling])
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -217,7 +227,7 @@ export function DeckAnalysisDialog({
                 ) : (
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
                 )}
-                {analysisMutation.loading ? "Analyzing…" : "Analyze decklist"}
+                {analysisMutation.loading ? "Starting…" : "Analyze decklist"}
               </Button>
             </div>
           </form>
@@ -291,7 +301,7 @@ function AnalysisHistory({
 }
 
 function AnalysisHistoryItem({ open, request }: { open: boolean; request: AnalysisRequest }) {
-  const bracket = commanderBracketLabel(request)
+  const bracket = request.status === "completed" ? commanderBracketLabel(request) : null
   const sourceUrl = request.sourceType === "url" ? safeHttpUrl(request.source) : null
 
   return (
@@ -305,6 +315,8 @@ function AnalysisHistoryItem({ open, request }: { open: boolean; request: Analys
               {request.sourceType === "url" ? "Deck link" : "Pasted list"}
             </Badge>
             {bracket ? <Badge tone="primary">{bracket}</Badge> : null}
+            {request.status === "pending" ? <Badge tone="warning">Analyzing</Badge> : null}
+            {request.status === "failed" ? <Badge tone="error">Failed</Badge> : null}
           </span>
         </span>
         <ChevronDown
@@ -325,11 +337,28 @@ function AnalysisHistoryItem({ open, request }: { open: boolean; request: Analys
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           </a>
         ) : null}
-        <DeckMarkdown cardReferences>{request.analysis}</DeckMarkdown>
-        <p className="mt-6 break-words text-xs text-base-content/60">
-          {request.model} · Analyzed{" "}
-          <time dateTime={request.insertedAt}>{formatDate(request.insertedAt)}</time>
-        </p>
+        {request.status === "pending" ? (
+          <p className="flex items-center gap-2 text-sm text-base-content/70" role="status">
+            <LoaderCircle
+              className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            Analyzing this decklist. You can close this dialog; the result saves here when it
+            finishes.
+          </p>
+        ) : request.status === "failed" ? (
+          <p className="rounded-box border border-error/40 bg-error/10 px-3 py-2 text-sm font-medium text-base-content">
+            {request.error || "The AI deck analysis could not be completed."}
+          </p>
+        ) : (
+          <>
+            <DeckMarkdown cardReferences>{request.analysis}</DeckMarkdown>
+            <p className="mt-6 break-words text-xs text-base-content/60">
+              {request.model} · Analyzed{" "}
+              <time dateTime={request.insertedAt}>{formatDate(request.insertedAt)}</time>
+            </p>
+          </>
+        )}
       </div>
     </details>
   )

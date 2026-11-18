@@ -8,6 +8,8 @@ type AnalysisRequest = {
   source: string
   sourceName: string
   format: string
+  status: string
+  error: string | null
   analysis: string
   model: string
   commanderBracket: number | null
@@ -30,6 +32,8 @@ const apolloMocks = vi.hoisted(() => ({
         source: "https://moxfield.com/decks/abcde",
         sourceName: "Weekend counters",
         format: "commander",
+        status: "completed",
+        error: null,
         analysis: "## Overview\n\nBuild value, then turn the corner with [[Sun Titan]].",
         model: "anthropic/claude-sonnet-4",
         commanderBracket: 3,
@@ -37,9 +41,11 @@ const apolloMocks = vi.hoisted(() => ({
         commanderBracketRating: "3+",
         insertedAt: "2026-08-30T12:00:00Z",
       },
-    ] satisfies AnalysisRequest[],
+    ] as AnalysisRequest[],
   },
   refetch: vi.fn(),
+  startPolling: vi.fn(),
+  stopPolling: vi.fn(),
   cardQuery: vi.fn(async () => ({
     data: { cardByName: { id: "card-sun-titan", name: "Sun Titan" } },
   })),
@@ -52,6 +58,8 @@ vi.mock("@apollo/client/react", () => ({
     error: undefined,
     loading: false,
     refetch: apolloMocks.refetch,
+    startPolling: apolloMocks.startPolling,
+    stopPolling: apolloMocks.stopPolling,
   }),
   useMutation: () => [
     (options: {
@@ -67,7 +75,9 @@ vi.mock("@apollo/client/react", () => ({
             source: options.variables.text || options.variables.url || "",
             sourceName: "Pasted decklist",
             format: options.variables.format,
-            analysis: "## Overview\n\nA focused one-time analysis.",
+            status: "pending",
+            error: null,
+            analysis: "",
             model: "anthropic/claude-sonnet-4",
             commanderBracket: null,
             commanderBracketEstimate: null,
@@ -88,6 +98,8 @@ afterEach(() => {
   cleanup()
   apolloMocks.analyzeVariables = null
   apolloMocks.refetch.mockClear()
+  apolloMocks.startPolling.mockClear()
+  apolloMocks.stopPolling.mockClear()
 })
 
 test("renders saved one-time analyses newest first", () => {
@@ -110,7 +122,7 @@ test("renders saved one-time analyses newest first", () => {
   )
 })
 
-test("submits a trimmed pasted list and adds the saved result to history", async () => {
+test("submits a trimmed pasted list and polls history while it is analyzed", async () => {
   const user = userEvent.setup()
   render(<DeckAnalysisDialog open onOpenChange={() => undefined} />)
 
@@ -133,5 +145,31 @@ test("submits a trimmed pasted list and adds the saved result to history", async
   expect(entries).toHaveLength(2)
   expect(entries[0]?.open).toBe(true)
   expect(entries[0]?.textContent).toContain("Pasted decklist")
-  expect(entries[0]?.textContent).toContain("A focused one-time analysis.")
+  expect(entries[0]?.textContent).toContain("Analyzing this decklist.")
+  expect(apolloMocks.startPolling).toHaveBeenCalledWith(3_000)
+})
+
+test("shows why a failed analysis did not complete, without polling", () => {
+  const saved = apolloMocks.historyData.deckAnalysisRequests
+  apolloMocks.historyData.deckAnalysisRequests = [
+    {
+      ...saved[0]!,
+      status: "failed",
+      error: "OpenRouter: Provider rejected the schema",
+      analysis: "",
+    },
+  ]
+  try {
+    render(<DeckAnalysisDialog open onOpenChange={() => undefined} />)
+
+    const entry = screen
+      .getByRole("dialog", { name: "Analyze a deck list" })
+      .querySelector("details")
+    expect(entry?.textContent).toContain("Failed")
+    expect(entry?.textContent).toContain("OpenRouter: Provider rejected the schema")
+    expect(entry?.textContent).not.toContain("Bracket 3+")
+    expect(apolloMocks.startPolling).not.toHaveBeenCalled()
+  } finally {
+    apolloMocks.historyData.deckAnalysisRequests = saved
+  }
 })

@@ -40,26 +40,36 @@ impl Tool {
     }
 }
 
-/// `Tools.definitions/0`: OpenAI-style function tool definitions sent with
-/// every completion request.
+/// `Tools.definitions/0`: OpenAI-style function tool definitions for the
+/// tools a completion request offers.
 #[must_use]
-pub fn definitions() -> Value {
-    Value::Array(Tool::ALL.into_iter().map(Tool::definition).collect())
+pub fn definitions(offered: &[Tool]) -> Value {
+    Value::Array(offered.iter().copied().map(Tool::definition).collect())
 }
 
-/// `Tools.call/2`: runs a tool call by name. Always returns a JSON object,
-/// including for unknown tools, so the model gets feedback instead of the
-/// request failing.
+/// `Tools.call/2`: runs a tool call by name, among the `offered` tools only.
+/// Always returns a JSON object, including for unknown tools, so the model
+/// gets feedback instead of the request failing.
 pub async fn call(
     pool: &SqlitePool,
+    offered: &[Tool],
     name: Option<&str>,
     arguments: &Value,
 ) -> Result<Value, sqlx::Error> {
-    match Tool::ALL.into_iter().find(|tool| Some(tool.name()) == name) {
+    match offered
+        .iter()
+        .copied()
+        .find(|tool| Some(tool.name()) == name)
+    {
         Some(Tool::CardLookup) => card_lookup::call(pool, arguments).await,
         Some(Tool::CollectionStatus) => collection_status::call(pool, arguments).await,
         None => {
-            let available = Tool::ALL.map(Tool::name).join(", ");
+            let available = offered
+                .iter()
+                .copied()
+                .map(Tool::name)
+                .collect::<Vec<_>>()
+                .join(", ");
             let name = name.map_or_else(|| "nil".to_owned(), crate::ai::openrouter::inspect_str);
             Ok(json!({"error": format!("Unknown tool {name}. Available tools: {available}.")}))
         }
@@ -112,13 +122,18 @@ mod tests {
         let args = json!({"names": ["Made Up Card"]});
         for tool in ["lookup_cards", "check_collection"] {
             assert_eq!(
-                call(app.db(), Some(tool), &args).await.unwrap(),
+                call(app.db(), &Tool::ALL, Some(tool), &args).await.unwrap(),
                 json!({"cards": [], "not_found": ["Made Up Card"]})
             );
         }
-        let error = call(app.db(), Some("search_web"), &json!({"query": "Sol Ring"}))
-            .await
-            .unwrap();
+        let error = call(
+            app.db(),
+            &Tool::ALL,
+            Some("search_web"),
+            &json!({"query": "Sol Ring"}),
+        )
+        .await
+        .unwrap();
         let error = error["error"].as_str().unwrap();
         assert!(error.contains(r#"Unknown tool "search_web""#));
         assert!(error.contains("lookup_cards, check_collection"));

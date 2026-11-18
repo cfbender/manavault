@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_analysis_requests SET status = 'failed', error = ?1\n         WHERE id = ?2 AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c9e6d4272ce3539952384cd6aebe88c8478e9d2c1a4700dc3f1d4a1f9dedef25"
+}

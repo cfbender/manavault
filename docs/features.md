@@ -493,7 +493,10 @@ visible, and repeat requests reuse an active job. Failed jobs can be retried
 from the deck page.
 
 **Analyze list** on the deck list analyzes a pasted decklist or deck link
-without saving it as a deck.
+without saving it as a deck. It also runs in the background: the list shows as
+analyzing in the dialog's history, which updates when the analysis finishes or
+shows why it failed. It looks up cards in the catalog but does not check your
+collection.
 
 ### Deck roles
 
