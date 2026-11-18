@@ -18,6 +18,8 @@ const DEV_ORIGINS: &str = "http://localhost:5173 http://127.0.0.1:5173";
 
 /// The content security policy (`ContentSecurityPolicy.policy/1`). The Vite
 /// dev server additionally needs its origins, websocket, and `unsafe-eval`.
+/// Card art is fetched from `cards.scryfall.io` (not only shown) so its colors
+/// can be sampled from a blob, which decodes off the main thread.
 #[must_use]
 pub fn content_security_policy(vite_dev: bool) -> String {
     let script_src = if vite_dev {
@@ -27,10 +29,10 @@ pub fn content_security_policy(vite_dev: bool) -> String {
     };
     let connect_src = if vite_dev {
         format!(
-            "connect-src 'self' https://api.github.com https://api.mtgstocks.com https://json-cloudflare.edhrec.com {DEV_ORIGINS} ws://localhost:* ws://127.0.0.1:* wss:"
+            "connect-src 'self' https://api.github.com https://api.mtgstocks.com https://json-cloudflare.edhrec.com https://cards.scryfall.io {DEV_ORIGINS} ws://localhost:* ws://127.0.0.1:* wss:"
         )
     } else {
-        "connect-src 'self' https://api.github.com https://api.mtgstocks.com https://json-cloudflare.edhrec.com wss:".to_owned()
+        "connect-src 'self' https://api.github.com https://api.mtgstocks.com https://json-cloudflare.edhrec.com https://cards.scryfall.io wss:".to_owned()
     };
     [
         "default-src 'self'".to_owned(),

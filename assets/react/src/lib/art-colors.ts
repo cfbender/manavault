@@ -7,6 +7,8 @@ export type ArtPalette = {
 }
 
 const SAMPLE_SIZE = 40
+/** How long art must stay in front before its colors are sampled. */
+const SETTLE_MS = 250
 const MIN_SECONDARY_DISTANCE = 90
 
 type ColorBucket = {
@@ -92,15 +94,20 @@ export function useArtPalette(url: string | null | undefined) {
     }
 
     // Keep the previous art's palette until this one loads, so stepping
-    // through cards does not flash the untinted style in between.
+    // through cards does not flash the untinted style in between. Sample only
+    // art that stays in front for a moment: flipping or scrubbing past cards
+    // would otherwise download and decode every card's art on the way.
     let cancelled = false
-    loadArtPalette(url).then((result) => {
-      paletteCache.set(url, result)
-      if (!cancelled) setPalette(result)
-    })
+    const timer = window.setTimeout(() => {
+      loadArtPalette(url).then((result) => {
+        paletteCache.set(url, result)
+        if (!cancelled) setPalette(result)
+      })
+    }, SETTLE_MS)
 
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
     }
   }, [url])
 
@@ -109,20 +116,29 @@ export function useArtPalette(url: string | null | undefined) {
 
 async function loadArtPalette(url: string): Promise<ArtPalette | null> {
   try {
-    const image = new Image()
-    image.crossOrigin = "anonymous"
     // The same art may already sit in the HTTP cache from a normal image load,
     // cached without CORS headers (Scryfall varies on Origin). A dedicated
-    // query param forces a fresh CORS-mode fetch so the canvas isn't tainted.
-    image.src = `${url}${url.includes("?") ? "&" : "?"}palette=1`
-    await image.decode()
+    // query param forces a fresh CORS-mode fetch so the pixels are readable.
+    const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}palette=1`, {
+      mode: "cors",
+    })
+    if (!response.ok) return null
+    // Decoding and shrinking the art here runs off the main thread; drawing a
+    // full-size image into the canvas would decode it on the main thread,
+    // which phones notice as a stall in whatever is animating.
+    const bitmap = await createImageBitmap(await response.blob(), {
+      resizeWidth: SAMPLE_SIZE,
+      resizeHeight: SAMPLE_SIZE,
+      resizeQuality: "low",
+    })
 
     const canvas = document.createElement("canvas")
     canvas.width = SAMPLE_SIZE
     canvas.height = SAMPLE_SIZE
     const context = canvas.getContext("2d", { willReadFrequently: true })
     if (!context) return null
-    context.drawImage(image, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE)
+    context.drawImage(bitmap, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE)
+    bitmap.close()
 
     return extractArtPalette(context.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data)
   } catch {
