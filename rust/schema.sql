@@ -1,6 +1,5 @@
 CREATE TABLE "schema_migrations" ("version" INTEGER PRIMARY KEY, "inserted_at" TEXT);
 CREATE TABLE "scryfall_cards" ("oracle_id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "type_line" TEXT, "oracle_text" TEXT, "color_identity" TEXT DEFAULT '[]' NOT NULL, "legalities" TEXT DEFAULT '{}' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "mana_cost" TEXT, "cmc" NUMERIC, "colors" TEXT DEFAULT '[]' NOT NULL, "oracle_tags" TEXT DEFAULT '[]' NOT NULL, "deck_category" TEXT, "deck_themes" TEXT DEFAULT '[]' NOT NULL, "game_changer" INTEGER DEFAULT false NOT NULL, "normalized_name" TEXT, "edhrec_rank" INTEGER, "edhrec_saltiness" NUMERIC, "edhrec_commander_rank" INTEGER, "layout" TEXT, "power" TEXT, "toughness" TEXT, "loyalty" TEXT, "keywords" TEXT DEFAULT '[]' NOT NULL, "produced_mana" TEXT DEFAULT '[]' NOT NULL, "reserved" INTEGER DEFAULT false NOT NULL, "search_flags" TEXT DEFAULT '[]' NOT NULL);
-CREATE INDEX "scryfall_cards_name_index" ON "scryfall_cards" ("name");
 CREATE TABLE "scryfall_printings" ("scryfall_id" TEXT PRIMARY KEY, "oracle_id" TEXT NOT NULL CONSTRAINT "scryfall_printings_oracle_id_fkey" REFERENCES "scryfall_cards"("oracle_id") ON DELETE CASCADE, "set_code" TEXT NOT NULL, "set_name" TEXT, "collector_number" TEXT NOT NULL, "lang" TEXT NOT NULL, "finishes" TEXT DEFAULT '[]' NOT NULL, "image_uris" TEXT DEFAULT '{}' NOT NULL, "prices" TEXT DEFAULT '{}' NOT NULL, "released_at" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "rarity" TEXT, "flavor_name" TEXT, "flavor_text" TEXT, "promo_types" TEXT DEFAULT '[]' NOT NULL, "normalized_flavor_name" TEXT, "illustration_id" TEXT, "promo" INTEGER DEFAULT false NOT NULL, "tcgplayer_id" INTEGER, "tcgplayer_etched_id" INTEGER, "frame_effects" TEXT DEFAULT '[]' NOT NULL, "border_color" TEXT, "full_art" INTEGER DEFAULT false NOT NULL, "artist" TEXT, "watermark" TEXT, "frame" TEXT, "security_stamp" TEXT, "set_type" TEXT, "games" TEXT DEFAULT '[]' NOT NULL, "reprint" INTEGER DEFAULT false NOT NULL, "booster" INTEGER DEFAULT false NOT NULL, "story_spotlight" INTEGER DEFAULT false NOT NULL, "highres_image" INTEGER DEFAULT false NOT NULL);
 CREATE INDEX "scryfall_printings_collector_number_index" ON "scryfall_printings" ("collector_number");
 CREATE INDEX "scryfall_printings_set_code_collector_number_index" ON "scryfall_printings" ("set_code", "collector_number");
@@ -170,6 +169,7 @@ CREATE INDEX "scryfall_printings_set_preview_index" ON "scryfall_printings" (
   "collector_number",
   "scryfall_id"
 );
+CREATE INDEX "scryfall_cards_name_layout_index" ON "scryfall_cards" ("name", "layout");
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -259,3 +259,4 @@ INSERT INTO schema_migrations VALUES(20261106193503,NULL);
 INSERT INTO schema_migrations VALUES(20261117172810,NULL);
 INSERT INTO schema_migrations VALUES(20261117184023,NULL);
 INSERT INTO schema_migrations VALUES(20261118003246,NULL);
+INSERT INTO schema_migrations VALUES(20261118062621,NULL);
