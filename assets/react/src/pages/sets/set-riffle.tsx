@@ -9,6 +9,8 @@ import {
   type MotionValue,
 } from "motion/react"
 import {
+  memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -74,36 +76,58 @@ function slotShade(d: number) {
   return d <= 0 ? 0 : Math.min(0.12 + d * 0.085, 0.72)
 }
 
-function RiffleSlot({
-  children,
+// Memoized: the stack re-renders whenever the front card changes, and only
+// the slots whose role changed (the old and the new front) need to follow.
+const RiffleSlot = memo(function RiffleSlot<P extends RifflePrinting>({
+  front,
   index,
-  label,
+  item,
   onActivate,
   position,
-}: {
-  children: ReactNode
-  index: number
-  label: string
-  onActivate: () => void
-  position: MotionValue<number>
-}) {
+  section,
+  sectionCount,
+}: RiffleSlotProps<P>) {
   const transform = useTransform(position, (p) => slotTransform(index - p))
   const opacity = useTransform(position, (p) => slotOpacity(index - p))
   const zIndex = useTransform(position, (p) => 1000 - Math.round((index - p) * 10))
   const shade = useTransform(position, (p) => slotShade(index - p))
   const pointerEvents = useTransform(position, (p) => (index - p < -0.4 ? "none" : "auto"))
+  const label =
+    item.kind === "card"
+      ? `${item.printing.card?.name || "Card"}${
+          item.printing.collectorNumber ? ` #${item.printing.collectorNumber}` : ""
+        }`
+      : `${section?.label ?? "Section"} divider`
 
   return (
     <motion.div
       className="riffle-slot"
       style={{ transform, opacity, zIndex, pointerEvents }}
       aria-label={label}
-      onClick={onActivate}
+      onClick={() => onActivate(index, item)}
     >
-      {children}
+      {item.kind === "card" ? (
+        <RiffleCardFace front={front} printing={item.printing} />
+      ) : section ? (
+        <RiffleDividerFace
+          section={section}
+          sectionCount={sectionCount}
+          sectionIndex={item.sectionIndex}
+        />
+      ) : null}
       <motion.span className="riffle-shade" style={{ opacity: shade }} aria-hidden="true" />
     </motion.div>
   )
+}) as <P extends RifflePrinting>(props: RiffleSlotProps<P>) => ReactNode
+
+type RiffleSlotProps<P extends RifflePrinting> = {
+  front: boolean
+  index: number
+  item: RiffleItem<P>
+  onActivate: (index: number, item: RiffleItem<P>) => void
+  position: MotionValue<number>
+  section: SetSection<P> | undefined
+  sectionCount: number
 }
 
 function RiffleCardFace({ front, printing }: { front: boolean; printing: RifflePrinting }) {
@@ -303,6 +327,20 @@ export function SetRiffle<P extends RifflePrinting>({
     else move(1)
   }
 
+  // One callback for every slot, so a slot re-renders only when its own props change.
+  const activateRef = useRef(activate)
+  activateRef.current = activate
+  const activateSlot = useCallback((itemIndex: number, item: RiffleItem<P>) => {
+    activateRef.current(
+      itemIndex,
+      stageRef.current?.querySelector<HTMLElement>(
+        item.kind === "card"
+          ? `[data-card-morph-key="${CSS.escape(item.printing.scryfallId)}"]`
+          : "[data-card-morph-key]",
+      ) ?? null,
+    )
+  }, [])
+
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const steps: Record<string, number> = {
       ArrowRight: 1,
@@ -354,44 +392,18 @@ export function SetRiffle<P extends RifflePrinting>({
       onKeyDown={handleKeyDown}
     >
       <div className="riffle-floor">
-        {visible.map((item, offset) => {
-          const itemIndex = from + offset
-          const section = sections[item.sectionIndex]
-          const itemLabel =
-            item.kind === "card"
-              ? `${item.printing.card?.name || "Card"}${
-                  item.printing.collectorNumber ? ` #${item.printing.collectorNumber}` : ""
-                }`
-              : `${section?.label ?? "Section"} divider`
-          return (
-            <RiffleSlot
-              key={item.key}
-              index={itemIndex}
-              label={itemLabel}
-              position={position}
-              onActivate={() =>
-                activate(
-                  itemIndex,
-                  stageRef.current?.querySelector<HTMLElement>(
-                    item.kind === "card"
-                      ? `[data-card-morph-key="${CSS.escape(item.printing.scryfallId)}"]`
-                      : "[data-card-morph-key]",
-                  ) ?? null,
-                )
-              }
-            >
-              {item.kind === "card" ? (
-                <RiffleCardFace front={itemIndex === index} printing={item.printing} />
-              ) : section ? (
-                <RiffleDividerFace
-                  section={section}
-                  sectionCount={sections.length}
-                  sectionIndex={item.sectionIndex}
-                />
-              ) : null}
-            </RiffleSlot>
-          )
-        })}
+        {visible.map((item, offset) => (
+          <RiffleSlot
+            key={item.key}
+            front={from + offset === index}
+            index={from + offset}
+            item={item}
+            position={position}
+            section={sections[item.sectionIndex]}
+            sectionCount={sections.length}
+            onActivate={activateSlot}
+          />
+        ))}
       </div>
     </div>
   )
