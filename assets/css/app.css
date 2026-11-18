@@ -466,6 +466,15 @@ body[data-scroll-locked] .app-shell-main {
   overflow-y: hidden;
 }
 
+/* The same lock sets this variable on <body>. Inherited, it restyles every
+   element on the page when a dialog opens and again when it closes, which
+   stalls phones on big pages such as a deck; nothing here reads it. */
+@property --removed-body-scroll-bar-size {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
 @media (min-width: 40rem) {
   .app-shell-header,
   .app-shell-main {
