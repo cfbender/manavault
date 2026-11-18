@@ -34,7 +34,8 @@ const apolloMocks = vi.hoisted(() => ({
         format: "commander",
         status: "completed",
         error: null,
-        analysis: "## Overview\n\nBuild value, then turn the corner with [[Sun Titan]].",
+        analysis:
+          "## Overview\n\nBuild value, then turn the corner with [[Sun Titan]].\n\n## Ways to power it up\n\n- **Ramp** into {W}{W} threats",
         model: "anthropic/claude-sonnet-4",
         commanderBracket: 3,
         commanderBracketEstimate: 2,
@@ -172,4 +173,36 @@ test("shows why a failed analysis did not complete, without polling", () => {
   } finally {
     apolloMocks.historyData.deckAnalysisRequests = saved
   }
+})
+
+test("copies a completed analysis as plain text or as Markdown", async () => {
+  const user = userEvent.setup()
+  render(<DeckAnalysisDialog open onOpenChange={() => undefined} />)
+
+  await user.click(screen.getByRole("button", { name: "Copy as text" }))
+  expect(await navigator.clipboard.readText()).toBe(
+    "Overview\n\nBuild value, then turn the corner with Sun Titan.\n\nWays to power it up\n\n- Ramp into {W}{W} threats",
+  )
+
+  await user.click(screen.getByRole("button", { name: "More copy options" }))
+  await user.click(await screen.findByRole("menuitem", { name: "Copy as Markdown" }))
+  expect(await navigator.clipboard.readText()).toBe(
+    apolloMocks.historyData.deckAnalysisRequests[0]?.analysis,
+  )
+  expect(screen.getByRole("status").textContent).toBe("Copied as Markdown")
+})
+
+test("offers no copy button while an analysis is pending", async () => {
+  const user = userEvent.setup()
+  render(<DeckAnalysisDialog open onOpenChange={() => undefined} />)
+
+  await user.click(screen.getByRole("button", { name: "Paste list" }))
+  await user.type(screen.getByRole("textbox", { name: /Decklist text/ }), "1 Sol Ring")
+  await user.click(screen.getByRole("button", { name: "Analyze decklist" }))
+
+  const [pending, completed] = screen
+    .getByRole("dialog", { name: "Analyze a deck list" })
+    .querySelectorAll("details")
+  expect(pending?.querySelector('[aria-label="Copy analysis"]')).toBeNull()
+  expect(completed?.querySelector('[aria-label="Copy analysis"]')).not.toBeNull()
 })

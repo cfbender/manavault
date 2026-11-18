@@ -1,6 +1,8 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import {
+  Check,
   ChevronDown,
+  Copy,
   ExternalLink,
   History,
   Link as LinkIcon,
@@ -26,7 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu"
 import { Textarea } from "../../components/ui/textarea"
+import { copyTextToClipboard } from "../../lib/clipboard"
 import { cn, safeHttpUrl, titleize } from "../../lib/utils"
 import { formatDate } from "../settings/data"
 import { commanderBracketLabel } from "./deck-bracket"
@@ -325,17 +334,24 @@ function AnalysisHistoryItem({ open, request }: { open: boolean; request: Analys
         />
       </summary>
       <div className="border-t border-base-300 px-4 py-4 sm:px-5">
-        {sourceUrl ? (
-          <a
-            className="mb-5 inline-flex min-h-10 items-center gap-2 text-sm font-bold text-primary underline decoration-primary/35 underline-offset-4 hover:decoration-primary"
-            href={sourceUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
-            <LinkIcon className="h-4 w-4" aria-hidden="true" />
-            Open source decklist
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          </a>
+        {sourceUrl || request.status === "completed" ? (
+          <div className="mb-5 flex flex-wrap items-center gap-3">
+            {sourceUrl ? (
+              <a
+                className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-primary underline decoration-primary/35 underline-offset-4 hover:decoration-primary"
+                href={sourceUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <LinkIcon className="h-4 w-4" aria-hidden="true" />
+                Open source decklist
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            ) : null}
+            {request.status === "completed" ? (
+              <CopyAnalysisButton analysis={request.analysis} />
+            ) : null}
+          </div>
         ) : null}
         {request.status === "pending" ? (
           <p className="flex items-center gap-2 text-sm text-base-content/70" role="status">
@@ -362,4 +378,97 @@ function AnalysisHistoryItem({ open, request }: { open: boolean; request: Analys
       </div>
     </details>
   )
+}
+
+/**
+ * Copies the analysis as plain text, or as its Markdown from the menu. The
+ * button itself confirms the copy: toasts render under open dialogs.
+ */
+function CopyAnalysisButton({ analysis }: { analysis: string }) {
+  const [copied, setCopied] = useState<"text" | "markdown" | "failed" | null>(null)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  async function copy(format: "text" | "markdown") {
+    const ok = await copyTextToClipboard(
+      format === "text" ? markdownToPlainText(analysis) : analysis,
+    )
+    setCopied(ok ? format : "failed")
+  }
+
+  const status =
+    copied === "text"
+      ? "Copied as text"
+      : copied === "markdown"
+        ? "Copied as Markdown"
+        : copied === "failed"
+          ? "Copy failed"
+          : ""
+
+  return (
+    <div className="ml-auto inline-flex" role="group" aria-label="Copy analysis">
+      <Button
+        className="rounded-r-none"
+        size="sm"
+        type="button"
+        variant="outline"
+        onClick={() => void copy("text")}
+      >
+        {copied === "text" || copied === "markdown" ? (
+          <Check className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Copy className="h-4 w-4" aria-hidden="true" />
+        )}
+        <span aria-hidden={Boolean(status)}>{status || "Copy as text"}</span>
+        {status ? <span className="sr-only">Copy as text</span> : null}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label="More copy options"
+            className="-ml-px rounded-l-none px-2"
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onSelect={() => void copy("markdown")}>
+            Copy as Markdown
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <span className="sr-only" role="status">
+        {status}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * The analysis Markdown as readable plain text: headings, emphasis, code
+ * marks, and links lose their syntax, card references keep just the card
+ * name, and list items keep a "- " bullet. Mana symbols stay as `{W}`.
+ */
+function markdownToPlainText(markdown: string) {
+  return markdown
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/^\s{0,3}#{1,6}\s+/, "")
+        .replace(/^\s{0,3}>\s?/, "")
+        .replace(/^(\s*)[*+]\s+/, "$1- ")
+        .replace(/\[\[([^\]\n]+)\]\]/g, "$1")
+        .replace(/!?\[([^\]\n]*)\]\([^)\n]*\)/g, "$1")
+        .replace(/(\*\*|__)(?=\S)(.+?)(?<=\S)\1/g, "$2")
+        .replace(/(^|[^\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\w)/g, "$1$2")
+        .replace(/`([^`\n]+)`/g, "$1"),
+    )
+    .join("\n")
 }
