@@ -78,7 +78,7 @@ docker run --rm \
   -e MANAVAULT_SECRET_KEY="$(openssl rand -base64 48)" \
   -e MANAVAULT_AUTH_DISABLED=true \
   -e MANAVAULT_PUBLIC_HOST=localhost \
-  ghcr.io/cfbender/manavault:2.4.0
+  ghcr.io/cfbender/manavault:2.5.0
 ```
 
 Visit <http://localhost:4000>. The first boot downloads the Scryfall catalog in
@@ -93,7 +93,7 @@ prints the hash):
 
 ```sh
 openssl rand -base64 48
-docker run --rm --entrypoint /app/bin/manavault ghcr.io/cfbender/manavault:2.4.0 \
+docker run --rm --entrypoint /app/bin/manavault ghcr.io/cfbender/manavault:2.5.0 \
   hash-password 'your-password'
 ```
 
@@ -102,7 +102,7 @@ Then run the published image with Docker Compose:
 ```yaml
 services:
   manavault:
-    image: ghcr.io/cfbender/manavault:2.4.0
+    image: ghcr.io/cfbender/manavault:2.5.0
     container_name: manavault
     restart: unless-stopped
     ports:

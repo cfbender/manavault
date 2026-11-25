@@ -8,6 +8,45 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.5.0] - 2026-11-25
+
+### Bug Fixes
+
+- **ai:** Allow high-effort OpenRouter completions to finish ([`0870bebd`](../../commit/0870bebde827db6c591e259231ee5cb0c8261a41))
+- **ai:** Satisfy clippy on the longer completion timeout ([`062f42c6`](../../commit/062f42c6dde7b41e2e3a1f04e5e0d330ec3c9f96))
+- **ai:** Give reasoning room to finish and stop retrying repeat failures ([`fd1bfeb3`](../../commit/fd1bfeb3750b53941c928ad499363bf696f83452))
+- **ai:** Stop deck analyses from calling the plan a chain ([`8d3c3493`](../../commit/8d3c3493962630aefec9431088ed481466baa228))
+- **ai:** Run one-time decklist analysis as a background job ([`86d64dac`](../../commit/86d64dac4670f085d2ea6a357a7cdfc0c29ed54a))
+- **deps:** Bump jdx/mise-action from 5.2.7 to 5.3.0 (#186) ([`ea00bfed`](../../commit/ea00bfed9786b8c78b95f4950eb0769b00ad859e))
+- **deps:** Bump rust from 1.99.1-alpine3.24 to 1.100.0-alpine3.24 (#187) ([`a6c2c241`](../../commit/a6c2c2415b85f1451e6bbbd763f8483e8c4c82f9))
+- **deps:** Bump golang from 1.27.3-alpine3.24 to 1.27.4-alpine3.24 (#188) ([`497e9ba5`](../../commit/497e9ba53597c27ceb5237382a476fe5ee4e0874))
+
+### CI
+
+- **release:** Publish GitHub release notes from CHANGELOG.md ([`9388d99c`](../../commit/9388d99c0667e327ef6f989666de0069987d8046))
+
+### Chores
+
+- Disable amp thread trailers in commits ([`b11ccd04`](../../commit/b11ccd04ea63200cdc70a7f1631bde6184124d51))
+
+### Features
+
+- **decks:** Copy one-time analyses as text or Markdown ([`b5757d5c`](../../commit/b5757d5c282e875531a71e1fa356af46c72b649e))
+
+### Performance
+
+- **catalog:** Index flavor names for search suggestion aliases ([`9b06e8da`](../../commit/9b06e8da713bad42cde6c1abed2230d15bb54d43))
+- **catalog:** Index set summaries and previews ([`82ee4072`](../../commit/82ee4072342c1a68c70d80bca2bcb48102618245))
+- **catalog:** Cover card names with layout for the suggestion index ([`a3aa4166`](../../commit/a3aa4166a85fdc22aef528bdeaa441480b04af79))
+- **cards:** Sample art colors once a card settles, off the main thread ([`4be65659`](../../commit/4be656590991f9503f9670b19e421485a8a339ee))
+- **cards:** Slide the filmstrip with CSS transforms ([`c9cb1932`](../../commit/c9cb19324fccde9d27238ab6fe29634704637d31))
+- **sets:** Memoize the flip stack's card slots ([`05db57cc`](../../commit/05db57cced8b92a94c3c4f54f3cd0b1e4ff49731))
+- Keep the dialog scroll lock from restyling the whole page ([`171ef52a`](../../commit/171ef52af15fcca41493f999d9dab1088befd466))
+
+### Tests
+
+- Prune tests that guard no behavior ([`51e4a639`](../../commit/51e4a639f0c3c616787e8acb2335bf85229b5aab))
+
 ## [2.4.0] - 2026-11-17
 
 ### Bug Fixes
