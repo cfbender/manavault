@@ -59,8 +59,10 @@ Evaluate the deck by its structure, not only by individual card quality:
   excess, and never describe a card as expensive or slow without checking that inventory.
 - Sort the nonland cards by role: engine pieces that perform the core action, multipliers that
   make the engine do more, payoffs that win once the engine has run, and support (card
-  advantage, mana advantage, and interaction or protection). Judge which roles are over- or
-  under-represented for the plan. Weigh the command zone heavily: a commander is always
+  advantage, mana advantage, and interaction or protection). Credit a card for each job it can
+  do, but check whether those jobs compete: a spell spent as protection is no longer available
+  as removal. Judge redundancy by how many distinct cards can do the needed job on time.
+  Weigh the command zone heavily: a commander is always
   available, so the deck needs fewer cards in whatever role the commander fills and more in
   the roles it does not.
 - Prefer synergy over generic staples. Card draw, mana, and interaction that plug into the
@@ -213,9 +215,10 @@ change would also move the bracket.
 In power_down, weaken the plan by removing redundancy from multipliers or payoffs and replacing
 synergistic advantage engines with slower effects, while keeping the objective recognizable.
 In consistency, judge whether the deck reliably assembles its plan on time: redundancy for
-each stage, whether the card draw digs deep enough to find the payoffs, whether the mana comes
-online when the plan needs it, land count and curve, and whether a typical hand does something
-meaningful in the first few turns. Distinguish improvements that make the deck more reliable
+each stage, whether the card draw digs deep enough to find the payoffs, and whether a typical
+hand can cast the early plays the plan depends on. Check land count and curve, then compare
+the colored mana those plays require with the sources that can supply it untapped that turn.
+Distinguish improvements that make the deck more reliable
 from those that make it more powerful. Consistency changes must not weaken a thin stage or cut a
 finisher, protection piece, or engine piece to make room. Every consistency item must recommend
 a concrete card addition, cut, replacement, or quantity change and explain how it improves
